@@ -27,6 +27,7 @@ dev = [
     "ruff>=0.9",
     "mypy>=1.15",
     "types-PyYAML",
+    "pre-commit>=4.0",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -1,0 +1,121 @@
+# Dodecane backmapping settings
+# 12-carbon linear alkane: 6 CG beads (A1, B1-B4, A2), 12 AT atoms (C1-C12)
+# CG interactions: tabulated (IBI-derived)
+# AT interactions: GROMOS united-atom (CH3/CH2)
+
+molecules:
+  - name: DOD
+    ident: DOD
+    source:
+      coordinates: dodecane_single.gro
+      topology: topol_aa.top
+    beads:
+      - name: A1
+        type: A
+        atoms:
+          - 1:DOD:C1
+          - 1:DOD:C2
+      - name: B1
+        type: B
+        atoms:
+          - 1:DOD:C3
+          - 1:DOD:C4
+      - name: B2
+        type: B
+        atoms:
+          - 1:DOD:C5
+          - 1:DOD:C6
+      - name: B3
+        type: B
+        atoms:
+          - 1:DOD:C7
+          - 1:DOD:C8
+      - name: B4
+        type: B
+        atoms:
+          - 1:DOD:C9
+          - 1:DOD:C10
+      - name: A2
+        type: A
+        atoms:
+          - 1:DOD:C11
+          - 1:DOD:C12
+
+cg_system:
+  coordinates: cg_conf.gro
+  topology: topol_cg.top
+  format: gromacs
+
+cross_interactions:
+  bonds:
+    # CG-CG tabulated cross bonds (weighted by 1−λ²)
+    - params: "8 1 1.0"
+      table: table_b1.xvg
+      pairs:
+        - [DOD:A1, DOD:B1]
+        - [DOD:B1, DOD:B2]
+        - [DOD:B2, DOD:B3]
+        - [DOD:B3, DOD:B4]
+      cg_bonded: true
+    - params: "8 1 1.0"
+      table: table_b1.xvg
+      pairs:
+        - [DOD:B4, DOD:A2]
+      cg_bonded: true
+    # AT-AT harmonic cross bonds (weighted by λ²)
+    - params: "1 0.153 334720.0"
+      pairs:
+        - [DOD:C2, DOD:C3]
+        - [DOD:C4, DOD:C5]
+        - [DOD:C6, DOD:C7]
+        - [DOD:C8, DOD:C9]
+        - [DOD:C10, DOD:C11]
+
+  angles:
+    # AT-AT harmonic cross angles (weighted by λ²)
+    - params: "1 111.0 530.0"
+      triples:
+        - [DOD:C1, DOD:C2, DOD:C3]
+        - [DOD:C2, DOD:C3, DOD:C4]
+        - [DOD:C3, DOD:C4, DOD:C5]
+        - [DOD:C4, DOD:C5, DOD:C6]
+        - [DOD:C5, DOD:C6, DOD:C7]
+        - [DOD:C6, DOD:C7, DOD:C8]
+        - [DOD:C7, DOD:C8, DOD:C9]
+        - [DOD:C8, DOD:C9, DOD:C10]
+        - [DOD:C9, DOD:C10, DOD:C11]
+        - [DOD:C10, DOD:C11, DOD:C12]
+
+simulation:
+  alpha: 0.0001
+  initial_resolution: 0.0
+  nonuniform_lambda: false
+
+  timestep: 0.001            # ps
+  timestep_backmapping: 0.001
+
+  equilibration_steps: 10000
+  production_steps: 10000
+
+  temperature: 298.0          # K
+  thermostat: langevin
+  thermostat_gamma: 30.0      # 1/ps
+  thermostat_target: atomistic
+
+  lj_cutoff: 1.4              # nm
+  cg_cutoff: 1.4              # nm
+  coulomb_cutoff: 0.9          # nm
+
+  table_groups: [A, B]
+
+  exclusion_nrexcl: 3
+
+  energy_interval: 1000
+  trajectory_interval: 1000
+
+  rng_seed: 12345
+
+output:
+  prefix: dodecane
+  format: lammps
+  units: real

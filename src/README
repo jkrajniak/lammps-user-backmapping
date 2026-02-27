@@ -1,0 +1,28 @@
+This package implements time-dependent backmapping (reverse mapping) from
+coarse-grained to atomistic resolution in LAMMPS.
+
+The method ramps a per-atom resolution parameter lambda from 0 (pure CG)
+to 1 (pure AT) uniformly across the simulation box, gradually restoring
+atomistic detail. It implements the method described in:
+
+  Krajniak et al., "Generic Adaptive Resolution Method for Reverse Mapping
+  of Polymers from Coarse-Grained to Atomistic Descriptions",
+  J. Chem. Theory Comput. 2016, 12, 5549-5562.
+  DOI: 10.1021/acs.jctc.6b00595
+
+Components:
+
+  fix backmap           - lambda ramp, CG-AT mapping, COM tracking,
+                          CG force distribution
+  pair_style backmap    - lambda-weighted non-bonded pair forces
+  bond_style backmap/*  - lambda-weighted cross-CG bond forces
+  angle_style backmap/* - lambda-weighted cross-CG angle forces
+
+Usage:
+
+  See the examples/ directory and the accompanying Python input generator
+  (backmap-prep) for complete workflow examples.
+
+Authors:
+
+  Jakub Krajniak (jkrajniak@gmail.com)

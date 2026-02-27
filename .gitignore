@@ -49,6 +49,7 @@ compile_commands.json
 build/
 
 # --- Editor / IDE ---
+.cursor/
 .vscode/
 *.swp
 *.swo
