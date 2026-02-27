@@ -125,6 +125,22 @@ Reference:
 
 ---
 
+## Documentation & Change Log
+
+- **CHANGELOG.md** — Every user-visible change (features, fixes, breaking
+  changes) must be recorded in `CHANGELOG.md` at the repository root. Follow
+  the [Keep a Changelog](https://keepachangelog.com/) format with sections
+  `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, and `Security` under
+  each release heading. Update the `[Unreleased]` section as part of the same
+  commit or PR that introduces the change.
+- **README.md** — The top-level `README.md` must always reflect the current
+  state of the project. When a change affects installation steps, usage
+  instructions, supported features, CLI options, or repository layout, the
+  README must be updated in the same commit or PR. Stale documentation is
+  treated as a defect.
+
+---
+
 ## Repository Layout
 
 ```
