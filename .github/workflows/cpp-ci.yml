@@ -1,0 +1,84 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".github/workflows/cpp-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".github/workflows/cpp-ci.yml"
+
+concurrency:
+  group: cpp-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LAMMPS_VERSION: stable_2Aug2023_update3
+
+jobs:
+  build:
+    name: Build against LAMMPS (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libopenmpi-dev
+
+      - name: Install build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake open-mpi
+
+      - name: Cache LAMMPS source
+        uses: actions/cache@v4
+        id: cache-lammps
+        with:
+          path: lammps
+          key: lammps-${{ env.LAMMPS_VERSION }}-${{ runner.os }}
+
+      - name: Download LAMMPS
+        if: steps.cache-lammps.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ env.LAMMPS_VERSION }} \
+            https://github.com/lammps/lammps.git
+
+      - name: Copy package into LAMMPS
+        run: cp src/*.cpp src/*.h lammps/src/
+
+      - name: Build LAMMPS with backmap package
+        run: |
+          cd lammps
+          mkdir -p build && cd build
+          cmake ../cmake \
+            -D BUILD_MPI=on \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D BUILD_SHARED_LIBS=off
+          cmake --build . -j $(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Verify binary
+        run: lammps/build/lmp -h | head -20
+
+  clang-format:
+    name: C++ Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          clang-format --style=file --fallback-style=Google --dry-run --Werror \
+            src/*.cpp src/*.h
