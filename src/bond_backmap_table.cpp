@@ -31,6 +31,7 @@
 #include "force.h"
 #include "memory.h"
 #include "neighbor.h"
+#include "text_file_reader.h"
 #include "tokenizer.h"
 #include "update.h"
 #include "utils.h"

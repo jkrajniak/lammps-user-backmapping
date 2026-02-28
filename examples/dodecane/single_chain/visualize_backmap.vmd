@@ -1,0 +1,124 @@
+# VMD Tcl script for backmapping movie visualization
+# Loads the LAMMPS dump trajectory and renders the CG→AT transition
+#
+# Usage:
+#   vmd -e visualize_backmap.vmd
+#
+# Or interactively:
+#   source visualize_backmap.vmd
+#
+# Requires: dump.movie.lammpstrj from the single-chain LAMMPS run
+
+# --- Load trajectory ---
+mol new dump.movie.lammpstrj type lammpstrj waitfor all
+
+# --- Display settings ---
+display projection Orthographic
+display depthcue on
+display cuemode Linear
+display cuestart 1.0
+display cueend 4.0
+axes location Off
+color Display Background white
+
+# --- Delete default representation ---
+mol delrep 0 top
+
+# --- CG beads: large VDW spheres, blue ---
+mol representation VDW 1.2 20
+mol selection {type 1 2}
+mol color ColorID 0
+mol material Transparent
+mol addrep top
+
+# --- AT CH3 atoms: smaller VDW, orange ---
+mol representation VDW 0.6 20
+mol selection {type 3}
+mol color ColorID 3
+mol material Transparent
+mol addrep top
+
+# --- AT CH2 atoms: smaller VDW, yellow ---
+mol representation VDW 0.5 20
+mol selection {type 4}
+mol color ColorID 4
+mol material Transparent
+mol addrep top
+
+# --- AT bonds: DynamicBonds ---
+mol representation DynamicBonds 2.0 0.1 20
+mol selection {type 3 4}
+mol color ColorID 3
+mol material Opaque
+mol addrep top
+
+# --- CG bonds: DynamicBonds ---
+mol representation DynamicBonds 5.0 0.2 20
+mol selection {type 1 2}
+mol color ColorID 0
+mol material Transparent
+mol addrep top
+
+# --- Rendering setup ---
+# Center view on the molecule
+mol top 0
+display resetview
+
+# Rotate slightly for a good viewing angle
+rotate x by -20
+rotate y by 30
+
+# --- Animation procedure ---
+proc render_movie {prefix {start 0} {step 1}} {
+    set nframes [molinfo top get numframes]
+    puts "Rendering $nframes frames..."
+
+    for {set i $start} {$i < $nframes} {incr i $step} {
+        animate goto $i
+
+        # Compute lambda from frame index
+        # Phase 1: frames 0-49 (steps 0-490), lambda=0
+        # Phase 2: frames 50-149 (steps 500-1490), lambda ramps
+        # Phase 3: frames 150-199 (steps 1500-1990), lambda=1
+        set lambda_val 0.0
+        if {$i >= 50 && $i < 150} {
+            set lambda_val [expr {($i - 50) / 100.0}]
+        } elseif {$i >= 150} {
+            set lambda_val 1.0
+        }
+
+        # Adjust CG transparency based on lambda
+        set cg_opacity [expr {1.0 - $lambda_val}]
+        set at_opacity $lambda_val
+
+        # CG rep (index 0): fade out
+        mol modmaterial 0 top Transparent
+        # AT reps (index 1,2): fade in
+        # Note: VMD material transparency doesn't support per-frame changes easily
+        # The trajectory already encodes lambda in f_bm — use Tcl coloring if needed
+
+        set fname [format "%s.%04d.tga" $prefix $i]
+        render TachyonInternal $fname
+        if {[expr {$i % 20}] == 0} {
+            puts "  Frame $i/$nframes (lambda=$lambda_val)"
+        }
+    }
+    puts "Done. Combine with:"
+    puts "  ffmpeg -framerate 15 -i ${prefix}.%04d.tga -c:v libx264 -pix_fmt yuv420p backmap_movie.mp4"
+}
+
+puts ""
+puts "=== Backmapping VMD Visualization ==="
+puts "Loaded trajectory: dump.movie.lammpstrj"
+puts ""
+puts "To render a movie, run:"
+puts "  render_movie backmap_frame"
+puts ""
+puts "Representations:"
+puts "  Rep 0: CG beads (VDW, blue, transparent)"
+puts "  Rep 1: AT CH3 (VDW, orange)"
+puts "  Rep 2: AT CH2 (VDW, yellow)"
+puts "  Rep 3: AT bonds (DynamicBonds)"
+puts "  Rep 4: CG bonds (DynamicBonds)"
+puts ""
+puts "Use the animation slider to scrub through the backmapping process."

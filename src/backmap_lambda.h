@@ -10,7 +10,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-/* Shared lambda-access utilities for all backmap/* styles.
+/* Shared lambda-access utilities for all backmap styles.
    Provides: fix lookup, per-atom lambda access, weight computation,
    and negligible-weight check.
 

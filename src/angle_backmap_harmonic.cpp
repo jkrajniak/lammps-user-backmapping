@@ -172,28 +172,29 @@ void AngleBackmapHarmonic::compute(int eflag, int vflag) {
     double a12 = -a / (r1 * r2);
     double a22 = a * c / rsq2;
 
-    double f1x = a11 * delx1 + a12 * delx2;
-    double f1y = a11 * dely1 + a12 * dely2;
-    double f1z = a11 * delz1 + a12 * delz2;
-    double f3x = a22 * delx2 + a12 * delx1;
-    double f3y = a22 * dely2 + a12 * dely1;
-    double f3z = a22 * delz2 + a12 * delz1;
+    double f1[3], f3[3];
+    f1[0] = a11 * delx1 + a12 * delx2;
+    f1[1] = a11 * dely1 + a12 * dely2;
+    f1[2] = a11 * delz1 + a12 * delz2;
+    f3[0] = a22 * delx2 + a12 * delx1;
+    f3[1] = a22 * dely2 + a12 * dely1;
+    f3[2] = a22 * delz2 + a12 * delz1;
 
-    f[i1][0] += f1x;
-    f[i1][1] += f1y;
-    f[i1][2] += f1z;
-    f[i2][0] -= f1x + f3x;
-    f[i2][1] -= f1y + f3y;
-    f[i2][2] -= f1z + f3z;
-    f[i3][0] += f3x;
-    f[i3][1] += f3y;
-    f[i3][2] += f3z;
+    f[i1][0] += f1[0];
+    f[i1][1] += f1[1];
+    f[i1][2] += f1[2];
+    f[i2][0] -= f1[0] + f3[0];
+    f[i2][1] -= f1[1] + f3[1];
+    f[i2][2] -= f1[2] + f3[2];
+    f[i3][0] += f3[0];
+    f[i3][1] += f3[1];
+    f[i3][2] += f3[2];
 
     double eangle = 0.0;
     if (eflag) eangle = w * k[atype] * dtheta * dtheta;
 
     if (evflag)
-      ev_tally(i1, i2, i3, nlocal, newton_bond, eangle, f1x, f3x, delx1, dely1,
+      ev_tally(i1, i2, i3, nlocal, newton_bond, eangle, f1, f3, delx1, dely1,
                delz1, delx2, dely2, delz2);
   }
 }
@@ -210,13 +211,13 @@ double AngleBackmapHarmonic::single(int atype, int i1, int i2, int i3) {
   double delx1 = x[i1][0] - x[i2][0];
   double dely1 = x[i1][1] - x[i2][1];
   double delz1 = x[i1][2] - x[i2][2];
-  domain->minimum_image(delx1, dely1, delz1);
+  domain->minimum_image(FLERR, delx1, dely1, delz1);
   double r1 = sqrt(delx1 * delx1 + dely1 * dely1 + delz1 * delz1);
 
   double delx2 = x[i3][0] - x[i2][0];
   double dely2 = x[i3][1] - x[i2][1];
   double delz2 = x[i3][2] - x[i2][2];
-  domain->minimum_image(delx2, dely2, delz2);
+  domain->minimum_image(FLERR, delx2, dely2, delz2);
   double r2 = sqrt(delx2 * delx2 + dely2 * dely2 + delz2 * delz2);
 
   double c = (delx1 * delx2 + dely1 * dely2 + delz1 * delz2) / (r1 * r2);

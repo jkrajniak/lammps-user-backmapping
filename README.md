@@ -47,16 +47,26 @@ Makefile                    Top-level convenience targets
 
 ### C++ Package (LAMMPS Styles)
 
-Copy (or symlink) the files in `src/` into the LAMMPS source tree and rebuild:
+Use the install script to copy files and register the package (auto-detects
+CMake vs traditional make):
 
 ```bash
-# Traditional make
-cp src/*.cpp src/*.h /path/to/lammps/src/
-cd /path/to/lammps/src && make yes-user-backmap && make mpi
+./install.sh /path/to/lammps           # install
+./install.sh --uninstall /path/to/lammps   # remove
+```
 
-# CMake
-cmake -D PKG_USER-BACKMAP=yes /path/to/lammps/cmake
+Then rebuild LAMMPS:
+
+```bash
+# CMake (recommended)
+cd build
+cmake -D PKG_BACKMAP=yes /path/to/lammps/cmake
 cmake --build .
+
+# Traditional make
+cd /path/to/lammps/src
+make yes-backmap
+make mpi
 ```
 
 ### Python CLI (`backmap-prep`)

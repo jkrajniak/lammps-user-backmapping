@@ -1,0 +1,70 @@
+# LAMMPS input — single dodecane chain backmapping verification
+# Produces high-frequency trajectory for movie visualization
+# Reference: Krajniak et al., JCTC 2016, DOI: 10.1021/acs.jctc.6b00595
+
+units real
+atom_style full
+boundary p p p
+
+read_data dodecane_single_chain.data
+
+pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
+pair_coeff 1 1 none
+pair_coeff 1 2 none
+pair_coeff 1 3 none
+pair_coeff 1 4 none
+pair_coeff 2 2 none
+pair_coeff 2 3 none
+pair_coeff 2 4 none
+pair_coeff 3 3 atomistic 0.207266 3.748000
+pair_coeff 3 4 atomistic 0.156387 3.826500
+pair_coeff 4 4 atomistic 0.117997 3.905000
+
+bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
+bond_coeff 1 harmonic 800.000883 1.530000
+bond_coeff 2 backmap/table cg table_b1.table ENTRY
+bond_coeff 3 backmap/table cg table_b1.table ENTRY
+bond_coeff 4 backmap/harmonic at 800.000883 1.530000
+
+angle_style backmap/harmonic
+angle_coeff 1 at 126.673180 111.0000
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+group at_atoms type 3 4
+group cg_atoms type 1 2
+
+# cg_type 2 → types 1,2 are CG beads; alpha=0.0005 → lambda 0→1 in 2000 steps
+fix bm all backmap cg_type 2 alpha 0.0005 lambda0 0.0 nonuniform no
+
+fix integrate at_atoms nve
+fix thermo at_atoms langevin 298.0 298.0 33.3 12345
+
+timestep 1.00
+
+# --- Thermodynamic output ---
+thermo 50
+thermo_style custom step temp pe ke etotal press
+
+# --- Trajectory for movie: dump every 10 steps ---
+# Custom dump: id mol type x y z + per-atom lambda (f_bm)
+dump movie all custom 10 dump.movie.lammpstrj id mol type x y z f_bm
+dump_modify movie sort id
+
+# --- XYZ dump for easy visualization in OVITO / VMD ---
+dump xyz_traj all xyz 10 dump.movie.xyz
+dump_modify xyz_traj element A B CH3 CH2
+
+# Phase 1: CG equilibration (lambda frozen at 0) — long, to show CG dynamics
+fix_modify bm active no
+run 3000
+
+# Phase 2: Backmapping (lambda ramps 0 → 1, alpha=0.0005 → 2000 steps)
+fix_modify bm active yes
+run 2000
+
+# Phase 3: AT production (lambda stays at 1)
+fix_modify bm active no
+run 1000
+
+write_data dodecane_final.data

@@ -226,7 +226,7 @@ void FixBackmap::end_of_step() {
       double dx = x[at][0] - x[cg][0];
       double dy = x[at][1] - x[cg][1];
       double dz = x[at][2] - x[cg][2];
-      domain->minimum_image(dx, dy, dz);
+      domain->minimum_image(FLERR, dx, dy, dz);
 
       com_dx += m_i * dx;
       com_dy += m_i * dy;
