@@ -1,0 +1,64 @@
+site_name: LAMMPS Backmapping Package
+site_description: Time-dependent backmapping from coarse-grained to atomistic resolution
+site_url: https://jkrajniak.github.io/lammps-user-backmapping/
+repo_url: https://github.com/jkrajniak/lammps-user-backmapping
+repo_name: jkrajniak/lammps-user-backmapping
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - tables
+  - attr_list
+  - def_list
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Theory: theory.md
+  - Settings Reference: settings-reference.md
+  - Tutorial:
+      - Setting Up a New System: tutorial-new-system.md
+  - LAMMPS Components:
+      - fix backmap: components/fix-backmap.md
+      - pair_style backmap: components/pair-backmap.md
+      - Bond Styles: components/bond-styles.md
+      - Angle Style: components/angle-styles.md
+  - CLI Reference:
+      - backmap-prep: cli/backmap-prep.md
+
+strict: true

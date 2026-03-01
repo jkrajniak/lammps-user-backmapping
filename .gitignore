@@ -58,6 +58,9 @@ build/
 *.sublime-project
 *.sublime-workspace
 
+# --- Documentation ---
+site/
+
 # --- OS ---
 .DS_Store
 Thumbs.db

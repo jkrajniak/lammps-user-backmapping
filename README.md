@@ -12,6 +12,9 @@ detail.
 > *J. Chem. Theory Comput.* 2016, 12, 5549–5562.
 > [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
 
+**[Full Documentation](https://jkrajniak.github.io/lammps-user-backmapping/)**
+— settings reference, tutorials, theory, and LAMMPS component docs.
+
 ## Components
 
 | Component | Description |
