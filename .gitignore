@@ -61,6 +61,13 @@ build/
 # --- Documentation ---
 site/
 
+# --- LAMMPS output ---
+log.lammps
+dump.*
+*.lammpstrj
+*.mp4
+frames/
+
 # --- OS ---
 .DS_Store
 Thumbs.db
