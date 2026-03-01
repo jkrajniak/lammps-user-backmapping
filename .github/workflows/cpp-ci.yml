@@ -53,6 +53,15 @@ jobs:
           git clone --depth 1 --branch ${{ env.LAMMPS_VERSION }} \
             https://github.com/lammps/lammps.git
 
+      - name: Clean stale artifacts from cached LAMMPS tree
+        run: |
+          cd lammps/src
+          rm -f *_backmap*.cpp *_backmap*.h fix_backmap.* pair_backmap.* backmap_lambda.h
+          rm -rf BACKMAP
+          make no-all purge 2>/dev/null || true
+          cd ../..
+          rm -rf lammps/build
+
       - name: Install package into LAMMPS
         run: ./install.sh lammps
 
