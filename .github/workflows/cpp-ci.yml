@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  LAMMPS_VERSION: stable_2Aug2023_update3
+  LAMMPS_VERSION: stable_22Jul2025_update2
 
 jobs:
   build:
