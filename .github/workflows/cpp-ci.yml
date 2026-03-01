@@ -78,11 +78,14 @@ jobs:
 
       - name: Verify backmap package is available
         run: |
-          lammps/build/lmp -h | grep -i backmap
-          echo "--- Checking fix backmap ---"
-          lammps/build/lmp -h | grep -i "fix.*backmap"
-          echo "--- Checking pair_style backmap ---"
-          lammps/build/lmp -h | grep -i "pair.*backmap"
+          lammps/build/lmp -h > lmp_help.txt
+          echo "--- Full help output (backmap lines) ---"
+          grep -i backmap lmp_help.txt
+          echo "--- Checking BACKMAP package is listed ---"
+          grep -q "^BACKMAP" lmp_help.txt
+          echo "--- Checking backmap styles are registered ---"
+          grep -q "backmap/harmonic" lmp_help.txt
+          grep -q "backmap/table" lmp_help.txt
 
   clang-format:
     name: C++ Format Check
