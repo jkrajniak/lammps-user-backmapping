@@ -53,21 +53,27 @@ jobs:
           git clone --depth 1 --branch ${{ env.LAMMPS_VERSION }} \
             https://github.com/lammps/lammps.git
 
-      - name: Copy package into LAMMPS
-        run: cp src/*.cpp src/*.h lammps/src/
+      - name: Install package into LAMMPS
+        run: ./install.sh lammps
 
       - name: Build LAMMPS with backmap package
         run: |
           cd lammps
           mkdir -p build && cd build
           cmake ../cmake \
+            -D PKG_BACKMAP=yes \
             -D BUILD_MPI=on \
             -D CMAKE_BUILD_TYPE=Release \
             -D BUILD_SHARED_LIBS=off
           cmake --build . -j $(nproc 2>/dev/null || sysctl -n hw.ncpu)
 
-      - name: Verify binary
-        run: lammps/build/lmp -h | head -20
+      - name: Verify backmap package is available
+        run: |
+          lammps/build/lmp -h | grep -i backmap
+          echo "--- Checking fix backmap ---"
+          lammps/build/lmp -h | grep -i "fix.*backmap"
+          echo "--- Checking pair_style backmap ---"
+          lammps/build/lmp -h | grep -i "pair.*backmap"
 
   clang-format:
     name: C++ Format Check

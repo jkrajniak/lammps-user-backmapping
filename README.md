@@ -7,11 +7,6 @@ The method ramps a per-atom resolution parameter **lambda** from 0 (pure CG) to
 1 (pure AT) uniformly across the simulation box, gradually restoring atomistic
 detail.
 
-> Krajniak et al., "Generic Adaptive Resolution Method for Reverse Mapping of
-> Polymers from Coarse-Grained to Atomistic Descriptions",
-> *J. Chem. Theory Comput.* 2016, 12, 5549–5562.
-> [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
-
 **[Full Documentation](https://jkrajniak.github.io/lammps-user-backmapping/)**
 — settings reference, tutorials, theory, and LAMMPS component docs.
 
@@ -128,9 +123,36 @@ make pre-commit-all # run pre-commit hooks on all files
 make clean          # remove caches and build artifacts
 ```
 
+## How to Cite
+
+If you use this package in your research, please cite:
+
+> Krajniak, Alejandre, de Fabritiis, Giupponi, "Generic Adaptive Resolution
+> Method for Reverse Mapping of Polymers from Coarse-Grained to Atomistic
+> Descriptions", *J. Chem. Theory Comput.* 2016, 12, 5549–5562.
+> [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
+
+```bibtex
+@article{Krajniak2016,
+  author  = {Krajniak, Jakub and Alejandre, Jes\'us
+             and de Fabritiis, Gianni and Giupponi, Giovanni},
+  title   = {Generic Adaptive Resolution Method for Reverse Mapping
+             of Polymers from Coarse-Grained to Atomistic Descriptions},
+  journal = {J. Chem. Theory Comput.},
+  year    = {2016},
+  volume  = {12},
+  pages   = {5549--5562},
+  doi     = {10.1021/acs.jctc.6b00595}
+}
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-GPL-3.0-or-later
+GPL-3.0-or-later — see [LICENSE](LICENSE) for the full text.
 
 ## Author
 
