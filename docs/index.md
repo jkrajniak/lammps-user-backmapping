@@ -7,11 +7,15 @@ The method ramps a per-atom resolution parameter **&lambda;** from 0 (pure CG)
 to 1 (pure AT) uniformly across the simulation box, gradually restoring
 atomistic detail while maintaining thermodynamic consistency.
 
-!!! cite "Reference"
+!!! cite "References"
     Krajniak et al., "Generic Adaptive Resolution Method for Reverse Mapping of
     Polymers from Coarse-Grained to Atomistic Descriptions",
     *J. Chem. Theory Comput.* 2016, 12, 5549--5562.
     [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
+
+    Krajniak, Zhang et al., "Reverse Mapping Method for Complex Polymer Systems",
+    *J. Comput. Chem.* 2018.
+    [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
 
 ## Features
 

@@ -1,5 +1,6 @@
 site_name: LAMMPS Backmapping Package
 site_description: Time-dependent backmapping from coarse-grained to atomistic resolution
+site_author: Jakub Krajniak, Zidan Zhang
 site_url: https://jkrajniak.github.io/lammps-user-backmapping/
 repo_url: https://github.com/jkrajniak/lammps-user-backmapping
 repo_name: jkrajniak/lammps-user-backmapping
