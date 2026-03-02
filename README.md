@@ -141,23 +141,21 @@ please also cite:
 
 ```bibtex
 @article{krajniak2016generic,
-  title   = {Generic Adaptive Resolution Method for Reverse Mapping
-             of Polymers from Coarse-Grained to Atomistic Descriptions},
-  author  = {Krajniak, Jakub and Pandiyan, Sudharsan
-             and Nies, Erik and Samaey, Giovanni},
-  journal = {Journal of Chemical Theory and Computation},
-  year    = {2016},
-  publisher = {American Chemical Society},
-  doi     = {10.1021/acs.jctc.6b00595}
+  title={Generic Adaptive Resolution Method for Reverse Mapping of Polymers from Coarse-Grained to Atomistic Descriptions},
+  author={Krajniak, Jakub and Pandiyan, Sudharsan and Nies, Erik and Samaey, Giovanni},
+  journal={Journal of Chemical Theory and Computation},
+  year={2016},
+  publisher={American Chemical Society}
 }
 
-@article{Krajniak2018,
-  author  = {Krajniak, Jakub and Zhang, Zidan and Pandiyan, Sudharsan
-             and Nies, Eric and Samaey, Giovanni},
-  title   = {Reverse Mapping Method for Complex Polymer Systems},
-  journal = {J. Comput. Chem.},
-  year    = {2018},
-  doi     = {10.1002/jcc.25129}
+@article{krajniak2018reverse,
+  title={Reverse mapping method for complex polymer systems},
+  author={Krajniak, Jakub and Zhang, Zidan and Pandiyan, Sudharsan and Nies, Eric and Samaey, Giovanni},
+  journal={Journal of Computational Chemistry},
+  volume={39},
+  number={11},
+  pages={648--664},
+  year={2018}
 }
 ```
 
