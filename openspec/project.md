@@ -10,9 +10,12 @@ coarse-grained to atomistic resolution as a LAMMPS user package. It consists of:
 - **Python tooling** (`python/`): the `backmap-prep` CLI that generates LAMMPS
   input files from GROMACS topologies and coordinate files.
 
-Reference:
+References:
 > Krajniak et al., *J. Chem. Theory Comput.* 2016, 12, 5549–5562.
 > DOI: 10.1021/acs.jctc.6b00595
+>
+> Krajniak, Zhang et al., *J. Comput. Chem.* 2018.
+> DOI: 10.1002/jcc.25129
 
 ---
 
@@ -127,17 +130,26 @@ Reference:
 
 ## Documentation & Change Log
 
+All documentation must be kept in sync with the current state of the
+functionality and the package. Stale documentation is treated as a defect.
+
+- **Documentation site** (`docs/`, `mkdocs.yml`) — The MkDocs Material site
+  deployed to GitHub Pages is the primary user-facing documentation. When a
+  change affects component behaviour, CLI options, settings fields, supported
+  examples, author list, or citations, the relevant pages under `docs/` must
+  be updated in the same commit or PR. This includes the landing page
+  (`docs/index.md`), theory page, component docs, settings reference, and
+  tutorials.
+- **README.md** — The top-level `README.md` must always reflect the current
+  state of the project. When a change affects installation steps, usage
+  instructions, supported features, CLI options, citations, author list, or
+  repository layout, the README must be updated in the same commit or PR.
 - **CHANGELOG.md** — Every user-visible change (features, fixes, breaking
   changes) must be recorded in `CHANGELOG.md` at the repository root. Follow
   the [Keep a Changelog](https://keepachangelog.com/) format with sections
   `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, and `Security` under
   each release heading. Update the `[Unreleased]` section as part of the same
   commit or PR that introduces the change.
-- **README.md** — The top-level `README.md` must always reflect the current
-  state of the project. When a change affects installation steps, usage
-  instructions, supported features, CLI options, or repository layout, the
-  README must be updated in the same commit or PR. Stale documentation is
-  treated as a defect.
 
 ---
 

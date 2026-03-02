@@ -127,9 +127,9 @@ make clean          # remove caches and build artifacts
 
 If you use this package in your research, please cite:
 
-> Krajniak, Alejandre, de Fabritiis, Giupponi, "Generic Adaptive Resolution
+> Krajniak, Pandiyan, Nies, Samaey, "Generic Adaptive Resolution
 > Method for Reverse Mapping of Polymers from Coarse-Grained to Atomistic
-> Descriptions", *J. Chem. Theory Comput.* 2016, 12, 5549–5562.
+> Descriptions", *J. Chem. Theory Comput.* 2016.
 > [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
 
 If you are reverse mapping complex polymer structures (e.g. polymer networks),
@@ -140,15 +140,14 @@ please also cite:
 > [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
 
 ```bibtex
-@article{Krajniak2016,
-  author  = {Krajniak, Jakub and Alejandre, Jes\'us
-             and de Fabritiis, Gianni and Giupponi, Giovanni},
+@article{krajniak2016generic,
   title   = {Generic Adaptive Resolution Method for Reverse Mapping
              of Polymers from Coarse-Grained to Atomistic Descriptions},
-  journal = {J. Chem. Theory Comput.},
+  author  = {Krajniak, Jakub and Pandiyan, Sudharsan
+             and Nies, Erik and Samaey, Giovanni},
+  journal = {Journal of Chemical Theory and Computation},
   year    = {2016},
-  volume  = {12},
-  pages   = {5549--5562},
+  publisher = {American Chemical Society},
   doi     = {10.1021/acs.jctc.6b00595}
 }
 
