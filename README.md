@@ -132,6 +132,13 @@ If you use this package in your research, please cite:
 > Descriptions", *J. Chem. Theory Comput.* 2016, 12, 5549–5562.
 > [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
 
+If you are reverse mapping complex polymer structures (e.g. polymer networks),
+please also cite:
+
+> Krajniak, Zhang, Pandiyan, Nies, Samaey, "Reverse Mapping Method for
+> Complex Polymer Systems", *J. Comput. Chem.* 2018.
+> [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
+
 ```bibtex
 @article{Krajniak2016,
   author  = {Krajniak, Jakub and Alejandre, Jes\'us
@@ -144,6 +151,15 @@ If you use this package in your research, please cite:
   pages   = {5549--5562},
   doi     = {10.1021/acs.jctc.6b00595}
 }
+
+@article{Krajniak2018,
+  author  = {Krajniak, Jakub and Zhang, Zidan and Pandiyan, Sudharsan
+             and Nies, Eric and Samaey, Giovanni},
+  title   = {Reverse Mapping Method for Complex Polymer Systems},
+  journal = {J. Comput. Chem.},
+  year    = {2018},
+  doi     = {10.1002/jcc.25129}
+}
 ```
 
 ## Contributing
@@ -154,6 +170,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 GPL-3.0-or-later — see [LICENSE](LICENSE) for the full text.
 
-## Author
+## Authors
 
-Jakub Krajniak (jkrajniak@gmail.com)
+- Jakub Krajniak (jkrajniak@gmail.com)
+- Zidan Zhang

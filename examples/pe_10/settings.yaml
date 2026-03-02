@@ -1,0 +1,590 @@
+# PE-10 backmapping settings
+# 100-carbon polyethylene (AA): 10 CG beads, ~30 AT atoms per bead
+# CG interactions: tabulated (IBI-derived)
+# AT interactions: OPLS/AA (opls_135/136 C, opls_140 H)
+
+molecules:
+- name: PE
+  ident: PE
+  source:
+    coordinates: pe_single.gro
+    topology: topol_aa.top
+  beads:
+  - name: A1
+    type: A
+    atoms:
+    - 1:PE:C1
+    - 1:PE:C99
+    - 1:PE:H1
+    - 1:PE:H2
+    - 1:PE:H197
+    - 1:PE:H198
+    - 1:PE:H199
+    - 1:PE:C2
+    - 1:PE:C3
+    - 1:PE:H3
+    - 1:PE:H4
+    - 1:PE:H5
+    - 1:PE:H6
+    - 1:PE:C4
+    - 1:PE:C5
+    - 1:PE:H7
+    - 1:PE:H8
+    - 1:PE:H9
+    - 1:PE:H10
+    - 1:PE:C6
+    - 1:PE:C7
+    - 1:PE:H11
+    - 1:PE:H12
+    - 1:PE:H13
+    - 1:PE:H14
+    - 1:PE:C8
+    - 1:PE:C9
+    - 1:PE:H15
+    - 1:PE:H16
+    - 1:PE:H17
+    - 1:PE:H18
+  - name: B2
+    type: B
+    atoms:
+    - 1:PE:C10
+    - 1:PE:C11
+    - 1:PE:H19
+    - 1:PE:H20
+    - 1:PE:H21
+    - 1:PE:H22
+    - 1:PE:C12
+    - 1:PE:C13
+    - 1:PE:H23
+    - 1:PE:H24
+    - 1:PE:H25
+    - 1:PE:H26
+    - 1:PE:C14
+    - 1:PE:C15
+    - 1:PE:H27
+    - 1:PE:H28
+    - 1:PE:H29
+    - 1:PE:H30
+    - 1:PE:C16
+    - 1:PE:C17
+    - 1:PE:H31
+    - 1:PE:H32
+    - 1:PE:H33
+    - 1:PE:H34
+    - 1:PE:C18
+    - 1:PE:C19
+    - 1:PE:H35
+    - 1:PE:H36
+    - 1:PE:H37
+    - 1:PE:H38
+  - name: B3
+    type: B
+    atoms:
+    - 1:PE:C20
+    - 1:PE:C21
+    - 1:PE:H39
+    - 1:PE:H40
+    - 1:PE:H41
+    - 1:PE:H42
+    - 1:PE:C22
+    - 1:PE:C23
+    - 1:PE:H43
+    - 1:PE:H44
+    - 1:PE:H45
+    - 1:PE:H46
+    - 1:PE:C24
+    - 1:PE:C25
+    - 1:PE:H47
+    - 1:PE:H48
+    - 1:PE:H49
+    - 1:PE:H50
+    - 1:PE:C26
+    - 1:PE:C27
+    - 1:PE:H51
+    - 1:PE:H52
+    - 1:PE:H53
+    - 1:PE:H54
+    - 1:PE:C28
+    - 1:PE:C29
+    - 1:PE:H55
+    - 1:PE:H56
+    - 1:PE:H57
+    - 1:PE:H58
+  - name: B4
+    type: B
+    atoms:
+    - 1:PE:C30
+    - 1:PE:C31
+    - 1:PE:H59
+    - 1:PE:H60
+    - 1:PE:H61
+    - 1:PE:H62
+    - 1:PE:C32
+    - 1:PE:C33
+    - 1:PE:H63
+    - 1:PE:H64
+    - 1:PE:H65
+    - 1:PE:H66
+    - 1:PE:C34
+    - 1:PE:C35
+    - 1:PE:H67
+    - 1:PE:H68
+    - 1:PE:H69
+    - 1:PE:H70
+    - 1:PE:C36
+    - 1:PE:C37
+    - 1:PE:H71
+    - 1:PE:H72
+    - 1:PE:H73
+    - 1:PE:H74
+    - 1:PE:C38
+    - 1:PE:C39
+    - 1:PE:H75
+    - 1:PE:H76
+    - 1:PE:H77
+    - 1:PE:H78
+  - name: B5
+    type: B
+    atoms:
+    - 1:PE:C40
+    - 1:PE:C41
+    - 1:PE:H79
+    - 1:PE:H80
+    - 1:PE:H81
+    - 1:PE:H82
+    - 1:PE:C42
+    - 1:PE:C43
+    - 1:PE:H83
+    - 1:PE:H84
+    - 1:PE:H85
+    - 1:PE:H86
+    - 1:PE:C44
+    - 1:PE:C45
+    - 1:PE:H87
+    - 1:PE:H88
+    - 1:PE:H89
+    - 1:PE:H90
+    - 1:PE:C46
+    - 1:PE:C47
+    - 1:PE:H91
+    - 1:PE:H92
+    - 1:PE:H93
+    - 1:PE:H94
+    - 1:PE:C48
+    - 1:PE:C49
+    - 1:PE:H95
+    - 1:PE:H96
+    - 1:PE:H97
+    - 1:PE:H98
+  - name: B6
+    type: B
+    atoms:
+    - 1:PE:C50
+    - 1:PE:C51
+    - 1:PE:H99
+    - 1:PE:H100
+    - 1:PE:H101
+    - 1:PE:H102
+    - 1:PE:C52
+    - 1:PE:C53
+    - 1:PE:H103
+    - 1:PE:H104
+    - 1:PE:H105
+    - 1:PE:H106
+    - 1:PE:C54
+    - 1:PE:C55
+    - 1:PE:H107
+    - 1:PE:H108
+    - 1:PE:H109
+    - 1:PE:H110
+    - 1:PE:C56
+    - 1:PE:C57
+    - 1:PE:H111
+    - 1:PE:H112
+    - 1:PE:H113
+    - 1:PE:H114
+    - 1:PE:C58
+    - 1:PE:C59
+    - 1:PE:H115
+    - 1:PE:H116
+    - 1:PE:H117
+    - 1:PE:H118
+  - name: B7
+    type: B
+    atoms:
+    - 1:PE:C60
+    - 1:PE:C61
+    - 1:PE:H119
+    - 1:PE:H120
+    - 1:PE:H121
+    - 1:PE:H122
+    - 1:PE:C62
+    - 1:PE:C63
+    - 1:PE:H123
+    - 1:PE:H124
+    - 1:PE:H125
+    - 1:PE:H126
+    - 1:PE:C64
+    - 1:PE:C65
+    - 1:PE:H127
+    - 1:PE:H128
+    - 1:PE:H129
+    - 1:PE:H130
+    - 1:PE:C66
+    - 1:PE:C67
+    - 1:PE:H131
+    - 1:PE:H132
+    - 1:PE:H133
+    - 1:PE:H134
+    - 1:PE:C68
+    - 1:PE:C69
+    - 1:PE:H135
+    - 1:PE:H136
+    - 1:PE:H137
+    - 1:PE:H138
+  - name: B8
+    type: B
+    atoms:
+    - 1:PE:C70
+    - 1:PE:C71
+    - 1:PE:H139
+    - 1:PE:H140
+    - 1:PE:H141
+    - 1:PE:H142
+    - 1:PE:C72
+    - 1:PE:C73
+    - 1:PE:H143
+    - 1:PE:H144
+    - 1:PE:H145
+    - 1:PE:H146
+    - 1:PE:C74
+    - 1:PE:C75
+    - 1:PE:H147
+    - 1:PE:H148
+    - 1:PE:H149
+    - 1:PE:H150
+    - 1:PE:C76
+    - 1:PE:C77
+    - 1:PE:H151
+    - 1:PE:H152
+    - 1:PE:H153
+    - 1:PE:H154
+    - 1:PE:C78
+    - 1:PE:C79
+    - 1:PE:H155
+    - 1:PE:H156
+    - 1:PE:H157
+    - 1:PE:H158
+  - name: B9
+    type: B
+    atoms:
+    - 1:PE:C80
+    - 1:PE:C81
+    - 1:PE:H159
+    - 1:PE:H160
+    - 1:PE:H161
+    - 1:PE:H162
+    - 1:PE:C82
+    - 1:PE:C83
+    - 1:PE:H163
+    - 1:PE:H164
+    - 1:PE:H165
+    - 1:PE:H166
+    - 1:PE:C84
+    - 1:PE:C85
+    - 1:PE:H167
+    - 1:PE:H168
+    - 1:PE:H169
+    - 1:PE:H170
+    - 1:PE:C86
+    - 1:PE:C87
+    - 1:PE:H171
+    - 1:PE:H172
+    - 1:PE:H173
+    - 1:PE:H174
+    - 1:PE:C88
+    - 1:PE:C89
+    - 1:PE:H175
+    - 1:PE:H176
+    - 1:PE:H177
+    - 1:PE:H178
+  - name: A10
+    type: A
+    atoms:
+    - 1:PE:C98
+    - 1:PE:C100
+    - 1:PE:H195
+    - 1:PE:H196
+    - 1:PE:H200
+    - 1:PE:H201
+    - 1:PE:H202
+    - 1:PE:C96
+    - 1:PE:C97
+    - 1:PE:H191
+    - 1:PE:H192
+    - 1:PE:H193
+    - 1:PE:H194
+    - 1:PE:C94
+    - 1:PE:C95
+    - 1:PE:H187
+    - 1:PE:H188
+    - 1:PE:H189
+    - 1:PE:H190
+    - 1:PE:C92
+    - 1:PE:C93
+    - 1:PE:H183
+    - 1:PE:H184
+    - 1:PE:H185
+    - 1:PE:H186
+    - 1:PE:C90
+    - 1:PE:C91
+    - 1:PE:H179
+    - 1:PE:H180
+    - 1:PE:H181
+    - 1:PE:H182
+cg_system:
+  coordinates: cg_conf.gro
+  topology: topol_cg.top
+  format: gromacs
+cross_interactions:
+  bonds:
+  - params: 8 2 1.0
+    table: table_b2.xvg
+    pairs:
+    - - PE:A1
+      - PE:B2
+    - - PE:B9
+      - PE:A10
+    cg_bonded: true
+  - params: 8 1 1.0
+    table: table_b1.xvg
+    pairs:
+    - - PE:B2
+      - PE:B3
+    - - PE:B3
+      - PE:B4
+    - - PE:B4
+      - PE:B5
+    - - PE:B5
+      - PE:B6
+    - - PE:B6
+      - PE:B7
+    - - PE:B7
+      - PE:B8
+    - - PE:B8
+      - PE:B9
+    cg_bonded: true
+  - params: 1 0.1529 224262.4
+    pairs:
+    - - PE:C9
+      - PE:C10
+    - - PE:C19
+      - PE:C20
+    - - PE:C29
+      - PE:C30
+    - - PE:C39
+      - PE:C40
+    - - PE:C49
+      - PE:C50
+    - - PE:C59
+      - PE:C60
+    - - PE:C69
+      - PE:C70
+    - - PE:C79
+      - PE:C80
+    - - PE:C89
+      - PE:C90
+  angles:
+  - params: 1 112.7 488.273
+    triples:
+    - - PE:C8
+      - PE:C9
+      - PE:C10
+    - - PE:C9
+      - PE:C10
+      - PE:C11
+    - - PE:C18
+      - PE:C19
+      - PE:C20
+    - - PE:C19
+      - PE:C20
+      - PE:C21
+    - - PE:C28
+      - PE:C29
+      - PE:C30
+    - - PE:C29
+      - PE:C30
+      - PE:C31
+    - - PE:C38
+      - PE:C39
+      - PE:C40
+    - - PE:C39
+      - PE:C40
+      - PE:C41
+    - - PE:C48
+      - PE:C49
+      - PE:C50
+    - - PE:C49
+      - PE:C50
+      - PE:C51
+    - - PE:C58
+      - PE:C59
+      - PE:C60
+    - - PE:C59
+      - PE:C60
+      - PE:C61
+    - - PE:C68
+      - PE:C69
+      - PE:C70
+    - - PE:C69
+      - PE:C70
+      - PE:C71
+    - - PE:C78
+      - PE:C79
+      - PE:C80
+    - - PE:C79
+      - PE:C80
+      - PE:C81
+    - - PE:C88
+      - PE:C89
+      - PE:C90
+    - - PE:C89
+      - PE:C90
+      - PE:C91
+  - params: 1 110.7 313.8
+    triples:
+    - - PE:C9
+      - PE:C10
+      - PE:H20
+    - - PE:C9
+      - PE:C10
+      - PE:H19
+    - - PE:H17
+      - PE:C9
+      - PE:C10
+    - - PE:H18
+      - PE:C9
+      - PE:C10
+    - - PE:C19
+      - PE:C20
+      - PE:H40
+    - - PE:C19
+      - PE:C20
+      - PE:H39
+    - - PE:H37
+      - PE:C19
+      - PE:C20
+    - - PE:H38
+      - PE:C19
+      - PE:C20
+    - - PE:C29
+      - PE:C30
+      - PE:H60
+    - - PE:C29
+      - PE:C30
+      - PE:H59
+    - - PE:H57
+      - PE:C29
+      - PE:C30
+    - - PE:H58
+      - PE:C29
+      - PE:C30
+    - - PE:C39
+      - PE:C40
+      - PE:H80
+    - - PE:C39
+      - PE:C40
+      - PE:H79
+    - - PE:H77
+      - PE:C39
+      - PE:C40
+    - - PE:H78
+      - PE:C39
+      - PE:C40
+    - - PE:C49
+      - PE:C50
+      - PE:H100
+    - - PE:C49
+      - PE:C50
+      - PE:H99
+    - - PE:H97
+      - PE:C49
+      - PE:C50
+    - - PE:H98
+      - PE:C49
+      - PE:C50
+    - - PE:C59
+      - PE:C60
+      - PE:H120
+    - - PE:C59
+      - PE:C60
+      - PE:H119
+    - - PE:H117
+      - PE:C59
+      - PE:C60
+    - - PE:H118
+      - PE:C59
+      - PE:C60
+    - - PE:C69
+      - PE:C70
+      - PE:H140
+    - - PE:C69
+      - PE:C70
+      - PE:H139
+    - - PE:H137
+      - PE:C69
+      - PE:C70
+    - - PE:H138
+      - PE:C69
+      - PE:C70
+    - - PE:C79
+      - PE:C80
+      - PE:H160
+    - - PE:C79
+      - PE:C80
+      - PE:H159
+    - - PE:H157
+      - PE:C79
+      - PE:C80
+    - - PE:H158
+      - PE:C79
+      - PE:C80
+    - - PE:C89
+      - PE:C90
+      - PE:H180
+    - - PE:C89
+      - PE:C90
+      - PE:H179
+    - - PE:H177
+      - PE:C89
+      - PE:C90
+    - - PE:H178
+      - PE:C89
+      - PE:C90
+  dihedrals: []
+simulation:
+  alpha: 0.0001
+  initial_resolution: 0.0
+  nonuniform_lambda: false
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  equilibration_steps: 10000
+  production_steps: 10000
+  temperature: 423.0
+  thermostat: langevin
+  thermostat_gamma: 30.0
+  thermostat_target: atomistic
+  lj_cutoff: 1.4
+  cg_cutoff: 1.4
+  coulomb_cutoff: 0.9
+  table_groups:
+  - A
+  - B
+  exclusion_nrexcl: 3
+  energy_interval: 1000
+  trajectory_interval: 1000
+  rng_seed: 12345
+output:
+  prefix: pe_10
+  format: lammps
+  units: real

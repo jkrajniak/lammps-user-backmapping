@@ -1,0 +1,33 @@
+; CG topology for MF (50 molecules, 3 beads each)
+
+[ defaults ]
+; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
+1         1          no         0.0      0.0
+
+[ atomtypes ]
+; name  mass        charge  ptype  sigma  epsilon
+A       72.067000   0.000   A      1.0    1.0
+
+[ moleculetype ]
+; name  excl
+MF      3
+
+[ atoms ]
+; nr  type  resnr  residue  atom  cgnr  charge     mass
+1     A     1      MF       A1    1     0.000000   72.067000
+2     A     2      MF       A2    2     0.000000   72.067000
+3     A     3      MF       A3    3     0.000000   72.067000
+
+[ bonds ]
+; i  j  func  table  k
+1    2  8     1    1.0
+2    3  8     1    1.0
+3    1  8     1    1.0
+
+[ system ]
+; Name
+MF
+
+[ molecules ]
+; Compound   #mols
+MF           50

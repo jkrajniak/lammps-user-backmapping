@@ -1,0 +1,224 @@
+# Melamine-formaldehyde backmapping settings
+# 3 CG beads (A1, A2, A3) in triangular topology, 27 AT atoms per molecule
+# CG interactions: tabulated bonds
+# AT interactions: OPLS/AA
+
+molecules:
+- name: MF
+  ident: MF
+  source:
+    coordinates: single_mf.gro
+    topology: topol_aa.top
+  beads:
+  - name: A1
+    type: A
+    atoms:
+    - 1:MF:N11
+    - 1:MF:C11
+    - 1:MF:N21
+    - 1:MF:C1
+    - 1:MF:O1
+    - 1:MF:H01
+    - 1:MF:H011
+    - 1:MF:H012
+    - 1:MF:H21
+  - name: A2
+    type: A
+    atoms:
+    - 1:MF:N12
+    - 1:MF:C12
+    - 1:MF:N22
+    - 1:MF:C2
+    - 1:MF:O2
+    - 1:MF:H02
+    - 1:MF:H021
+    - 1:MF:H022
+    - 1:MF:H31
+  - name: A3
+    type: A
+    atoms:
+    - 1:MF:N13
+    - 1:MF:C13
+    - 1:MF:N23
+    - 1:MF:C3
+    - 1:MF:O3
+    - 1:MF:H03
+    - 1:MF:H031
+    - 1:MF:H032
+    - 1:MF:H11
+cg_system:
+  coordinates: cg_conf.gro
+  topology: topol_cg.top
+  format: gromacs
+cross_interactions:
+  bonds:
+  - params: 8 1 1.0
+    table: table_b1.xvg
+    pairs:
+    - - MF:A1
+      - MF:A2
+    - - MF:A2
+      - MF:A3
+    - - MF:A3
+      - MF:A1
+    cg_bonded: true
+  - params: 1 0.135 402500.8
+    pairs:
+    - - MF:N11
+      - MF:C13
+    - - MF:C12
+      - MF:N13
+  - params: 1 0.136 402500.8
+    pairs:
+    - - MF:C11
+      - MF:N12
+  angles:
+  - params: 1 125.010 669.440
+    triples:
+    - - MF:N11
+      - MF:C13
+      - MF:N13
+  - params: 1 116.164 669.440
+    triples:
+    - - MF:N11
+      - MF:C13
+      - MF:N23
+  - params: 1 125.237 669.440
+    triples:
+    - - MF:N11
+      - MF:C11
+      - MF:N12
+  - params: 1 114.843 334.720
+    triples:
+    - - MF:C11
+      - MF:N12
+      - MF:C12
+  - params: 1 114.807 334.720
+    triples:
+    - - MF:C11
+      - MF:N11
+      - MF:C13
+  - params: 1 118.788 669.440
+    triples:
+    - - MF:N21
+      - MF:C11
+      - MF:N12
+  - params: 1 124.986 669.440
+    triples:
+    - - MF:N12
+      - MF:C12
+      - MF:N13
+  - params: 1 115.117 334.720
+    triples:
+    - - MF:C12
+      - MF:N13
+      - MF:C13
+  - params: 1 118.823 669.440
+    triples:
+    - - MF:N22
+      - MF:C12
+      - MF:N13
+  dihedrals:
+  - params: 3 30.28798 -4.81160 -25.47638 0.0 0.0 0.0
+    quadruples:
+    - - MF:C11
+      - MF:N11
+      - MF:C13
+      - MF:N13
+    - - MF:C13
+      - MF:N11
+      - MF:C11
+      - MF:N12
+    - - MF:N11
+      - MF:C11
+      - MF:N12
+      - MF:C12
+    - - MF:C11
+      - MF:N12
+      - MF:C12
+      - MF:N13
+    - - MF:N12
+      - MF:C12
+      - MF:N13
+      - MF:C13
+    - - MF:C12
+      - MF:N13
+      - MF:C13
+      - MF:N11
+  - params: 3 33.20422 0.0 -33.20422 0.0 0.0 0.0
+    quadruples:
+    - - MF:C11
+      - MF:N11
+      - MF:C13
+      - MF:N23
+    - - MF:C13
+      - MF:N11
+      - MF:C11
+      - MF:N21
+    - - MF:N21
+      - MF:C11
+      - MF:N12
+      - MF:C12
+    - - MF:N12
+      - MF:C11
+      - MF:N21
+      - MF:C1
+    - - MF:C11
+      - MF:N12
+      - MF:C12
+      - MF:N22
+    - - MF:N13
+      - MF:C12
+      - MF:N22
+      - MF:C2
+    - - MF:N22
+      - MF:C12
+      - MF:N13
+      - MF:C13
+    - - MF:C12
+      - MF:N13
+      - MF:C13
+      - MF:N23
+    - - MF:N11
+      - MF:C13
+      - MF:N23
+      - MF:C3
+  - params: 3 20.50160 0.0 -20.50160 0.0 0.0 0.0
+    quadruples:
+    - - MF:N12
+      - MF:C11
+      - MF:N21
+      - MF:H21
+    - - MF:N13
+      - MF:C12
+      - MF:N22
+      - MF:H31
+    - - MF:N11
+      - MF:C13
+      - MF:N23
+      - MF:H11
+simulation:
+  alpha: 0.0001
+  initial_resolution: 0.0
+  nonuniform_lambda: false
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  equilibration_steps: 10000
+  production_steps: 10000
+  temperature: 300.0
+  thermostat: langevin
+  thermostat_gamma: 30.0
+  thermostat_target: atomistic
+  lj_cutoff: 1.4
+  cg_cutoff: 1.4
+  coulomb_cutoff: 0.9
+  table_groups:
+  - A
+  exclusion_nrexcl: 3
+  energy_interval: 1000
+  trajectory_interval: 1000
+  rng_seed: 12345
+output:
+  prefix: melamine
+  format: lammps
+  units: real

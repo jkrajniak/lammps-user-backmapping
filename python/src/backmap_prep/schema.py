@@ -123,7 +123,7 @@ class SimulationParams(BaseModel):
     cg_cutoff: float = 1.4
     coulomb_cutoff: float = 0.9
 
-    table_groups: list[list[str]] = Field(default_factory=list)
+    table_groups: list[str] = Field(default_factory=list)
 
     exclusion_nrexcl: int = 3
 

@@ -8,11 +8,11 @@ boundary p p p
 read_data dodecane.data
 
 pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
-pair_coeff 1 1 cg table_A_A.table AA
-pair_coeff 1 2 cg table_A_B.table AB
+pair_coeff 1 1 cg table_A_A.table ENTRY
+pair_coeff 1 2 cg table_A_B.table ENTRY
 pair_coeff 1 3 none
 pair_coeff 1 4 none
-pair_coeff 2 2 cg table_B_B.table BB
+pair_coeff 2 2 cg table_B_B.table ENTRY
 pair_coeff 2 3 none
 pair_coeff 2 4 none
 pair_coeff 3 3 atomistic 0.207266 3.748000
@@ -33,7 +33,7 @@ special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 group at_atoms type 3 4
 group cg_atoms type 1 2
 
-fix bm all backmap cg_type 2 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.0 nonuniform no
 
 fix integrate at_atoms nve
 fix thermo at_atoms langevin 298.0 298.0 33.3 12345

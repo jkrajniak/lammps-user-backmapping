@@ -574,7 +574,7 @@ The generator SHALL be implemented in phases. The YAML schema supports all featu
 - Tabulated potential conversion (`.xvg` to `.table`)
 - Unit conversion (GROMACS to LAMMPS real)
 - Full LAMMPS `.data` and `.in` generation with `backmap/*` styles
-- Validation: dodecane, PE (polyethylene)
+- Validation: dodecane, PE (polyethylene), PE4, PE-10, PE-AA, melamine
 
 **Phase 2** — Extended bonded interactions:
 - Cross dihedrals and 1-4 pairs
@@ -613,3 +613,11 @@ The generator SHALL be implemented in phases. The YAML schema supports all featu
 #### Scenario: Phase 4 format before implementation
 - **WHEN** `cg_system.format: pdb` is specified before Phase 4 is implemented
 - **THEN** the generator SHALL abort with: "Format 'pdb' is not yet supported (planned for Phase 4)"
+
+#### Scenario: PE validation in Phase 1
+- **WHEN** `backmap-prep` processes the PE example `settings.yaml` with 50 beads/chain, 2 atoms/bead, tabulated CG bonds and angles
+- **THEN** the output SHALL be a valid LAMMPS data file and input script that runs without errors
+
+#### Scenario: Melamine validation in Phase 1
+- **WHEN** `backmap-prep` processes the melamine example `settings.yaml` with 3 beads/molecule in a triangular topology
+- **THEN** the output SHALL be a valid LAMMPS data file with correct triangular bonding and input script

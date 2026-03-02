@@ -109,6 +109,23 @@ The simulation runs three phases:
     The per-atom lambda value is accessible via `f_bm` in dump commands and
     can be used for visualization or post-processing.
 
+## More Examples
+
+Beyond dodecane, the repository includes several other systems of increasing
+complexity:
+
+| Example | CG beads | AT atoms/bead | Force field | Description |
+|---------|----------|---------------|-------------|-------------|
+| `examples/dodecane/` | 6 | 2 | GROMOS UA | Linear alkane, simplest case |
+| `examples/pe/` | 50 | 2 | OPLS UA | Polyethylene (100 C), 2:1 mapping |
+| `examples/pe4/` | 25 | 4 | OPLS UA | Polyethylene (100 C), 4:1 mapping |
+| `examples/pe_10/` | 10 | ~30 | OPLS AA | Polyethylene (100 C), 10:1 mapping with H |
+| `examples/pe_aa/` | 50 | 6-7 | OPLS AA | Polyethylene (100 C), 2:1 mapping with H |
+| `examples/melamine/` | 3 | 9 | OPLS AA | Melamine-formaldehyde, triangular CG |
+
+Each example directory contains a `README.md` with system-specific
+instructions.
+
 ## Next Steps
 
 - Read the [Theory](theory.md) section to understand how the method works

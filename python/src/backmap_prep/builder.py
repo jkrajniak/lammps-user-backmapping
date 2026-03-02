@@ -100,8 +100,9 @@ class System:
     has_cross_bonds: bool = False
     has_cross_angles: bool = False
 
-    # Table files to convert
-    table_files: list[tuple[str, str]] = field(default_factory=list)  # (src, dst) pairs
+    # Table files to convert: (src, dst) pairs
+    table_files: list[tuple[str, str]] = field(default_factory=list)  # bond tables
+    pair_table_files: list[tuple[str, str]] = field(default_factory=list)  # pair tables
 
 
 def build_system(settings: Settings, base_dir: Path) -> System:
@@ -434,6 +435,28 @@ def build_system(settings: Settings, base_dir: Path) -> System:
                         kind="none",
                     )
                 )
+
+    # Resolve CG pair table files from table_groups
+    table_groups = set(settings.simulation.table_groups)
+    if table_groups:
+        for pt in sys.pair_types:
+            if pt.kind != "cg":
+                continue
+            ti = sys.atom_types[pt.itype - 1]
+            tj = sys.atom_types[pt.jtype - 1]
+            if ti.name not in table_groups or tj.name not in table_groups:
+                continue
+            name_a, name_b = sorted([ti.name, tj.name])
+            xvg_name = f"table_{name_a}_{name_b}.xvg"
+            if not (base_dir / xvg_name).exists():
+                xvg_name = f"table_{name_b}_{name_a}.xvg"
+                if not (base_dir / xvg_name).exists():
+                    continue
+            table_out = Path(xvg_name).stem + ".table"
+            pt.table_file = table_out
+            pt.table_keyword = "ENTRY"
+            if (xvg_name, table_out) not in sys.pair_table_files:
+                sys.pair_table_files.append((xvg_name, table_out))
 
     # Build atoms and bonds for each molecule instance
     atom_id = 0

@@ -1,0 +1,1934 @@
+# PE-AA backmapping settings
+# 100-carbon polyethylene (AA): 50 CG beads, 2 heavy atoms + H per bead
+# CG interactions: tabulated (IBI-derived, same as PE UA)
+# AT interactions: OPLS/AA (opls_135/136 C, opls_140 H)
+
+molecules:
+- name: PE
+  ident: PE
+  source:
+    coordinates: pe_single.gro
+    topology: topol_aa.top
+  beads:
+  - name: A1
+    type: A
+    atoms:
+    - 1:PE:C1
+    - 1:PE:C99
+    - 1:PE:H1
+    - 1:PE:H2
+    - 1:PE:H197
+    - 1:PE:H198
+    - 1:PE:H199
+  - name: B2
+    type: B
+    atoms:
+    - 1:PE:C2
+    - 1:PE:C3
+    - 1:PE:H3
+    - 1:PE:H4
+    - 1:PE:H5
+    - 1:PE:H6
+  - name: B3
+    type: B
+    atoms:
+    - 1:PE:C4
+    - 1:PE:C5
+    - 1:PE:H7
+    - 1:PE:H8
+    - 1:PE:H9
+    - 1:PE:H10
+  - name: B4
+    type: B
+    atoms:
+    - 1:PE:C6
+    - 1:PE:C7
+    - 1:PE:H11
+    - 1:PE:H12
+    - 1:PE:H13
+    - 1:PE:H14
+  - name: B5
+    type: B
+    atoms:
+    - 1:PE:C8
+    - 1:PE:C9
+    - 1:PE:H15
+    - 1:PE:H16
+    - 1:PE:H17
+    - 1:PE:H18
+  - name: B6
+    type: B
+    atoms:
+    - 1:PE:C10
+    - 1:PE:C11
+    - 1:PE:H19
+    - 1:PE:H20
+    - 1:PE:H21
+    - 1:PE:H22
+  - name: B7
+    type: B
+    atoms:
+    - 1:PE:C12
+    - 1:PE:C13
+    - 1:PE:H23
+    - 1:PE:H24
+    - 1:PE:H25
+    - 1:PE:H26
+  - name: B8
+    type: B
+    atoms:
+    - 1:PE:C14
+    - 1:PE:C15
+    - 1:PE:H27
+    - 1:PE:H28
+    - 1:PE:H29
+    - 1:PE:H30
+  - name: B9
+    type: B
+    atoms:
+    - 1:PE:C16
+    - 1:PE:C17
+    - 1:PE:H31
+    - 1:PE:H32
+    - 1:PE:H33
+    - 1:PE:H34
+  - name: B10
+    type: B
+    atoms:
+    - 1:PE:C18
+    - 1:PE:C19
+    - 1:PE:H35
+    - 1:PE:H36
+    - 1:PE:H37
+    - 1:PE:H38
+  - name: B11
+    type: B
+    atoms:
+    - 1:PE:C20
+    - 1:PE:C21
+    - 1:PE:H39
+    - 1:PE:H40
+    - 1:PE:H41
+    - 1:PE:H42
+  - name: B12
+    type: B
+    atoms:
+    - 1:PE:C22
+    - 1:PE:C23
+    - 1:PE:H43
+    - 1:PE:H44
+    - 1:PE:H45
+    - 1:PE:H46
+  - name: B13
+    type: B
+    atoms:
+    - 1:PE:C24
+    - 1:PE:C25
+    - 1:PE:H47
+    - 1:PE:H48
+    - 1:PE:H49
+    - 1:PE:H50
+  - name: B14
+    type: B
+    atoms:
+    - 1:PE:C26
+    - 1:PE:C27
+    - 1:PE:H51
+    - 1:PE:H52
+    - 1:PE:H53
+    - 1:PE:H54
+  - name: B15
+    type: B
+    atoms:
+    - 1:PE:C28
+    - 1:PE:C29
+    - 1:PE:H55
+    - 1:PE:H56
+    - 1:PE:H57
+    - 1:PE:H58
+  - name: B16
+    type: B
+    atoms:
+    - 1:PE:C30
+    - 1:PE:C31
+    - 1:PE:H59
+    - 1:PE:H60
+    - 1:PE:H61
+    - 1:PE:H62
+  - name: B17
+    type: B
+    atoms:
+    - 1:PE:C32
+    - 1:PE:C33
+    - 1:PE:H63
+    - 1:PE:H64
+    - 1:PE:H65
+    - 1:PE:H66
+  - name: B18
+    type: B
+    atoms:
+    - 1:PE:C34
+    - 1:PE:C35
+    - 1:PE:H67
+    - 1:PE:H68
+    - 1:PE:H69
+    - 1:PE:H70
+  - name: B19
+    type: B
+    atoms:
+    - 1:PE:C36
+    - 1:PE:C37
+    - 1:PE:H71
+    - 1:PE:H72
+    - 1:PE:H73
+    - 1:PE:H74
+  - name: B20
+    type: B
+    atoms:
+    - 1:PE:C38
+    - 1:PE:C39
+    - 1:PE:H75
+    - 1:PE:H76
+    - 1:PE:H77
+    - 1:PE:H78
+  - name: B21
+    type: B
+    atoms:
+    - 1:PE:C40
+    - 1:PE:C41
+    - 1:PE:H79
+    - 1:PE:H80
+    - 1:PE:H81
+    - 1:PE:H82
+  - name: B22
+    type: B
+    atoms:
+    - 1:PE:C42
+    - 1:PE:C43
+    - 1:PE:H83
+    - 1:PE:H84
+    - 1:PE:H85
+    - 1:PE:H86
+  - name: B23
+    type: B
+    atoms:
+    - 1:PE:C44
+    - 1:PE:C45
+    - 1:PE:H87
+    - 1:PE:H88
+    - 1:PE:H89
+    - 1:PE:H90
+  - name: B24
+    type: B
+    atoms:
+    - 1:PE:C46
+    - 1:PE:C47
+    - 1:PE:H91
+    - 1:PE:H92
+    - 1:PE:H93
+    - 1:PE:H94
+  - name: B25
+    type: B
+    atoms:
+    - 1:PE:C48
+    - 1:PE:C49
+    - 1:PE:H95
+    - 1:PE:H96
+    - 1:PE:H97
+    - 1:PE:H98
+  - name: B26
+    type: B
+    atoms:
+    - 1:PE:C50
+    - 1:PE:C51
+    - 1:PE:H99
+    - 1:PE:H100
+    - 1:PE:H101
+    - 1:PE:H102
+  - name: B27
+    type: B
+    atoms:
+    - 1:PE:C52
+    - 1:PE:C53
+    - 1:PE:H103
+    - 1:PE:H104
+    - 1:PE:H105
+    - 1:PE:H106
+  - name: B28
+    type: B
+    atoms:
+    - 1:PE:C54
+    - 1:PE:C55
+    - 1:PE:H107
+    - 1:PE:H108
+    - 1:PE:H109
+    - 1:PE:H110
+  - name: B29
+    type: B
+    atoms:
+    - 1:PE:C56
+    - 1:PE:C57
+    - 1:PE:H111
+    - 1:PE:H112
+    - 1:PE:H113
+    - 1:PE:H114
+  - name: B30
+    type: B
+    atoms:
+    - 1:PE:C58
+    - 1:PE:C59
+    - 1:PE:H115
+    - 1:PE:H116
+    - 1:PE:H117
+    - 1:PE:H118
+  - name: B31
+    type: B
+    atoms:
+    - 1:PE:C60
+    - 1:PE:C61
+    - 1:PE:H119
+    - 1:PE:H120
+    - 1:PE:H121
+    - 1:PE:H122
+  - name: B32
+    type: B
+    atoms:
+    - 1:PE:C62
+    - 1:PE:C63
+    - 1:PE:H123
+    - 1:PE:H124
+    - 1:PE:H125
+    - 1:PE:H126
+  - name: B33
+    type: B
+    atoms:
+    - 1:PE:C64
+    - 1:PE:C65
+    - 1:PE:H127
+    - 1:PE:H128
+    - 1:PE:H129
+    - 1:PE:H130
+  - name: B34
+    type: B
+    atoms:
+    - 1:PE:C66
+    - 1:PE:C67
+    - 1:PE:H131
+    - 1:PE:H132
+    - 1:PE:H133
+    - 1:PE:H134
+  - name: B35
+    type: B
+    atoms:
+    - 1:PE:C68
+    - 1:PE:C69
+    - 1:PE:H135
+    - 1:PE:H136
+    - 1:PE:H137
+    - 1:PE:H138
+  - name: B36
+    type: B
+    atoms:
+    - 1:PE:C70
+    - 1:PE:C71
+    - 1:PE:H139
+    - 1:PE:H140
+    - 1:PE:H141
+    - 1:PE:H142
+  - name: B37
+    type: B
+    atoms:
+    - 1:PE:C72
+    - 1:PE:C73
+    - 1:PE:H143
+    - 1:PE:H144
+    - 1:PE:H145
+    - 1:PE:H146
+  - name: B38
+    type: B
+    atoms:
+    - 1:PE:C74
+    - 1:PE:C75
+    - 1:PE:H147
+    - 1:PE:H148
+    - 1:PE:H149
+    - 1:PE:H150
+  - name: B39
+    type: B
+    atoms:
+    - 1:PE:C76
+    - 1:PE:C77
+    - 1:PE:H151
+    - 1:PE:H152
+    - 1:PE:H153
+    - 1:PE:H154
+  - name: B40
+    type: B
+    atoms:
+    - 1:PE:C78
+    - 1:PE:C79
+    - 1:PE:H155
+    - 1:PE:H156
+    - 1:PE:H157
+    - 1:PE:H158
+  - name: B41
+    type: B
+    atoms:
+    - 1:PE:C80
+    - 1:PE:C81
+    - 1:PE:H159
+    - 1:PE:H160
+    - 1:PE:H161
+    - 1:PE:H162
+  - name: B42
+    type: B
+    atoms:
+    - 1:PE:C82
+    - 1:PE:C83
+    - 1:PE:H163
+    - 1:PE:H164
+    - 1:PE:H165
+    - 1:PE:H166
+  - name: B43
+    type: B
+    atoms:
+    - 1:PE:C84
+    - 1:PE:C85
+    - 1:PE:H167
+    - 1:PE:H168
+    - 1:PE:H169
+    - 1:PE:H170
+  - name: B44
+    type: B
+    atoms:
+    - 1:PE:C86
+    - 1:PE:C87
+    - 1:PE:H171
+    - 1:PE:H172
+    - 1:PE:H173
+    - 1:PE:H174
+  - name: B45
+    type: B
+    atoms:
+    - 1:PE:C88
+    - 1:PE:C89
+    - 1:PE:H175
+    - 1:PE:H176
+    - 1:PE:H177
+    - 1:PE:H178
+  - name: B46
+    type: B
+    atoms:
+    - 1:PE:C90
+    - 1:PE:C91
+    - 1:PE:H179
+    - 1:PE:H180
+    - 1:PE:H181
+    - 1:PE:H182
+  - name: B47
+    type: B
+    atoms:
+    - 1:PE:C92
+    - 1:PE:C93
+    - 1:PE:H183
+    - 1:PE:H184
+    - 1:PE:H185
+    - 1:PE:H186
+  - name: B48
+    type: B
+    atoms:
+    - 1:PE:C94
+    - 1:PE:C95
+    - 1:PE:H187
+    - 1:PE:H188
+    - 1:PE:H189
+    - 1:PE:H190
+  - name: B49
+    type: B
+    atoms:
+    - 1:PE:C96
+    - 1:PE:C97
+    - 1:PE:H191
+    - 1:PE:H192
+    - 1:PE:H193
+    - 1:PE:H194
+  - name: A50
+    type: A
+    atoms:
+    - 1:PE:C98
+    - 1:PE:C100
+    - 1:PE:H195
+    - 1:PE:H196
+    - 1:PE:H200
+    - 1:PE:H201
+    - 1:PE:H202
+cg_system:
+  coordinates: cg_conf.gro
+  topology: topol_cg.top
+  format: gromacs
+cross_interactions:
+  bonds:
+  - params: 8 2 1.0
+    table: table_b2.xvg
+    pairs:
+    - - PE:A1
+      - PE:B2
+    - - PE:B49
+      - PE:A50
+    cg_bonded: true
+  - params: 8 1 1.0
+    table: table_b1.xvg
+    pairs:
+    - - PE:B2
+      - PE:B3
+    - - PE:B3
+      - PE:B4
+    - - PE:B4
+      - PE:B5
+    - - PE:B5
+      - PE:B6
+    - - PE:B6
+      - PE:B7
+    - - PE:B7
+      - PE:B8
+    - - PE:B8
+      - PE:B9
+    - - PE:B9
+      - PE:B10
+    - - PE:B10
+      - PE:B11
+    - - PE:B11
+      - PE:B12
+    - - PE:B12
+      - PE:B13
+    - - PE:B13
+      - PE:B14
+    - - PE:B14
+      - PE:B15
+    - - PE:B15
+      - PE:B16
+    - - PE:B16
+      - PE:B17
+    - - PE:B17
+      - PE:B18
+    - - PE:B18
+      - PE:B19
+    - - PE:B19
+      - PE:B20
+    - - PE:B20
+      - PE:B21
+    - - PE:B21
+      - PE:B22
+    - - PE:B22
+      - PE:B23
+    - - PE:B23
+      - PE:B24
+    - - PE:B24
+      - PE:B25
+    - - PE:B25
+      - PE:B26
+    - - PE:B26
+      - PE:B27
+    - - PE:B27
+      - PE:B28
+    - - PE:B28
+      - PE:B29
+    - - PE:B29
+      - PE:B30
+    - - PE:B30
+      - PE:B31
+    - - PE:B31
+      - PE:B32
+    - - PE:B32
+      - PE:B33
+    - - PE:B33
+      - PE:B34
+    - - PE:B34
+      - PE:B35
+    - - PE:B35
+      - PE:B36
+    - - PE:B36
+      - PE:B37
+    - - PE:B37
+      - PE:B38
+    - - PE:B38
+      - PE:B39
+    - - PE:B39
+      - PE:B40
+    - - PE:B40
+      - PE:B41
+    - - PE:B41
+      - PE:B42
+    - - PE:B42
+      - PE:B43
+    - - PE:B43
+      - PE:B44
+    - - PE:B44
+      - PE:B45
+    - - PE:B45
+      - PE:B46
+    - - PE:B46
+      - PE:B47
+    - - PE:B47
+      - PE:B48
+    - - PE:B48
+      - PE:B49
+    cg_bonded: true
+  - params: 1 0.1529 224262.4
+    pairs:
+    - - PE:C1
+      - PE:C2
+    - - PE:C3
+      - PE:C4
+    - - PE:C5
+      - PE:C6
+    - - PE:C7
+      - PE:C8
+    - - PE:C9
+      - PE:C10
+    - - PE:C11
+      - PE:C12
+    - - PE:C13
+      - PE:C14
+    - - PE:C15
+      - PE:C16
+    - - PE:C17
+      - PE:C18
+    - - PE:C19
+      - PE:C20
+    - - PE:C21
+      - PE:C22
+    - - PE:C23
+      - PE:C24
+    - - PE:C25
+      - PE:C26
+    - - PE:C27
+      - PE:C28
+    - - PE:C29
+      - PE:C30
+    - - PE:C31
+      - PE:C32
+    - - PE:C33
+      - PE:C34
+    - - PE:C35
+      - PE:C36
+    - - PE:C37
+      - PE:C38
+    - - PE:C39
+      - PE:C40
+    - - PE:C41
+      - PE:C42
+    - - PE:C43
+      - PE:C44
+    - - PE:C45
+      - PE:C46
+    - - PE:C47
+      - PE:C48
+    - - PE:C49
+      - PE:C50
+    - - PE:C51
+      - PE:C52
+    - - PE:C53
+      - PE:C54
+    - - PE:C55
+      - PE:C56
+    - - PE:C57
+      - PE:C58
+    - - PE:C59
+      - PE:C60
+    - - PE:C61
+      - PE:C62
+    - - PE:C63
+      - PE:C64
+    - - PE:C65
+      - PE:C66
+    - - PE:C67
+      - PE:C68
+    - - PE:C69
+      - PE:C70
+    - - PE:C71
+      - PE:C72
+    - - PE:C73
+      - PE:C74
+    - - PE:C75
+      - PE:C76
+    - - PE:C77
+      - PE:C78
+    - - PE:C79
+      - PE:C80
+    - - PE:C81
+      - PE:C82
+    - - PE:C83
+      - PE:C84
+    - - PE:C85
+      - PE:C86
+    - - PE:C87
+      - PE:C88
+    - - PE:C89
+      - PE:C90
+    - - PE:C91
+      - PE:C92
+    - - PE:C93
+      - PE:C94
+    - - PE:C95
+      - PE:C96
+    - - PE:C97
+      - PE:C98
+  angles:
+  - params: 8 1 1.0
+    table: table_a1.xvg
+    triples:
+    - - PE:A1
+      - PE:B2
+      - PE:B3
+    - - PE:B48
+      - PE:B49
+      - PE:A50
+    cg_bonded: true
+  - params: 8 2 1.0
+    table: table_a2.xvg
+    triples:
+    - - PE:B2
+      - PE:B3
+      - PE:B4
+    - - PE:B3
+      - PE:B4
+      - PE:B5
+    - - PE:B4
+      - PE:B5
+      - PE:B6
+    - - PE:B5
+      - PE:B6
+      - PE:B7
+    - - PE:B6
+      - PE:B7
+      - PE:B8
+    - - PE:B7
+      - PE:B8
+      - PE:B9
+    - - PE:B8
+      - PE:B9
+      - PE:B10
+    - - PE:B9
+      - PE:B10
+      - PE:B11
+    - - PE:B10
+      - PE:B11
+      - PE:B12
+    - - PE:B11
+      - PE:B12
+      - PE:B13
+    - - PE:B12
+      - PE:B13
+      - PE:B14
+    - - PE:B13
+      - PE:B14
+      - PE:B15
+    - - PE:B14
+      - PE:B15
+      - PE:B16
+    - - PE:B15
+      - PE:B16
+      - PE:B17
+    - - PE:B16
+      - PE:B17
+      - PE:B18
+    - - PE:B17
+      - PE:B18
+      - PE:B19
+    - - PE:B18
+      - PE:B19
+      - PE:B20
+    - - PE:B19
+      - PE:B20
+      - PE:B21
+    - - PE:B20
+      - PE:B21
+      - PE:B22
+    - - PE:B21
+      - PE:B22
+      - PE:B23
+    - - PE:B22
+      - PE:B23
+      - PE:B24
+    - - PE:B23
+      - PE:B24
+      - PE:B25
+    - - PE:B24
+      - PE:B25
+      - PE:B26
+    - - PE:B25
+      - PE:B26
+      - PE:B27
+    - - PE:B26
+      - PE:B27
+      - PE:B28
+    - - PE:B27
+      - PE:B28
+      - PE:B29
+    - - PE:B28
+      - PE:B29
+      - PE:B30
+    - - PE:B29
+      - PE:B30
+      - PE:B31
+    - - PE:B30
+      - PE:B31
+      - PE:B32
+    - - PE:B31
+      - PE:B32
+      - PE:B33
+    - - PE:B32
+      - PE:B33
+      - PE:B34
+    - - PE:B33
+      - PE:B34
+      - PE:B35
+    - - PE:B34
+      - PE:B35
+      - PE:B36
+    - - PE:B35
+      - PE:B36
+      - PE:B37
+    - - PE:B36
+      - PE:B37
+      - PE:B38
+    - - PE:B37
+      - PE:B38
+      - PE:B39
+    - - PE:B38
+      - PE:B39
+      - PE:B40
+    - - PE:B39
+      - PE:B40
+      - PE:B41
+    - - PE:B40
+      - PE:B41
+      - PE:B42
+    - - PE:B41
+      - PE:B42
+      - PE:B43
+    - - PE:B42
+      - PE:B43
+      - PE:B44
+    - - PE:B43
+      - PE:B44
+      - PE:B45
+    - - PE:B44
+      - PE:B45
+      - PE:B46
+    - - PE:B45
+      - PE:B46
+      - PE:B47
+    - - PE:B46
+      - PE:B47
+      - PE:B48
+    - - PE:B47
+      - PE:B48
+      - PE:B49
+    cg_bonded: true
+  - params: 1 112.7 488.273
+    triples:
+    - - PE:C1
+      - PE:C2
+      - PE:C3
+    - - PE:C2
+      - PE:C1
+      - PE:C99
+    - - PE:C2
+      - PE:C3
+      - PE:C4
+    - - PE:C3
+      - PE:C4
+      - PE:C5
+    - - PE:C4
+      - PE:C5
+      - PE:C6
+    - - PE:C5
+      - PE:C6
+      - PE:C7
+    - - PE:C6
+      - PE:C7
+      - PE:C8
+    - - PE:C7
+      - PE:C8
+      - PE:C9
+    - - PE:C8
+      - PE:C9
+      - PE:C10
+    - - PE:C9
+      - PE:C10
+      - PE:C11
+    - - PE:C10
+      - PE:C11
+      - PE:C12
+    - - PE:C11
+      - PE:C12
+      - PE:C13
+    - - PE:C12
+      - PE:C13
+      - PE:C14
+    - - PE:C13
+      - PE:C14
+      - PE:C15
+    - - PE:C14
+      - PE:C15
+      - PE:C16
+    - - PE:C15
+      - PE:C16
+      - PE:C17
+    - - PE:C16
+      - PE:C17
+      - PE:C18
+    - - PE:C17
+      - PE:C18
+      - PE:C19
+    - - PE:C18
+      - PE:C19
+      - PE:C20
+    - - PE:C19
+      - PE:C20
+      - PE:C21
+    - - PE:C20
+      - PE:C21
+      - PE:C22
+    - - PE:C21
+      - PE:C22
+      - PE:C23
+    - - PE:C22
+      - PE:C23
+      - PE:C24
+    - - PE:C23
+      - PE:C24
+      - PE:C25
+    - - PE:C24
+      - PE:C25
+      - PE:C26
+    - - PE:C25
+      - PE:C26
+      - PE:C27
+    - - PE:C26
+      - PE:C27
+      - PE:C28
+    - - PE:C27
+      - PE:C28
+      - PE:C29
+    - - PE:C28
+      - PE:C29
+      - PE:C30
+    - - PE:C29
+      - PE:C30
+      - PE:C31
+    - - PE:C30
+      - PE:C31
+      - PE:C32
+    - - PE:C31
+      - PE:C32
+      - PE:C33
+    - - PE:C32
+      - PE:C33
+      - PE:C34
+    - - PE:C33
+      - PE:C34
+      - PE:C35
+    - - PE:C34
+      - PE:C35
+      - PE:C36
+    - - PE:C35
+      - PE:C36
+      - PE:C37
+    - - PE:C36
+      - PE:C37
+      - PE:C38
+    - - PE:C37
+      - PE:C38
+      - PE:C39
+    - - PE:C38
+      - PE:C39
+      - PE:C40
+    - - PE:C39
+      - PE:C40
+      - PE:C41
+    - - PE:C40
+      - PE:C41
+      - PE:C42
+    - - PE:C41
+      - PE:C42
+      - PE:C43
+    - - PE:C42
+      - PE:C43
+      - PE:C44
+    - - PE:C43
+      - PE:C44
+      - PE:C45
+    - - PE:C44
+      - PE:C45
+      - PE:C46
+    - - PE:C45
+      - PE:C46
+      - PE:C47
+    - - PE:C46
+      - PE:C47
+      - PE:C48
+    - - PE:C47
+      - PE:C48
+      - PE:C49
+    - - PE:C48
+      - PE:C49
+      - PE:C50
+    - - PE:C49
+      - PE:C50
+      - PE:C51
+    - - PE:C50
+      - PE:C51
+      - PE:C52
+    - - PE:C51
+      - PE:C52
+      - PE:C53
+    - - PE:C52
+      - PE:C53
+      - PE:C54
+    - - PE:C53
+      - PE:C54
+      - PE:C55
+    - - PE:C54
+      - PE:C55
+      - PE:C56
+    - - PE:C55
+      - PE:C56
+      - PE:C57
+    - - PE:C56
+      - PE:C57
+      - PE:C58
+    - - PE:C57
+      - PE:C58
+      - PE:C59
+    - - PE:C58
+      - PE:C59
+      - PE:C60
+    - - PE:C59
+      - PE:C60
+      - PE:C61
+    - - PE:C60
+      - PE:C61
+      - PE:C62
+    - - PE:C61
+      - PE:C62
+      - PE:C63
+    - - PE:C62
+      - PE:C63
+      - PE:C64
+    - - PE:C63
+      - PE:C64
+      - PE:C65
+    - - PE:C64
+      - PE:C65
+      - PE:C66
+    - - PE:C65
+      - PE:C66
+      - PE:C67
+    - - PE:C66
+      - PE:C67
+      - PE:C68
+    - - PE:C67
+      - PE:C68
+      - PE:C69
+    - - PE:C68
+      - PE:C69
+      - PE:C70
+    - - PE:C69
+      - PE:C70
+      - PE:C71
+    - - PE:C70
+      - PE:C71
+      - PE:C72
+    - - PE:C71
+      - PE:C72
+      - PE:C73
+    - - PE:C72
+      - PE:C73
+      - PE:C74
+    - - PE:C73
+      - PE:C74
+      - PE:C75
+    - - PE:C74
+      - PE:C75
+      - PE:C76
+    - - PE:C75
+      - PE:C76
+      - PE:C77
+    - - PE:C76
+      - PE:C77
+      - PE:C78
+    - - PE:C77
+      - PE:C78
+      - PE:C79
+    - - PE:C78
+      - PE:C79
+      - PE:C80
+    - - PE:C79
+      - PE:C80
+      - PE:C81
+    - - PE:C80
+      - PE:C81
+      - PE:C82
+    - - PE:C81
+      - PE:C82
+      - PE:C83
+    - - PE:C82
+      - PE:C83
+      - PE:C84
+    - - PE:C83
+      - PE:C84
+      - PE:C85
+    - - PE:C84
+      - PE:C85
+      - PE:C86
+    - - PE:C85
+      - PE:C86
+      - PE:C87
+    - - PE:C86
+      - PE:C87
+      - PE:C88
+    - - PE:C87
+      - PE:C88
+      - PE:C89
+    - - PE:C88
+      - PE:C89
+      - PE:C90
+    - - PE:C89
+      - PE:C90
+      - PE:C91
+    - - PE:C90
+      - PE:C91
+      - PE:C92
+    - - PE:C91
+      - PE:C92
+      - PE:C93
+    - - PE:C92
+      - PE:C93
+      - PE:C94
+    - - PE:C93
+      - PE:C94
+      - PE:C95
+    - - PE:C94
+      - PE:C95
+      - PE:C96
+    - - PE:C95
+      - PE:C96
+      - PE:C97
+    - - PE:C96
+      - PE:C97
+      - PE:C98
+    - - PE:C97
+      - PE:C98
+      - PE:C100
+  - params: 1 110.7 313.8
+    triples:
+    - - PE:C1
+      - PE:C2
+      - PE:H4
+    - - PE:C1
+      - PE:C2
+      - PE:H3
+    - - PE:H1
+      - PE:C1
+      - PE:C2
+    - - PE:H2
+      - PE:C1
+      - PE:C2
+    - - PE:C3
+      - PE:C4
+      - PE:H8
+    - - PE:C3
+      - PE:C4
+      - PE:H7
+    - - PE:H5
+      - PE:C3
+      - PE:C4
+    - - PE:H6
+      - PE:C3
+      - PE:C4
+    - - PE:C5
+      - PE:C6
+      - PE:H12
+    - - PE:C5
+      - PE:C6
+      - PE:H11
+    - - PE:H9
+      - PE:C5
+      - PE:C6
+    - - PE:H10
+      - PE:C5
+      - PE:C6
+    - - PE:C7
+      - PE:C8
+      - PE:H16
+    - - PE:C7
+      - PE:C8
+      - PE:H15
+    - - PE:H13
+      - PE:C7
+      - PE:C8
+    - - PE:H14
+      - PE:C7
+      - PE:C8
+    - - PE:C9
+      - PE:C10
+      - PE:H20
+    - - PE:C9
+      - PE:C10
+      - PE:H19
+    - - PE:H17
+      - PE:C9
+      - PE:C10
+    - - PE:H18
+      - PE:C9
+      - PE:C10
+    - - PE:C11
+      - PE:C12
+      - PE:H24
+    - - PE:C11
+      - PE:C12
+      - PE:H23
+    - - PE:H21
+      - PE:C11
+      - PE:C12
+    - - PE:H22
+      - PE:C11
+      - PE:C12
+    - - PE:C13
+      - PE:C14
+      - PE:H28
+    - - PE:C13
+      - PE:C14
+      - PE:H27
+    - - PE:H25
+      - PE:C13
+      - PE:C14
+    - - PE:H26
+      - PE:C13
+      - PE:C14
+    - - PE:C15
+      - PE:C16
+      - PE:H32
+    - - PE:C15
+      - PE:C16
+      - PE:H31
+    - - PE:H29
+      - PE:C15
+      - PE:C16
+    - - PE:H30
+      - PE:C15
+      - PE:C16
+    - - PE:C17
+      - PE:C18
+      - PE:H36
+    - - PE:C17
+      - PE:C18
+      - PE:H35
+    - - PE:H33
+      - PE:C17
+      - PE:C18
+    - - PE:H34
+      - PE:C17
+      - PE:C18
+    - - PE:C19
+      - PE:C20
+      - PE:H40
+    - - PE:C19
+      - PE:C20
+      - PE:H39
+    - - PE:H37
+      - PE:C19
+      - PE:C20
+    - - PE:H38
+      - PE:C19
+      - PE:C20
+    - - PE:C21
+      - PE:C22
+      - PE:H44
+    - - PE:C21
+      - PE:C22
+      - PE:H43
+    - - PE:H41
+      - PE:C21
+      - PE:C22
+    - - PE:H42
+      - PE:C21
+      - PE:C22
+    - - PE:C23
+      - PE:C24
+      - PE:H48
+    - - PE:C23
+      - PE:C24
+      - PE:H47
+    - - PE:H45
+      - PE:C23
+      - PE:C24
+    - - PE:H46
+      - PE:C23
+      - PE:C24
+    - - PE:C25
+      - PE:C26
+      - PE:H52
+    - - PE:C25
+      - PE:C26
+      - PE:H51
+    - - PE:H49
+      - PE:C25
+      - PE:C26
+    - - PE:H50
+      - PE:C25
+      - PE:C26
+    - - PE:C27
+      - PE:C28
+      - PE:H56
+    - - PE:C27
+      - PE:C28
+      - PE:H55
+    - - PE:H53
+      - PE:C27
+      - PE:C28
+    - - PE:H54
+      - PE:C27
+      - PE:C28
+    - - PE:C29
+      - PE:C30
+      - PE:H60
+    - - PE:C29
+      - PE:C30
+      - PE:H59
+    - - PE:H57
+      - PE:C29
+      - PE:C30
+    - - PE:H58
+      - PE:C29
+      - PE:C30
+    - - PE:C31
+      - PE:C32
+      - PE:H64
+    - - PE:C31
+      - PE:C32
+      - PE:H63
+    - - PE:H61
+      - PE:C31
+      - PE:C32
+    - - PE:H62
+      - PE:C31
+      - PE:C32
+    - - PE:C33
+      - PE:C34
+      - PE:H68
+    - - PE:C33
+      - PE:C34
+      - PE:H67
+    - - PE:H65
+      - PE:C33
+      - PE:C34
+    - - PE:H66
+      - PE:C33
+      - PE:C34
+    - - PE:C35
+      - PE:C36
+      - PE:H72
+    - - PE:C35
+      - PE:C36
+      - PE:H71
+    - - PE:H69
+      - PE:C35
+      - PE:C36
+    - - PE:H70
+      - PE:C35
+      - PE:C36
+    - - PE:C37
+      - PE:C38
+      - PE:H76
+    - - PE:C37
+      - PE:C38
+      - PE:H75
+    - - PE:H73
+      - PE:C37
+      - PE:C38
+    - - PE:H74
+      - PE:C37
+      - PE:C38
+    - - PE:C39
+      - PE:C40
+      - PE:H80
+    - - PE:C39
+      - PE:C40
+      - PE:H79
+    - - PE:H77
+      - PE:C39
+      - PE:C40
+    - - PE:H78
+      - PE:C39
+      - PE:C40
+    - - PE:C41
+      - PE:C42
+      - PE:H84
+    - - PE:C41
+      - PE:C42
+      - PE:H83
+    - - PE:H81
+      - PE:C41
+      - PE:C42
+    - - PE:H82
+      - PE:C41
+      - PE:C42
+    - - PE:C43
+      - PE:C44
+      - PE:H88
+    - - PE:C43
+      - PE:C44
+      - PE:H87
+    - - PE:H85
+      - PE:C43
+      - PE:C44
+    - - PE:H86
+      - PE:C43
+      - PE:C44
+    - - PE:C45
+      - PE:C46
+      - PE:H92
+    - - PE:C45
+      - PE:C46
+      - PE:H91
+    - - PE:H89
+      - PE:C45
+      - PE:C46
+    - - PE:H90
+      - PE:C45
+      - PE:C46
+    - - PE:C47
+      - PE:C48
+      - PE:H96
+    - - PE:C47
+      - PE:C48
+      - PE:H95
+    - - PE:H93
+      - PE:C47
+      - PE:C48
+    - - PE:H94
+      - PE:C47
+      - PE:C48
+    - - PE:C49
+      - PE:C50
+      - PE:H100
+    - - PE:C49
+      - PE:C50
+      - PE:H99
+    - - PE:H97
+      - PE:C49
+      - PE:C50
+    - - PE:H98
+      - PE:C49
+      - PE:C50
+    - - PE:C51
+      - PE:C52
+      - PE:H104
+    - - PE:C51
+      - PE:C52
+      - PE:H103
+    - - PE:H101
+      - PE:C51
+      - PE:C52
+    - - PE:H102
+      - PE:C51
+      - PE:C52
+    - - PE:C53
+      - PE:C54
+      - PE:H108
+    - - PE:C53
+      - PE:C54
+      - PE:H107
+    - - PE:H105
+      - PE:C53
+      - PE:C54
+    - - PE:H106
+      - PE:C53
+      - PE:C54
+    - - PE:C55
+      - PE:C56
+      - PE:H112
+    - - PE:C55
+      - PE:C56
+      - PE:H111
+    - - PE:H109
+      - PE:C55
+      - PE:C56
+    - - PE:H110
+      - PE:C55
+      - PE:C56
+    - - PE:C57
+      - PE:C58
+      - PE:H116
+    - - PE:C57
+      - PE:C58
+      - PE:H115
+    - - PE:H113
+      - PE:C57
+      - PE:C58
+    - - PE:H114
+      - PE:C57
+      - PE:C58
+    - - PE:C59
+      - PE:C60
+      - PE:H120
+    - - PE:C59
+      - PE:C60
+      - PE:H119
+    - - PE:H117
+      - PE:C59
+      - PE:C60
+    - - PE:H118
+      - PE:C59
+      - PE:C60
+    - - PE:C61
+      - PE:C62
+      - PE:H124
+    - - PE:C61
+      - PE:C62
+      - PE:H123
+    - - PE:H121
+      - PE:C61
+      - PE:C62
+    - - PE:H122
+      - PE:C61
+      - PE:C62
+    - - PE:C63
+      - PE:C64
+      - PE:H128
+    - - PE:C63
+      - PE:C64
+      - PE:H127
+    - - PE:H125
+      - PE:C63
+      - PE:C64
+    - - PE:H126
+      - PE:C63
+      - PE:C64
+    - - PE:C65
+      - PE:C66
+      - PE:H132
+    - - PE:C65
+      - PE:C66
+      - PE:H131
+    - - PE:H129
+      - PE:C65
+      - PE:C66
+    - - PE:H130
+      - PE:C65
+      - PE:C66
+    - - PE:C67
+      - PE:C68
+      - PE:H136
+    - - PE:C67
+      - PE:C68
+      - PE:H135
+    - - PE:H133
+      - PE:C67
+      - PE:C68
+    - - PE:H134
+      - PE:C67
+      - PE:C68
+    - - PE:C69
+      - PE:C70
+      - PE:H140
+    - - PE:C69
+      - PE:C70
+      - PE:H139
+    - - PE:H137
+      - PE:C69
+      - PE:C70
+    - - PE:H138
+      - PE:C69
+      - PE:C70
+    - - PE:C71
+      - PE:C72
+      - PE:H144
+    - - PE:C71
+      - PE:C72
+      - PE:H143
+    - - PE:H141
+      - PE:C71
+      - PE:C72
+    - - PE:H142
+      - PE:C71
+      - PE:C72
+    - - PE:C73
+      - PE:C74
+      - PE:H148
+    - - PE:C73
+      - PE:C74
+      - PE:H147
+    - - PE:H145
+      - PE:C73
+      - PE:C74
+    - - PE:H146
+      - PE:C73
+      - PE:C74
+    - - PE:C75
+      - PE:C76
+      - PE:H152
+    - - PE:C75
+      - PE:C76
+      - PE:H151
+    - - PE:H149
+      - PE:C75
+      - PE:C76
+    - - PE:H150
+      - PE:C75
+      - PE:C76
+    - - PE:C77
+      - PE:C78
+      - PE:H156
+    - - PE:C77
+      - PE:C78
+      - PE:H155
+    - - PE:H153
+      - PE:C77
+      - PE:C78
+    - - PE:H154
+      - PE:C77
+      - PE:C78
+    - - PE:C79
+      - PE:C80
+      - PE:H160
+    - - PE:C79
+      - PE:C80
+      - PE:H159
+    - - PE:H157
+      - PE:C79
+      - PE:C80
+    - - PE:H158
+      - PE:C79
+      - PE:C80
+    - - PE:C81
+      - PE:C82
+      - PE:H164
+    - - PE:C81
+      - PE:C82
+      - PE:H163
+    - - PE:H161
+      - PE:C81
+      - PE:C82
+    - - PE:H162
+      - PE:C81
+      - PE:C82
+    - - PE:C83
+      - PE:C84
+      - PE:H168
+    - - PE:C83
+      - PE:C84
+      - PE:H167
+    - - PE:H165
+      - PE:C83
+      - PE:C84
+    - - PE:H166
+      - PE:C83
+      - PE:C84
+    - - PE:C85
+      - PE:C86
+      - PE:H172
+    - - PE:C85
+      - PE:C86
+      - PE:H171
+    - - PE:H169
+      - PE:C85
+      - PE:C86
+    - - PE:H170
+      - PE:C85
+      - PE:C86
+    - - PE:C87
+      - PE:C88
+      - PE:H176
+    - - PE:C87
+      - PE:C88
+      - PE:H175
+    - - PE:H173
+      - PE:C87
+      - PE:C88
+    - - PE:H174
+      - PE:C87
+      - PE:C88
+    - - PE:C89
+      - PE:C90
+      - PE:H180
+    - - PE:C89
+      - PE:C90
+      - PE:H179
+    - - PE:H177
+      - PE:C89
+      - PE:C90
+    - - PE:H178
+      - PE:C89
+      - PE:C90
+    - - PE:C91
+      - PE:C92
+      - PE:H184
+    - - PE:C91
+      - PE:C92
+      - PE:H183
+    - - PE:H181
+      - PE:C91
+      - PE:C92
+    - - PE:H182
+      - PE:C91
+      - PE:C92
+    - - PE:C93
+      - PE:C94
+      - PE:H188
+    - - PE:C93
+      - PE:C94
+      - PE:H187
+    - - PE:H185
+      - PE:C93
+      - PE:C94
+    - - PE:H186
+      - PE:C93
+      - PE:C94
+    - - PE:C95
+      - PE:C96
+      - PE:H192
+    - - PE:C95
+      - PE:C96
+      - PE:H191
+    - - PE:H189
+      - PE:C95
+      - PE:C96
+    - - PE:H190
+      - PE:C95
+      - PE:C96
+    - - PE:C97
+      - PE:C98
+      - PE:H196
+    - - PE:C97
+      - PE:C98
+      - PE:H195
+    - - PE:H193
+      - PE:C97
+      - PE:C98
+    - - PE:H194
+      - PE:C97
+      - PE:C98
+  dihedrals:
+  - params: 8 1 1.0
+    table: table_d1.xvg
+    quadruples:
+    - - PE:A1
+      - PE:B2
+      - PE:B3
+      - PE:B4
+    - - PE:B2
+      - PE:B3
+      - PE:B4
+      - PE:B5
+    - - PE:B3
+      - PE:B4
+      - PE:B5
+      - PE:B6
+    - - PE:B4
+      - PE:B5
+      - PE:B6
+      - PE:B7
+    - - PE:B5
+      - PE:B6
+      - PE:B7
+      - PE:B8
+    - - PE:B6
+      - PE:B7
+      - PE:B8
+      - PE:B9
+    - - PE:B7
+      - PE:B8
+      - PE:B9
+      - PE:B10
+    - - PE:B8
+      - PE:B9
+      - PE:B10
+      - PE:B11
+    - - PE:B9
+      - PE:B10
+      - PE:B11
+      - PE:B12
+    - - PE:B10
+      - PE:B11
+      - PE:B12
+      - PE:B13
+    - - PE:B11
+      - PE:B12
+      - PE:B13
+      - PE:B14
+    - - PE:B12
+      - PE:B13
+      - PE:B14
+      - PE:B15
+    - - PE:B13
+      - PE:B14
+      - PE:B15
+      - PE:B16
+    - - PE:B14
+      - PE:B15
+      - PE:B16
+      - PE:B17
+    - - PE:B15
+      - PE:B16
+      - PE:B17
+      - PE:B18
+    - - PE:B16
+      - PE:B17
+      - PE:B18
+      - PE:B19
+    - - PE:B17
+      - PE:B18
+      - PE:B19
+      - PE:B20
+    - - PE:B18
+      - PE:B19
+      - PE:B20
+      - PE:B21
+    - - PE:B19
+      - PE:B20
+      - PE:B21
+      - PE:B22
+    - - PE:B20
+      - PE:B21
+      - PE:B22
+      - PE:B23
+    - - PE:B21
+      - PE:B22
+      - PE:B23
+      - PE:B24
+    - - PE:B22
+      - PE:B23
+      - PE:B24
+      - PE:B25
+    - - PE:B23
+      - PE:B24
+      - PE:B25
+      - PE:B26
+    - - PE:B24
+      - PE:B25
+      - PE:B26
+      - PE:B27
+    - - PE:B25
+      - PE:B26
+      - PE:B27
+      - PE:B28
+    - - PE:B26
+      - PE:B27
+      - PE:B28
+      - PE:B29
+    - - PE:B27
+      - PE:B28
+      - PE:B29
+      - PE:B30
+    - - PE:B28
+      - PE:B29
+      - PE:B30
+      - PE:B31
+    - - PE:B29
+      - PE:B30
+      - PE:B31
+      - PE:B32
+    - - PE:B30
+      - PE:B31
+      - PE:B32
+      - PE:B33
+    - - PE:B31
+      - PE:B32
+      - PE:B33
+      - PE:B34
+    - - PE:B32
+      - PE:B33
+      - PE:B34
+      - PE:B35
+    - - PE:B33
+      - PE:B34
+      - PE:B35
+      - PE:B36
+    - - PE:B34
+      - PE:B35
+      - PE:B36
+      - PE:B37
+    - - PE:B35
+      - PE:B36
+      - PE:B37
+      - PE:B38
+    - - PE:B36
+      - PE:B37
+      - PE:B38
+      - PE:B39
+    - - PE:B37
+      - PE:B38
+      - PE:B39
+      - PE:B40
+    - - PE:B38
+      - PE:B39
+      - PE:B40
+      - PE:B41
+    - - PE:B39
+      - PE:B40
+      - PE:B41
+      - PE:B42
+    - - PE:B40
+      - PE:B41
+      - PE:B42
+      - PE:B43
+    - - PE:B41
+      - PE:B42
+      - PE:B43
+      - PE:B44
+    - - PE:B42
+      - PE:B43
+      - PE:B44
+      - PE:B45
+    - - PE:B43
+      - PE:B44
+      - PE:B45
+      - PE:B46
+    - - PE:B44
+      - PE:B45
+      - PE:B46
+      - PE:B47
+    - - PE:B45
+      - PE:B46
+      - PE:B47
+      - PE:B48
+    - - PE:B46
+      - PE:B47
+      - PE:B48
+      - PE:B49
+    - - PE:B47
+      - PE:B48
+      - PE:B49
+      - PE:A50
+    cg_bonded: true
+simulation:
+  alpha: 0.0001
+  initial_resolution: 0.0
+  nonuniform_lambda: false
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  equilibration_steps: 10000
+  production_steps: 10000
+  temperature: 423.0
+  thermostat: langevin
+  thermostat_gamma: 30.0
+  thermostat_target: atomistic
+  lj_cutoff: 1.4
+  cg_cutoff: 1.4
+  coulomb_cutoff: 0.9
+  table_groups:
+  - A
+  - B
+  exclusion_nrexcl: 3
+  energy_interval: 1000
+  trajectory_interval: 1000
+  rng_seed: 12345
+output:
+  prefix: pe_aa
+  format: lammps
+  units: real
