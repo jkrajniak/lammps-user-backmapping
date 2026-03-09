@@ -46,6 +46,7 @@ atomistic detail while maintaining thermodynamic consistency.
 
 - [Getting Started](getting-started.md) -- install and run your first backmapping
   simulation
+- [Large-scale examples](large-scale-examples.md) -- production-scale variants (75 chains, 500 molecules) and how to run them
 - [Settings Reference](settings-reference.md) -- complete YAML settings documentation
 - [Tutorial: Setting Up a New System](tutorial-new-system.md) -- step-by-step guide for
   your own molecule

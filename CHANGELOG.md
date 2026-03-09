@@ -7,7 +7,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation: getting-started now uses correct `backmap-prep` invocation from `python/`; index quick links and large-scale examples page mention the validation script; examples README documents large-scale variants and `scripts/validate-large-scale-prep.sh`.
+- README: repository layout section now lists all example directories and the `scripts/` validation script.
+
 ### Added
+
+- Large-scale example variants in `examples/<name>/large/` for dodecane, pe, pe4, pe_10, pe_aa, and melamine. Inputs are sourced from the [bakery](https://github.com/bakery-cg2at/bakery) project; each `large/` contains a README and `settings.yaml` so `backmap-prep` can generate LAMMPS data and input files. See [Large-scale examples](docs/large-scale-examples.md) and the main README.
 
 - C++ LAMMPS styles: `fix backmap`, `pair_style backmap`,
   `bond_style backmap/harmonic`, `bond_style backmap/table`,

@@ -50,3 +50,7 @@ cd ../examples/pe_10 && lmp -in in.pe_10
 
 Migrated from [bakery](https://github.com/bakery-cg2at/bakery) `examples/pe_10/`.
 Original system: 75 chains at 423 K; reduced to 10 chains for quick testing.
+
+## Large-scale variant
+
+A 75-chain variant is in `large/`. Copy `conf_cg.gro` from `bakery/examples/pe_10/` as `large/cg_conf.gro` if needed, then run `backmap-prep` with `large/settings.yaml`. See `large/README.md` and [Large-scale examples](../../docs/large-scale-examples.md).

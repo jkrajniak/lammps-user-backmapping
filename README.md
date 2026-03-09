@@ -29,7 +29,10 @@ python/
   tests/                    pytest unit tests
   pyproject.toml            Python project metadata & tool config
 examples/
-  dodecane/                 Dodecane backmapping example
+  dodecane/, pe/, pe4/,      Backmapping examples (each has large/ for
+  pe_10/, pe_aa/, melamine/ production-scale variants)
+scripts/
+  validate-large-scale-prep.sh   Optional: run backmap-prep on one large example
 openspec/                   Specifications and change tracking
 Makefile                    Top-level convenience targets
 ```
@@ -95,7 +98,9 @@ backmap-prep settings.yaml --output-prefix mysystem
 ```
 
 See `examples/dodecane/` for a complete working example with a dodecane system
-(6 CG beads mapped to 12 united-atom carbons).
+(6 CG beads mapped to 12 united-atom carbons). Larger-scale variants (e.g. 75-chain
+PE, 500-molecule melamine) are in each example’s `large/` subdirectory; see
+[Large-scale examples](https://jkrajniak.github.io/lammps-user-backmapping/large-scale-examples/) in the docs.
 
 ### Settings File
 

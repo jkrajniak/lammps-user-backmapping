@@ -47,6 +47,10 @@ cd ../examples/pe4 && lmp -in in.pe4
 | `table_A_B.xvg` | CG A–B pair table |
 | `table_B_B.xvg` | CG B–B pair table |
 
+## Large-scale variant
+
+A 75-chain variant is in `large/`. Copy `cg_conf.gro` from `bakery/examples/pe4/` into `large/` if needed, then run `backmap-prep` with `large/settings.yaml`. See `large/README.md` and [Large-scale examples](../../docs/large-scale-examples.md).
+
 ## Origin
 
 Migrated from [bakery](https://github.com/bakery-cg2at/bakery) `examples/pe4/`.

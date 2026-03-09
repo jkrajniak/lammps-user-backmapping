@@ -52,3 +52,7 @@ cd ../examples/pe_aa && lmp -in in.pe_aa
 Migrated from [bakery](https://github.com/bakery-cg2at/bakery) `examples/pe_aa/prepare/`.
 Uses the same CG tables as the PE (2:1 UA) example — the CG representation is identical.
 Original system: 75 chains at 423 K; reduced to 10 chains for quick testing.
+
+## Large-scale variant
+
+A larger-chain variant is in `large/`. Copy `conf_cg.gro` from `bakery/examples/pe_aa/prepare/` as `large/cg_conf.gro` if needed, then run `backmap-prep` with `large/settings.yaml`. See `large/README.md` and [Large-scale examples](../../docs/large-scale-examples.md).

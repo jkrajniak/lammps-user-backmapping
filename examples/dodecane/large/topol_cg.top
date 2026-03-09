@@ -1,0 +1,45 @@
+; CG topology for dodecane (10 molecules)
+
+[ defaults ]
+; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
+1         1          no         0.0      0.0
+
+[ atomtypes ]
+; name  mass        charge  ptype  sigma  epsilon
+A       29.062000   0.000   A      1.0    1.0
+B       28.054000   0.000   A      1.0    1.0
+
+[ moleculetype ]
+; name  excl
+DOD     3
+
+[ atoms ]
+; nr  type  resnr  residue  atom  cgnr  charge     mass
+1     A     1      DOD      A1    1     0.000000   29.062000
+2     B     1      DOD      B1    2     0.000000   28.054000
+3     B     1      DOD      B2    3     0.000000   28.054000
+4     B     1      DOD      B3    4     0.000000   28.054000
+5     B     1      DOD      B4    5     0.000000   28.054000
+6     A     1      DOD      A2    6     0.000000   29.062000
+
+[ bonds ]
+; i  j  func  args (tabulated: func=8, table_num, k)
+1    2  8     1    1.0
+2    3  8     1    1.0
+3    4  8     1    1.0
+4    5  8     1    1.0
+5    6  8     1    1.0
+
+[ angles ]
+1    2  3  8  1  1.0
+2    3  4  8  2  1.0
+3    4  5  8  2  1.0
+4    5  6  8  1  1.0
+
+[ system ]
+; Name
+DOD
+
+[ molecules ]
+; Compound   #mols
+DOD          10

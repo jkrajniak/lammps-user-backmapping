@@ -33,6 +33,14 @@ cd ../examples/<name> && lmp -in in.<name>
 - **All-atom with H**: `pe_10/` and `pe_aa/` demonstrate OPLS/AA backmapping
 - **Non-linear topology**: `melamine/` shows a triangular CG bonding pattern
 
+## Large-scale variants
+
+Each example has a `large/` subdirectory for production-scale systems (e.g. 75 chains for PE, 500 molecules for melamine). Inputs are sourced from the [bakery](https://github.com/bakery-cg2at/bakery) project; see `large/README.md` in each directory and the [Large-scale examples](https://jkrajniak.github.io/lammps-user-backmapping/large-scale-examples/) doc for how to obtain files and run `backmap-prep`. To validate file generation without running LAMMPS:
+
+```bash
+./scripts/validate-large-scale-prep.sh dodecane
+```
+
 ## Origin
 
 The PE and melamine examples were migrated from the

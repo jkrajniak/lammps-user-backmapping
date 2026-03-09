@@ -54,3 +54,7 @@ cd ../examples/melamine && lmp -in in.melamine
 
 Migrated from [bakery](https://github.com/bakery-cg2at/bakery) `examples/melamine/`.
 Original system: 500 molecules; reduced to 50 for quick testing.
+
+## Large-scale variant
+
+A 500-molecule variant is in `large/`. Copy `cg_conf_500.gro` from `bakery/examples/melamine/` as `large/cg_conf.gro` if needed, then run `backmap-prep` with `large/settings.yaml`. See `large/README.md` and [Large-scale examples](../../docs/large-scale-examples.md).

@@ -75,21 +75,22 @@ The repository includes a complete working example with a dodecane system
 
 ### 1. Generate LAMMPS input files
 
+From the repository root:
+
 ```bash
-cd examples/dodecane
-uv run backmap-prep settings.yaml
+cd python && uv run backmap-prep ../examples/dodecane/settings.yaml
 ```
 
-This produces:
+Output is written to `examples/dodecane/`. This produces:
 
 - `dodecane.data` -- LAMMPS data file with both CG and AT atoms
 - `in.dodecane` -- LAMMPS input script with all interaction definitions
-- `table_b1.table` -- tabulated CG-CG bond potential
+- `table_*.table` -- tabulated CG bond and pair potentials
 
 ### 2. Run the simulation
 
 ```bash
-lmp -in in.dodecane
+cd examples/dodecane && lmp -in in.dodecane
 ```
 
 The simulation runs three phases:
@@ -125,6 +126,11 @@ complexity:
 
 Each example directory contains a `README.md` with system-specific
 instructions.
+
+### Large-scale variants
+
+Each example has a `large/` subdirectory with (or instructions for) production-scale
+inputs (e.g. 75 chains, 500 molecules) sourced from the [bakery](https://github.com/bakery-cg2at/bakery) project. See [Large-scale examples](large-scale-examples.md) for how to obtain inputs and run them.
 
 ## Next Steps
 
