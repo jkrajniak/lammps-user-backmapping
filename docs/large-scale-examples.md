@@ -35,7 +35,7 @@ Each `examples/<name>/large/README.md` describes which files to copy and how to 
 2. **Generate LAMMPS input and data**
    From the repository root:
    ```bash
-   cd python && uv run backmap-prep ../examples/<name>/large/settings.yaml
+   uv run backmap-prep examples/<name>/large/settings.yaml
    ```
    Output (`.data` and `in.<name>`) is written according to the paths in `settings.yaml` (often into the same `large/` directory).
 

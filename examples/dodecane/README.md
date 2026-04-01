@@ -89,7 +89,7 @@ Features:
 A larger system is available in `large/`. Topologies and tables in `large/` are the same as in the root (backmap-prep compatible); only the CG coordinates differ. To use bakery’s full-size coordinates:
 
 1. Copy `cg_conf.gro` from `bakery/examples/dodecane/` into `examples/dodecane/large/` (or use the one already there if you copied from bakery).
-2. From repo root: `cd python && uv run backmap-prep ../examples/dodecane/large/settings.yaml`
+2. From repo root: `uv run backmap-prep examples/dodecane/large/settings.yaml`
 3. Run LAMMPS from `examples/dodecane/large/`: `lmp -in in.dodecane`
 
 See `large/README.md` for details and [Large-scale examples](../../docs/large-scale-examples.md) in the docs.

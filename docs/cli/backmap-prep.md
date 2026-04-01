@@ -6,7 +6,6 @@ setup and generates all files needed to run the simulation in LAMMPS.
 ## Installation
 
 ```bash
-cd python
 uv sync
 ```
 

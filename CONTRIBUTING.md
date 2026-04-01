@@ -38,7 +38,7 @@ Thanks for your interest in contributing to the LAMMPS Backmapping Package!
   the project configuration (Google fallback).
 - **Python**: Code is formatted and linted with [Ruff](https://docs.astral.sh/ruff/)
   and type-checked with [mypy](https://mypy-lang.org/) in strict mode. See
-  `python/pyproject.toml` for the full configuration.
+  `pyproject.toml` for the full configuration.
 
 ## Reporting Issues
 

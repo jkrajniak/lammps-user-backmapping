@@ -5,11 +5,15 @@ on:
     branches: [main]
     paths:
       - "python/**"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/python-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "python/**"
+      - "pyproject.toml"
+      - "uv.lock"
       - ".github/workflows/python-ci.yml"
 
 concurrency:
@@ -30,16 +34,13 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        working-directory: python
         run: uv sync --extra dev
 
       - name: Ruff lint
-        working-directory: python
-        run: uv run ruff check src/ tests/
+        run: uv run ruff check python/src/ python/tests/
 
       - name: Ruff format check
-        working-directory: python
-        run: uv run ruff format --check src/ tests/
+        run: uv run ruff format --check python/src/ python/tests/
 
   typecheck:
     name: Type Check
@@ -54,12 +55,10 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        working-directory: python
         run: uv sync --extra dev
 
       - name: mypy
-        working-directory: python
-        run: uv run mypy src/
+        run: uv run mypy python/src/
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -78,9 +77,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        working-directory: python
         run: uv sync --extra dev
 
       - name: Run tests
-        working-directory: python
         run: uv run pytest --cov=backmap_prep --cov-report=term-missing

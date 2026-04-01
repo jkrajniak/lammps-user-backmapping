@@ -25,10 +25,10 @@ Per-chain mapping (4 atoms per bead):
 
 ```bash
 # 1. Generate LAMMPS files from settings
-cd python && uv run backmap-prep ../examples/pe4/settings.yaml
+uv run backmap-prep examples/pe4/settings.yaml
 
 # 2. Run LAMMPS
-cd ../examples/pe4 && lmp -in in.pe4
+cd examples/pe4 && lmp -in in.pe4
 ```
 
 ## Input Files

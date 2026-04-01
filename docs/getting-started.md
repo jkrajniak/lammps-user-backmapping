@@ -51,7 +51,6 @@ To uninstall later:
 ### 2. Install the Python CLI
 
 ```bash
-cd python
 uv sync
 ```
 
@@ -78,7 +77,7 @@ The repository includes a complete working example with a dodecane system
 From the repository root:
 
 ```bash
-cd python && uv run backmap-prep ../examples/dodecane/settings.yaml
+uv run backmap-prep examples/dodecane/settings.yaml
 ```
 
 Output is written to `examples/dodecane/`. This produces:

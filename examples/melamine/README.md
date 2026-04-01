@@ -24,10 +24,10 @@ CG topology: A1–A2–A3–A1 (triangle, 3 bonds per molecule).
 
 ```bash
 # 1. Generate LAMMPS files from settings
-cd python && uv run backmap-prep ../examples/melamine/settings.yaml
+uv run backmap-prep examples/melamine/settings.yaml
 
 # 2. Run LAMMPS
-cd ../examples/melamine && lmp -in in.melamine
+cd examples/melamine && lmp -in in.melamine
 ```
 
 ## Input Files

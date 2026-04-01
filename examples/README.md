@@ -20,10 +20,10 @@ All examples follow the same workflow:
 
 ```bash
 # 1. Generate LAMMPS input files
-cd python && uv run backmap-prep ../examples/<name>/settings.yaml
+uv run backmap-prep examples/<name>/settings.yaml
 
 # 2. Run the backmapping simulation
-cd ../examples/<name> && lmp -in in.<name>
+cd examples/<name> && lmp -in in.<name>
 ```
 
 ## Choosing an Example

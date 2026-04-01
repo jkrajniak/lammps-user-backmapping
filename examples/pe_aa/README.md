@@ -23,10 +23,10 @@ Per-chain mapping:
 
 ```bash
 # 1. Generate LAMMPS files from settings
-cd python && uv run backmap-prep ../examples/pe_aa/settings.yaml
+uv run backmap-prep examples/pe_aa/settings.yaml
 
 # 2. Run LAMMPS
-cd ../examples/pe_aa && lmp -in in.pe_aa
+cd examples/pe_aa && lmp -in in.pe_aa
 ```
 
 ## Input Files

@@ -9,10 +9,25 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Changed
 
-- Documentation: getting-started now uses correct `backmap-prep` invocation from `python/`; index quick links and large-scale examples page mention the validation script; examples README documents large-scale variants and `scripts/validate-large-scale-prep.sh`.
+- Packaging and docs: Python project metadata (`pyproject.toml`, `uv.lock`) is now at repository root so `uv sync` from root installs `backmap-prep`; documentation and examples now use root-level `uv run backmap-prep ...` commands.
 - README: repository layout section now lists all example directories and the `scripts/` validation script.
 
 ### Added
+
+- Restart/checkpoint support for preemptible cloud instances: new
+  `restart_interval` setting in `simulation` generates `write_restart`
+  commands and per-phase input scripts. Includes `scripts/run-backmap.sh`
+  entrypoint that detects restart files and resumes from the correct phase.
+- Google Cloud Batch example (`examples/cloud-batch/`) with spot VM job
+  template and setup instructions.
+- "Running on Cloud / HPC" documentation page (`docs/cloud-hpc.md`) covering
+  restart configuration, Cloud Batch, and Slurm/Apptainer workflows.
+- Dockerfile for building LAMMPS with the backmapping package in a container
+  (multi-stage build, configurable LAMMPS version via `LAMMPS_VERSION` build
+  arg, includes `backmap-prep` CLI). Supports conversion to
+  Singularity/Apptainer for HPC clusters.
+- Docker documentation page (`docs/docker.md`) with build, run, MPI, and HPC
+  conversion instructions.
 
 - Large-scale example variants in `examples/<name>/large/` for dodecane, pe, pe4, pe_10, pe_aa, and melamine. Inputs are sourced from the [bakery](https://github.com/bakery-cg2at/bakery) project; each `large/` contains a README and `settings.yaml` so `backmap-prep` can generate LAMMPS data and input files. See [Large-scale examples](docs/large-scale-examples.md) and the main README.
 

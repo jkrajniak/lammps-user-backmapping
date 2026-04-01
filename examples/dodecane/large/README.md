@@ -20,7 +20,7 @@ Large-scale inputs for this example are sourced from the [bakery](https://github
 
 3. Run backmap-prep to generate LAMMPS input and data files:
    ```bash
-   cd python && uv run backmap-prep ../examples/dodecane/large/settings.yaml
+   uv run backmap-prep examples/dodecane/large/settings.yaml
    ```
    Output will be written to `examples/dodecane/large/` (or the current directory; check `output.prefix` in settings).
 

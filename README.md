@@ -27,7 +27,7 @@ src/                        C++ LAMMPS styles (fix, pair, bond, angle)
 python/
   src/backmap_prep/         Python package source (backmap-prep CLI)
   tests/                    pytest unit tests
-  pyproject.toml            Python project metadata & tool config
+pyproject.toml              Python project metadata & tool config
 examples/
   dodecane/, pe/, pe4/,      Backmapping examples (each has large/ for
   pe_10/, pe_aa/, melamine/ production-scale variants)
@@ -46,6 +46,11 @@ Makefile                    Top-level convenience targets
 - **uv** (Python dependency manager)
 
 ## Installation
+
+This repository is now structured as a **Python-first distribution**: the main
+installable artifact is `backmap-prep`. The LAMMPS C++ package is an optional
+engine extension that you install into a LAMMPS source tree when you want to
+run simulations.
 
 ### C++ Package (LAMMPS Styles)
 
@@ -71,6 +76,27 @@ make yes-backmap
 make mpi
 ```
 
+### Docker (Recommended for HPC)
+
+Build a container with LAMMPS + backmapping package — no manual compilation:
+
+```bash
+docker build -t lammps-backmap .
+docker run --rm -v "$(pwd)":/work lammps-backmap lmp -in in.backmap
+```
+
+Override the LAMMPS version with `--build-arg LAMMPS_VERSION=<tag>`. Convert to
+Singularity/Apptainer for HPC clusters with `apptainer build lammps-backmap.sif
+docker-daemon://lammps-backmap:latest`. See the
+[Docker docs](https://jkrajniak.github.io/lammps-user-backmapping/docker/) for
+full details.
+
+For cloud spot instances with automatic restart on preemption, add
+`restart_interval: 5000` to your `settings.yaml` and use the included
+`run-backmap.sh` entrypoint. See
+[Running on Cloud / HPC](https://jkrajniak.github.io/lammps-user-backmapping/cloud-hpc/)
+for Cloud Batch and Slurm examples.
+
 ### Python CLI (`backmap-prep`)
 
 ```bash
@@ -81,7 +107,7 @@ make install-hooks   # set up pre-commit hooks
 Or manually:
 
 ```bash
-cd python && uv sync --extra dev
+uv sync --extra dev
 ```
 
 This installs the `backmap-prep` command-line tool.

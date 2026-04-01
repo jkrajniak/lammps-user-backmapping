@@ -7,43 +7,43 @@ help: ## Show this help
 # ── Setup ───────────────────────────────────────────────────────────
 
 install: ## Install Python package
-	cd python && uv sync
+	uv sync
 
 install-dev: ## Install Python package with dev dependencies
-	cd python && uv sync --extra dev
+	uv sync --extra dev
 
 install-hooks: install-dev ## Install pre-commit hooks into the repo
-	cd python && uv run pre-commit install
+	uv run pre-commit install
 
 # ── Quality ─────────────────────────────────────────────────────────
 
 lint: ## Run ruff linter
-	cd python && uv run ruff check src/ tests/
+	uv run ruff check python/src/ python/tests/
 
 format: ## Run ruff formatter (in-place)
-	cd python && uv run ruff format src/ tests/
+	uv run ruff format python/src/ python/tests/
 
 format-check: ## Check formatting without modifying files
-	cd python && uv run ruff format --check src/ tests/
+	uv run ruff format --check python/src/ python/tests/
 
 typecheck: ## Run mypy type checker
-	cd python && uv run mypy src/
+	uv run mypy python/src/
 
 # ── Tests ───────────────────────────────────────────────────────────
 
 test: ## Run pytest
-	cd python && uv run pytest
+	uv run pytest
 
 test-cov: ## Run pytest with coverage report
-	cd python && uv run pytest --cov=backmap_prep --cov-report=term-missing
+	uv run pytest --cov=backmap_prep --cov-report=term-missing
 
 # ── Pre-commit ──────────────────────────────────────────────────────
 
 pre-commit: ## Run all pre-commit hooks on staged files
-	cd python && uv run pre-commit run
+	uv run pre-commit run
 
 pre-commit-all: ## Run all pre-commit hooks on every file
-	cd python && uv run pre-commit run --all-files
+	uv run pre-commit run --all-files
 
 # ── Documentation ───────────────────────────────────────────────────
 

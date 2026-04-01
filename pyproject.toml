@@ -31,13 +31,13 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/backmap_prep"]
+packages = ["python/src/backmap_prep"]
 
 # --- ruff ---
 [tool.ruff]
 target-version = "py310"
 line-length = 100
-src = ["src"]
+src = ["python/src", "python/tests"]
 
 [tool.ruff.lint]
 select = [
@@ -75,5 +75,5 @@ ignore_missing_imports = true
 
 # --- pytest ---
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["python/tests"]
 addopts = "-v --tb=short"
