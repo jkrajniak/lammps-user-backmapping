@@ -24,4 +24,4 @@ Large-scale inputs for this example are sourced from the [bakery](https://github
    ```
    Output will be written to `examples/dodecane/large/` (or the current directory; check `output.prefix` in settings).
 
-4. Run LAMMPS (optional): `lmp -in in.dodecane` (from the directory containing the generated files).
+4. Run LAMMPS (optional): `lmp -in in.dodecane` (from the directory containing the generated files). The default `in.dodecane` performs the λ 0→1 ramp only and writes `dodecane_hybrid.data`; extract AT atoms, then run a separate atomistic input (e.g. `in.dodecane_at`) for RDF or long production.

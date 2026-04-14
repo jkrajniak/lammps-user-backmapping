@@ -1,0 +1,67 @@
+LAMMPS (10 Dec 2025 - Development - patch_10Dec2025-120-ga51f9ba0e7-modified)
+Reading data file ...
+  orthogonal box = (0 0 0) to (57.5376 57.5376 57.5376)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  9000 atoms
+  scanning bonds ...
+  1 = max bonds/atom
+  scanning angles ...
+  1 = max angles/atom
+  orthogonal box = (0 0 0) to (57.5376 57.5376 57.5376)
+  1 by 1 by 1 MPI processor grid
+  reading bonds ...
+  8000 bonds
+  reading angles ...
+  5000 angles
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    0        0        0
+  special bond factors coul:  0        0        0
+     2 = max # of 1-2 neighbors
+     2 = max # of 1-3 neighbors
+     4 = max # of 1-4 neighbors
+     6 = max # of special neighbors
+  special bonds CPU = 0.002 seconds
+  read_data CPU = 0.082 seconds
+WARNING: 3 of 1000 force values in table ENTRY are inconsistent with -dE/dr.
+WARNING:  Should only be flagged at inflection points (src/pair_table.cpp:469)
+WARNING: 6 of 1000 force values in table ENTRY are inconsistent with -dE/dr.
+WARNING:  Should only be flagged at inflection points (src/pair_table.cpp:469)
+6000 atoms in group at_atoms
+3000 atoms in group cg_atoms
+WARNING: Temperature for thermo pressure is not for group all (src/thermo.cpp:570)
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 16
+  ghost atom cutoff = 16
+  binsize = 8, bins = 8 8 8
+  3 neighbor lists, perpetual/occasional/extra = 3 0 0
+  (1) pair (none), perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+  (2) pair (none), perpetual, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+  (3) pair backmap, perpetual, copy from (1)
+      attributes: half, newton on
+      pair build: copy
+      stencil: none
+      bin: none
+Setting up Verlet run ...
+  Unit style    : real
+  Current step  : 0
+  Time step     : 0.25
+WARNING: Inconsistent image flags
+For more information see https://docs.lammps.org/err0027 (src/domain.cpp:1052)
+fix backmap: 3000 bead mappings, cg_types={1,2}, alpha=0.0001, lambda0=0
+Per MPI rank memory allocation (min/avg/max) = 44.13 | 44.13 | 44.13 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng         Press
+         0   0              3235.4021      0              3235.4021     -3775.6548
+ERROR on proc 0: Atoms have moved too far apart (657933622.4548864) for minimum image
+ (src/BACKMAP/fix_backmap.cpp:206)

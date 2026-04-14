@@ -94,12 +94,14 @@ simulation:
   timestep: 0.001            # ps
   timestep_backmapping: 0.001
 
-  equilibration_steps: 10000
-  production_steps: 10000
+  equilibration_steps: 0
+  production_steps: 0
 
   temperature: 298.0          # K
-  thermostat: langevin
-  thermostat_gamma: 30.0      # 1/ps
+  ensemble: nvt
+  thermostat: nose_hoover
+  thermostat_gamma: 30.0      # 1/ps (used with langevin thermostat)
+  thermostat_tdamp: 0.1       # ps — Nosé-Hoover damping time
   thermostat_target: atomistic
 
   lj_cutoff: 1.4              # nm

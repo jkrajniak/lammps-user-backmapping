@@ -1,0 +1,231 @@
+LAMMPS (30 Mar 2026)
+# Test: multiple run commands with unfix/fix to verify no segfault
+# Also tests CG removal and pure AT production
+
+units real
+atom_style full
+boundary p p p
+
+read_data dodecane.data
+Reading data file ...
+  orthogonal box = (0 0 0) to (57.5376 57.5376 57.5376)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  9000 atoms
+  scanning bonds ...
+  1 = max bonds/atom
+  scanning angles ...
+  1 = max angles/atom
+  orthogonal box = (0 0 0) to (57.5376 57.5376 57.5376)
+  1 by 1 by 1 MPI processor grid
+  reading bonds ...
+  8000 bonds
+  reading angles ...
+  5000 angles
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    0        0        0
+  special bond factors coul:  0        0        0
+     2 = max # of 1-2 neighbors
+     2 = max # of 1-3 neighbors
+     4 = max # of 1-4 neighbors
+     6 = max # of special neighbors
+  special bonds CPU = 0.003 seconds
+  read_data CPU = 0.075 seconds
+
+pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
+pair_coeff 1 1 cg table_A_A.table ENTRY
+pair_coeff 1 2 cg table_A_B.table ENTRY
+WARNING: 3 of 1000 force values in table ENTRY are inconsistent with -dE/dr.
+WARNING:  Should only be flagged at inflection points (src/pair_table.cpp:469)
+pair_coeff 1 3 none
+pair_coeff 1 4 none
+pair_coeff 2 2 cg table_B_B.table ENTRY
+WARNING: 6 of 1000 force values in table ENTRY are inconsistent with -dE/dr.
+WARNING:  Should only be flagged at inflection points (src/pair_table.cpp:469)
+pair_coeff 2 3 none
+pair_coeff 2 4 none
+pair_coeff 3 3 atomistic 0.207266 3.748000
+pair_coeff 3 4 atomistic 0.156387 3.826500
+pair_coeff 4 4 atomistic 0.117997 3.905000
+
+bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
+bond_coeff 1 harmonic 800.000883 1.530000
+bond_coeff 2 backmap/table cg table_b1.table ENTRY
+bond_coeff 3 backmap/table cg table_b1.table ENTRY
+bond_coeff 4 backmap/harmonic at 800.000883 1.530000
+
+angle_style backmap/harmonic
+angle_coeff 1 at 126.673180 111.0000
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+group at_atoms type 3 4
+6000 atoms in group at_atoms
+group cg_atoms type 1 2
+3000 atoms in group cg_atoms
+
+neigh_modify delay 0 every 1 check yes
+
+# Phase 0: Short relaxation with CG frozen
+fix freeze cg_atoms setforce 0.0 0.0 0.0
+fix relax at_atoms nve/limit 0.05
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+
+timestep 0.10
+thermo 50
+
+run 100
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 16
+  ghost atom cutoff = 16
+  binsize = 8, bins = 8 8 8
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair backmap, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+WARNING: Inconsistent image flags
+For more information see https://docs.lammps.org/err0027 (src/domain.cpp:1052)
+fix backmap: 3000 bead mappings, cg_types={1,2}, alpha=0.0001, lambda0=0
+Per MPI rank memory allocation (min/avg/max) = 28.11 | 28.11 | 28.11 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press
+         0   0             -298.79305      3534.1952      3235.4021     -3775.6548
+        50   90.866511     -298.79305      1096.1904      3234.8287      1535.6647
+       100   0.56293458    -298.79305      3519.0913      3235.3986      5244.3536
+Loop time of 2.14603 on 1 procs for 100 steps with 9000 atoms
+
+Performance: 0.403 ns/day, 59.612 hours/ns, 46.598 timesteps/s, 419.378 katom-step/s
+97.2% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 2.091      | 2.091      | 2.091      |   0.0 | 97.43
+Bond    | 0.020908   | 0.020908   | 0.020908   |   0.0 |  0.97
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.013539   | 0.013539   | 0.013539   |   0.0 |  0.63
+Output  | 5.5633e-05 | 5.5633e-05 | 5.5633e-05 |   0.0 |  0.00
+Modify  | 0.01548    | 0.01548    | 0.01548    |   0.0 |  0.72
+Other   |            | 0.00508    |            |       |  0.24
+
+Nlocal:           9000 ave        9000 max        9000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          24911 ave       24911 max       24911 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    2.00385e+06 ave 2.00385e+06 max 2.00385e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 2003853
+Ave neighs/atom = 222.65033
+Ave special neighs/atom = 4.6666667
+Neighbor list builds = 0
+Dangerous builds = 0
+
+unfix relax
+unfix freeze
+
+# Phase 1: Backmapping ramp
+fix integrate at_atoms nve/limit 0.1
+fix_modify bm active yes
+
+timestep 0.50
+thermo 50
+
+run 100
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+WARNING: Inconsistent image flags
+For more information see https://docs.lammps.org/err0027 (src/domain.cpp:1052)
+fix backmap: 3000 bead mappings, cg_types={1,2}, alpha=0.0001, lambda0=0
+Per MPI rank memory allocation (min/avg/max) = 28.11 | 28.11 | 28.11 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press
+       100   0.56293458    -298.79305      3519.0913      3235.3986      5244.3536
+       150   174.5341       1699.9738      4445.0142      10826.745      2485.5053
+       200   1525.3063      60197.875      31981.487      133094.65      12372.682
+Loop time of 2.42681 on 1 procs for 100 steps with 9000 atoms
+
+Performance: 1.780 ns/day, 13.482 hours/ns, 41.206 timesteps/s, 370.857 katom-step/s
+96.8% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 2.073      | 2.073      | 2.073      |   0.0 | 85.42
+Bond    | 0.052202   | 0.052202   | 0.052202   |   0.0 |  2.15
+Neigh   | 0.23511    | 0.23511    | 0.23511    |   0.0 |  9.69
+Comm    | 0.015195   | 0.015195   | 0.015195   |   0.0 |  0.63
+Output  | 5.5014e-05 | 5.5014e-05 | 5.5014e-05 |   0.0 |  0.00
+Modify  | 0.046079   | 0.046079   | 0.046079   |   0.0 |  1.90
+Other   |            | 0.005142   |            |       |  0.21
+
+Nlocal:           9000 ave        9000 max        9000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          24988 ave       24988 max       24988 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:     2.0031e+06 ave  2.0031e+06 max  2.0031e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 2003097
+Ave neighs/atom = 222.56633
+Ave special neighs/atom = 4.6666667
+Neighbor list builds = 3
+Dangerous builds = 0
+
+# Phase 2: Remove CG, switch to pure AT, collect RDF
+unfix bm
+unfix integrate
+delete_atoms group cg_atoms
+Deleted 3000 atoms, new total = 6000
+
+# Types 1,2 deleted but LAMMPS keeps type metadata — dummy coeffs needed.
+pair_style lj/cut 14.00
+pair_modify shift yes
+pair_coeff * * 0.1 3.5
+pair_coeff 3 3 0.207266 3.748000
+pair_coeff 3 4 0.156387 3.826500
+pair_coeff 4 4 0.117997 3.905000
+
+bond_style harmonic
+bond_coeff 1 800.000883 1.530000
+bond_coeff 2 800.000883 1.530000
+bond_coeff 3 800.000883 1.530000
+bond_coeff 4 800.000883 1.530000
+
+angle_style harmonic
+angle_coeff 1 126.673180 111.0000
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+group at_atoms type 3 4
+6000 atoms in group at_atoms
+
+fix nve_all at_atoms nve
+
+neigh_modify delay 0 every 1 check yes
+timestep 1.00
+thermo 50
+
+run 100
+Generated 0 of 6 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 16
+  ghost atom cutoff = 16
+  binsize = 8, bins = 8 8 8
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+WARNING: Inconsistent image flags
+For more information see https://docs.lammps.org/err0027 (src/domain.cpp:1052)
+Per MPI rank memory allocation (min/avg/max) = 26.74 | 26.74 | 26.74 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press
+       200   2288.0866      2.5165945e+16  4305453.5      2.5165945e+16  3.6236156e+16
+ERROR on proc 0: Bond atoms 1239 1240 missing on proc 0 at step 201
+For more information see https://docs.lammps.org/err0005 (src/ntopo_bond_all.cpp:59)

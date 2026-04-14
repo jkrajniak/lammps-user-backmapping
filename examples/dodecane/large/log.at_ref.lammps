@@ -1,0 +1,202 @@
+LAMMPS (10 Dec 2025 - Development - patch_10Dec2025-120-ga51f9ba0e7-modified)
+Reading data file ...
+  orthogonal box = (0 0 0) to (121.84436 121.84436 121.84436)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  6000 atoms
+  scanning bonds ...
+  1 = max bonds/atom
+  scanning angles ...
+  1 = max angles/atom
+  orthogonal box = (0 0 0) to (121.84436 121.84436 121.84436)
+  1 by 1 by 1 MPI processor grid
+  reading bonds ...
+  5500 bonds
+  reading angles ...
+  5000 angles
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    0        0        0
+  special bond factors coul:  0        0        0
+     2 = max # of 1-2 neighbors
+     2 = max # of 1-3 neighbors
+     4 = max # of 1-4 neighbors
+     6 = max # of special neighbors
+  special bonds CPU = 0.002 seconds
+  read_data CPU = 0.068 seconds
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Neighbor list info ...
+  update: every = 10 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 16
+  ghost atom cutoff = 16
+  binsize = 8, bins = 16 16 16
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+Setting up Verlet run ...
+  Unit style    : real
+  Current step  : 0
+  Time step     : 0.5
+Per MPI rank memory allocation (min/avg/max) = 7.559 | 7.559 | 7.559 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng         Press         Density         Volume
+         0   0              7172.3415      0              7172.3415     -1046.3213      0.078184271    1808907.3
+      5000   598.74471      6646.7703      10706.681      17353.451     -48.631157      0.078184271    1808907.3
+     10000   599.56496      6332.9258      10721.348      17054.274      65.468043      0.078184271    1808907.3
+     15000   602.50176      6235.6325      10773.864      17009.496      36.682422      0.078184271    1808907.3
+     20000   602.63512      5634.2714      10776.249      16410.52      -62.173945      0.078184271    1808907.3
+Loop time of 35.5567 on 1 procs for 20000 steps with 6000 atoms
+
+Performance: 24.299 ns/day, 0.988 hours/ns, 562.482 timesteps/s, 3.375 Matom-step/s
+99.3% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 26.794     | 26.794     | 26.794     |   0.0 | 75.36
+Bond    | 5.5613     | 5.5613     | 5.5613     |   0.0 | 15.64
+Neigh   | 1.2241     | 1.2241     | 1.2241     |   0.0 |  3.44
+Comm    | 0.46581    | 0.46581    | 0.46581    |   0.0 |  1.31
+Output  | 0.00011363 | 0.00011363 | 0.00011363 |   0.0 |  0.00
+Modify  | 1.3611     | 1.3611     | 1.3611     |   0.0 |  3.83
+Other   |            | 0.1503     |            |       |  0.42
+
+Nlocal:           6000 ave        6000 max        6000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:           5621 ave        5621 max        5621 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         150918 ave      150918 max      150918 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 150918
+Ave neighs/atom = 25.153
+Ave special neighs/atom = 5
+Neighbor list builds = 178
+Dangerous builds = 0
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Setting up Verlet run ...
+  Unit style    : real
+  Current step  : 20000
+  Time step     : 0.5
+Per MPI rank memory allocation (min/avg/max) = 7.595 | 7.595 | 7.595 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng         Press         Density         Volume
+     20000   602.63512      5634.2714      10776.249      16410.52      -62.173945      0.078184271    1808907.3
+     25000   502.52147      4130.8971      8986.0284      13116.926     -33.113975      0.084715492    1669447.9
+     30000   497.94703      3630.6699      8904.2288      12534.899      5.1722359      0.091994905    1537347.1
+     35000   498.34345      3429.6163      8911.3175      12340.934      20.133464      0.10013279     1412405.4
+     40000   498.12173      3239.5545      8907.3527      12146.907      120.10569      0.10925953     1294423.5
+     45000   497.83998      2819.3831      8902.3145      11721.698      37.738029      0.11952999     1183201.8
+     50000   502.32181      2464.7218      8982.4582      11447.18      -9.7228815      0.1311291      1078541
+     55000   500.19282      2090.2535      8944.3876      11034.641     -59.089381      0.14427884     980241.44
+     60000   494.28401      1959.5544      8838.727       10798.281      157.9755       0.15924726     888103.84
+     65000   497.6353       1846.4509      8898.6544      10745.105     -119.08005      0.17635994     801928.71
+     70000   496.49875      1423.53        8878.3308      10301.861     -13.363696      0.19601503     721516.59
+     75000   490.74259      1127.1896      8775.3999      9902.5896      84.916483      0.21870278     646668.04
+     80000   492.78865      994.32858      8811.9873      9806.3159     -114.10118      0.24503139     577183.61
+     85000   499.31919      825.22511      8928.7656      9753.9907      106.63481      0.27576149     512863.85
+     90000   490.82018      366.97291      8776.7874      9143.7603      368.79093      0.3118527      453509.3
+     95000   499.76424     -86.331505      8936.7239      8850.3924     -91.005188      0.354527       398920.53
+    100000   498.3004       27.356844      8910.5477      8937.9045      128.69567      0.40535648     348898.09
+    105000   499.7634      -479.23753      8936.7089      8457.4714      473.10943      0.46638612     303242.52
+    110000   488.90263     -715.38892      8742.498       8027.109      -167.52376      0.54030846     261754.37
+    115000   514.42403     -1358.0446      9198.8686      7840.824       817.17977      0.630716       224234.2
+    120000   503.40477     -2135.7792      9001.8234      6866.0442      998.95596      0.74247268     190482.56
+Loop time of 740.758 on 1 procs for 100000 steps with 6000 atoms
+
+Performance: 5.832 ns/day, 4.115 hours/ns, 134.997 timesteps/s, 809.982 katom-step/s
+99.2% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 678.27     | 678.27     | 678.27     |   0.0 | 91.56
+Bond    | 29.075     | 29.075     | 29.075     |   0.0 |  3.93
+Neigh   | 18.118     | 18.118     | 18.118     |   0.0 |  2.45
+Comm    | 4.2025     | 4.2025     | 4.2025     |   0.0 |  0.57
+Output  | 0.00077582 | 0.00077582 | 0.00077582 |   0.0 |  0.00
+Modify  | 10.072     | 10.072     | 10.072     |   0.0 |  1.36
+Other   |            | 1.021      |            |       |  0.14
+
+Nlocal:           6000 ave        6000 max        6000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          16615 ave       16615 max       16615 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    1.60773e+06 ave 1.60773e+06 max 1.60773e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1607733
+Ave neighs/atom = 267.9555
+Ave special neighs/atom = 5
+Neighbor list builds = 1019
+Dangerous builds = 0
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Setting up Verlet run ...
+  Unit style    : real
+  Current step  : 120000
+  Time step     : 1
+Per MPI rank memory allocation (min/avg/max) = 19.88 | 19.88 | 19.88 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng         Press         Density         Volume
+    120000   503.40477     -2135.8861      9001.8234      6865.9373      1027.236       0.74247268     190482.56
+    125000   482.57794     -1289.1649      8629.4005      7340.2356     -1080.8393      0.66894144     211420.75
+    130000   480.22434     -1429.1273      8587.3137      7158.1864     -712.97863      0.67840781     208470.63
+    135000   469.08944     -1756.444       8388.2008      6631.7568     -1118.4178      0.69834415     202519.2
+    140000   459.50711     -1770.954       8216.8508      6445.8968      184.02895      0.70181975     201516.27
+    145000   445.98776     -1986.5431      7975.0993      5988.5563      942.65694      0.705987       200326.78
+    150000   447.72467     -2320.4139      8006.1587      5685.7448     -1008.3892      0.7147373      197874.24
+    155000   440.35655     -2521.4377      7874.4028      5352.9651     -190.398        0.72636567     194706.48
+    160000   426.74357     -2629.9438      7630.9771      5001.0332      250.77357      0.7360712      192139.16
+    165000   413.80652     -2976.1315      7399.6383      4423.5068     -865.11385      0.7398499      191157.83
+    170000   396.10493     -3297.6214      7083.1007      3785.4793     -47.233312      0.75261201     187916.35
+    175000   392.46229     -3346.1964      7017.9633      3671.7669      563.02435      0.75693124     186844.05
+    180000   378.55027     -3611.434       6769.1903      3157.7563     -98.009677      0.76581029     184677.72
+    185000   369.62798     -3522.934       6609.643       3086.709      -50.285574      0.76095092     185857.06
+    190000   361.51732     -3748.6496      6464.6092      2715.9596     -100.1502       0.77273967     183021.66
+    195000   349.49477     -4149.4122      6249.6233      2100.211       421.17735      0.77988141     181345.65
+    200000   337.96723     -4281.1798      6043.4893      1762.3095     -916.60355      0.78545003     180059.96
+    205000   330.91218     -4329.2506      5917.3317      1588.081      -234.06759      0.78611536     179907.56
+    210000   320.02423     -4791.606       5722.6348      931.02881      5.4945631      0.80162504     176426.75
+    215000   309.59104     -4994.9376      5536.0696      541.13203      498.74728      0.80849052     174928.58
+    220000   297.27628     -5208.2714      5315.8587      107.58733      546.54051      0.81953622     172570.9
+Loop time of 26705.9 on 1 procs for 100000 steps with 6000 atoms
+
+Performance: 0.324 ns/day, 74.183 hours/ns, 3.744 timesteps/s, 22.467 katom-step/s
+7.1% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 26562      | 26562      | 26562      |   0.0 | 99.46
+Bond    | 44.766     | 44.766     | 44.766     |   0.0 |  0.17
+Neigh   | 71.78      | 71.78      | 71.78      |   0.0 |  0.27
+Comm    | 8.0644     | 8.0644     | 8.0644     |   0.0 |  0.03
+Output  | 0.00064962 | 0.00064962 | 0.00064962 |   0.0 |  0.00
+Modify  | 17.45      | 17.45      | 17.45      |   0.0 |  0.07
+Other   |            | 1.587      |            |       |  0.01
+
+Nlocal:           6000 ave        6000 max        6000 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:          17530 ave       17530 max       17530 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    1.77354e+06 ave 1.77354e+06 max 1.77354e+06 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 1773541
+Ave neighs/atom = 295.59017
+Ave special neighs/atom = 5
+Neighbor list builds = 1649
+Dangerous builds = 0
+Generated 1 of 1 mixed pair_coeff terms from geometric mixing rule
+Setting up Verlet run ...
+  Unit style    : real
+  Current step  : 220000
+  Time step     : 1
+Per MPI rank memory allocation (min/avg/max) = 20.66 | 20.66 | 20.66 Mbytes
+   Step          Temp          PotEng         KinEng         TotEng         Press         Density         Volume
+    220000   297.27628     -5208.2714      5315.8587      107.58733      546.54051      0.81953622     172570.9
+    225000   300.85811     -5260.041       5379.9085      119.86747      1193.98        0.81953622     172570.9
+    230000   296.9734      -5171.7612      5310.4426      138.68138      381.48748      0.81953622     172570.9
+    235000   301.62165     -5162.7893      5393.562       230.7727      -1124.9242      0.81953622     172570.9
+    240000   300.93042     -5219.9372      5381.2015      161.26432     -293.51833      0.81953622     172570.9
+    245000   295.

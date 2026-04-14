@@ -1,4 +1,4 @@
-; CG topology for dodecane (10 molecules)
+; CG topology for dodecane (500 molecules)
 
 [ defaults ]
 ; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
@@ -42,4 +42,4 @@ DOD
 
 [ molecules ]
 ; Compound   #mols
-DOD          10
+DOD          500

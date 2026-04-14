@@ -1,0 +1,63 @@
+# Standalone atomistic reference simulation for dodecane (500 molecules)
+# GROMOS united-atom force field (CH3/CH2)
+# Produces reference RDF for comparison with backmapped system
+#
+# This is an INDEPENDENT AT simulation — no connection to backmapping.
+# Molecules start on a lattice in an expanded box, are compressed via
+# fix deform to the target density, then equilibrated before production.
+#
+# Prerequisites:
+#   uv run build_at_reference.py --gro dodecane_single.gro --output dodecane_at_ref.data --n-mol 500
+
+units real
+atom_style full
+boundary p p p
+
+pair_style lj/cut 14.00
+pair_modify shift yes
+bond_style harmonic
+angle_style harmonic
+
+read_data dodecane_at_ref.data
+
+special_bonds lj 0.0 0.0 0.0
+
+neighbor 2.0 bin
+neigh_modify every 10 delay 0 check yes
+
+thermo 5000
+thermo_style custom step temp pe ke etotal press density vol
+
+# --- Phase A: NVT at high T to randomize in expanded box ---
+timestep 0.5
+fix integrate all nvt temp 600.0 600.0 100.0
+run 20000
+
+# --- Phase B: compress box to target density via fix deform ---
+# Target box: 57.5376 Å (liquid dodecane density ~0.749 g/cm³)
+unfix integrate
+fix integrate all nvt temp 500.0 500.0 100.0
+fix shrink all deform 1 x final 0.0 57.5376 y final 0.0 57.5376 z final 0.0 57.5376 units box
+timestep 0.5
+run 100000
+unfix shrink
+
+# --- Phase C: NPT equilibration to relax pressure ---
+unfix integrate
+fix integrate all npt temp 500.0 298.0 100.0 iso 1.0 1.0 1000.0
+timestep 1.0
+run 100000
+
+# --- Phase D: NVT equilibration at target temperature ---
+unfix integrate
+fix integrate all nvt temp 298.0 298.0 100.0
+run 50000
+
+# --- Phase E: production with RDF ---
+# CH3-CH3 (1-1), CH3-CH2 (1-2), CH2-CH2 (2-2)
+compute rdf_ref all rdf 200 1 1 1 2 2 2
+fix rdf_out all ave/time 10 100 1000 c_rdf_ref[*] file rdf_reference.dat mode vector
+
+run 100000
+
+write_data dodecane_at_equil.data

@@ -9,6 +9,7 @@ Each example directory has a `large/` subdirectory:
 | Example   | Small-scale (root)     | Large-scale (`large/`)        |
 |----------|------------------------|--------------------------------|
 | Dodecane | `examples/dodecane/`   | `examples/dodecane/large/`     |
+| Dodecane (250 mol) | — | `examples/dodecane/n250/` (medium; CG from bakery `large/cg_conf.gro`) |
 | PE       | `examples/pe/`         | `examples/pe/large/`           |
 | PE4      | `examples/pe4/`        | `examples/pe4/large/`          |
 | PE-10    | `examples/pe_10/`      | `examples/pe_10/large/`        |
