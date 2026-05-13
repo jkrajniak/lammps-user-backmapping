@@ -44,6 +44,11 @@
 
 using namespace LAMMPS_NS;
 
+// AT pair interactions are deferred until both atoms reach this lambda.
+// Prevents LJ singularities from inter-molecular overlaps at early lambda
+// (backmap-prep clusters all AT atoms near the first CG bead).
+static constexpr double LAMBDA_AT_ONSET = 0.1;
+
 /* ---------------------------------------------------------------------- */
 
 PairBackmap::PairBackmap(LAMMPS *lmp)
@@ -180,8 +185,16 @@ void PairBackmap::coeff(int narg, char **arg) {
   utils::bounds(FLERR, arg[1], 1, atom->ntypes, jlo, jhi, error);
 
   if (strcmp(arg[2], "atomistic") == 0) {
-    // Forward to AT sub-style
-    if (pair_at) pair_at->coeff(narg - 1, &arg[1]);
+    // Forward to AT sub-style: rebuild args as [I, J, params...]
+    if (pair_at) {
+      int sub_narg = narg - 1;
+      auto sub_arg = new char *[sub_narg];
+      sub_arg[0] = arg[0];
+      sub_arg[1] = arg[1];
+      for (int k = 3; k < narg; k++) sub_arg[k - 1] = arg[k];
+      pair_at->coeff(sub_narg, sub_arg);
+      delete[] sub_arg;
+    }
     for (int i = ilo; i <= ihi; i++) {
       for (int j = MAX(jlo, i); j <= jhi; j++) {
         pair_kind[i][j] = ATOMISTIC;
@@ -190,8 +203,16 @@ void PairBackmap::coeff(int narg, char **arg) {
       }
     }
   } else if (strcmp(arg[2], "cg") == 0) {
-    // Forward to CG sub-style
-    if (pair_cg) pair_cg->coeff(narg - 1, &arg[1]);
+    // Forward to CG sub-style: rebuild args as [I, J, params...]
+    if (pair_cg) {
+      int sub_narg = narg - 1;
+      auto sub_arg = new char *[sub_narg];
+      sub_arg[0] = arg[0];
+      sub_arg[1] = arg[1];
+      for (int k = 3; k < narg; k++) sub_arg[k - 1] = arg[k];
+      pair_cg->coeff(sub_narg, sub_arg);
+      delete[] sub_arg;
+    }
     for (int i = ilo; i <= ihi; i++) {
       for (int j = MAX(jlo, i); j <= jhi; j++) {
         pair_kind[i][j] = CG;
@@ -219,11 +240,10 @@ void PairBackmap::init_style() {
   // Locate fix backmap
   fix_backmap = BackmapLambda::find_fix_backmap(lmp, "pair_style backmap");
 
-  // Initialize sub-styles
-  if (pair_at) pair_at->init_style();
-  if (pair_cg) pair_cg->init_style();
-
-  // Request a neighbor list
+  // Sub-styles are only used via single() — they don't need their own
+  // neighbor lists.  Calling their init_style() creates requests that
+  // LAMMPS may merge/copy into ours, causing type-filtered lists.
+  // We request a single full list for pair_backmap.
   neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
 
@@ -232,7 +252,6 @@ void PairBackmap::init_style() {
 double PairBackmap::init_one(int i, int j) {
   if (setflag[i][j] == 0) error->all(FLERR, "All pair coeffs are not set");
 
-  // Also init sub-style pair parameters for this type pair
   if (pair_kind[i][j] == ATOMISTIC && pair_at)
     pair_at->init_one(i, j);
   else if (pair_kind[i][j] == CG && pair_cg)
@@ -306,7 +325,8 @@ void PairBackmap::compute(int eflag, int vflag) {
 
       if (BackmapLambda::is_almost_zero(w)) continue;
 
-      // Use the appropriate sub-style's single() to get fpair and eng
+      if (!is_cg && (li < LAMBDA_AT_ONSET || lj < LAMBDA_AT_ONSET)) continue;
+
       Pair *sub = is_cg ? pair_cg : pair_at;
       double fforce = 0.0;
       double eng = sub->single(i, j, itype, jtype, rsq, 1.0, 1.0, fforce);

@@ -19,7 +19,7 @@ FixStyle(backmap,FixBackmap);
 #ifndef LMP_FIX_BACKMAP_H
 #define LMP_FIX_BACKMAP_H
 
-#include <map>
+#include <set>
 #include <vector>
 
 #include "fix.h"
@@ -35,6 +35,7 @@ class FixBackmap : public Fix {
   void init() override;
   void setup(int) override;
   void initial_integrate(int) override;
+  void pre_force(int) override;
   void post_force(int) override;
   void end_of_step() override;
   int modify_param(int, char **) override;
@@ -59,13 +60,13 @@ class FixBackmap : public Fix {
   double memory_usage() override;
 
  private:
-  struct MolMap {
-    int cg_local;
-    std::vector<int> at_local;
-    double cg_mass;
+  struct BeadMap {
+    int cg_local;               // local index of the CG atom
+    std::vector<int> at_local;  // local indices of AT atoms for this bead
+    double at_mass_sum;         // sum of AT atom type masses
   };
 
-  int cg_type;
+  std::set<int> cg_types;
   double alpha;
   double lambda0;
   int nonuniform;
@@ -74,9 +75,10 @@ class FixBackmap : public Fix {
   double *lambda;
   int maxatom;
 
-  std::map<tagint, MolMap> mol_map;
+  std::vector<BeadMap> bead_map;
 
-  void build_molecule_map();
+  bool is_cg_type(int t) const { return cg_types.count(t) > 0; }
+  void build_bead_map();
   void validate_masses();
 };
 

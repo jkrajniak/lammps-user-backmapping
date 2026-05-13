@@ -234,13 +234,13 @@ double BondBackmapTable::single(int btype, double rsq, int i, int j,
 double BondBackmapTable::uf_lookup(int tindex, double r, double &fforce) {
   Table *tb = &tables[tindex];
 
-  if (r < tb->lo || r > tb->hi)
-    error->one(FLERR, "Bond distance {} out of range [{},{}] in backmap/table",
-               r, tb->lo, tb->hi);
+  if (r < tb->lo) r = tb->lo;
+  if (r > tb->hi) r = tb->hi;
 
   double fraction = (r - tb->lo) * tb->invdelta;
   int itable = static_cast<int>(fraction);
   if (itable >= tablength - 1) itable = tablength - 2;
+  if (itable < 0) itable = 0;
   fraction -= itable;
 
   double eng = tb->e[itable] + fraction * tb->de[itable];
@@ -293,10 +293,18 @@ void BondBackmapTable::read_table(Table *tb, const char *file,
                  file);
     ValueTokenizer values(line);
     std::string word = values.next_string();
-    if (word == keyword) {
-      if (values.has_next()) tb->ninput = values.next_int();
-      break;
-    }
+    if (word == keyword) break;
+  }
+
+  // Parse the parameter line (e.g. "N 501")
+  {
+    auto line = reader.next_line();
+    if (!line)
+      error->one(FLERR, "Missing parameter line after keyword {} in {}",
+                 keyword, file);
+    ValueTokenizer values(line);
+    std::string key = values.next_string();
+    if (key == "N" && values.has_next()) tb->ninput = values.next_int();
   }
 
   if (tb->ninput <= 1)
