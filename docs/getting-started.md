@@ -92,13 +92,12 @@ Output is written to `examples/dodecane/`. This produces:
 cd examples/dodecane && lmp -in in.dodecane
 ```
 
-The simulation runs three phases:
-
-1. **CG equilibration** (10,000 steps) -- lambda ramp is inactive, system
-   equilibrates at CG level
-2. **Backmapping** (10,000 steps) -- lambda ramps from 0 to 1, gradually
-   introducing AT interactions
-3. **AT production** (10,000 steps) -- fully atomistic simulation
+By default the generated input runs **backmapping only**: λ ramps from 0 to 1
+in one segment, then writes `*_hybrid.data`. Equilibrate the CG melt **before**
+building the hybrid (`simulation.equilibration_steps: 0`). Optional
+`simulation.equilibration_steps` / `simulation.production_steps` add extra
+segments in the same file; for RDF or long AT runs, use a **separate** atomistic
+input after extracting AT atoms from the hybrid frame.
 
 ### 3. Check the output
 

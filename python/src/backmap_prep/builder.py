@@ -105,8 +105,25 @@ class System:
     pair_table_files: list[tuple[str, str]] = field(default_factory=list)  # pair tables
 
 
-def build_system(settings: Settings, base_dir: Path) -> System:
-    """Build the complete hybrid system from settings and source files."""
+@dataclass
+class CGPositionOverride:
+    """Equilibrated CG positions (in Angstrom) to replace GROMACS .gro coordinates."""
+
+    positions: list[tuple[float, float, float]]
+    box: tuple[float, float, float]
+
+
+def build_system(
+    settings: Settings,
+    base_dir: Path,
+    cg_override: CGPositionOverride | None = None,
+) -> System:
+    """Build the complete hybrid system from settings and source files.
+
+    When *cg_override* is provided, its positions (already in Angstrom) replace
+    the CG coordinates from the GROMACS .gro file.  This enables the 3-step
+    workflow: equilibrate CG → place AT → backmap.
+    """
     sys = System()
 
     mol_def = settings.molecules[0]
@@ -120,11 +137,14 @@ def build_system(settings: Settings, base_dir: Path) -> System:
     cg_gro = parse_gro(base_dir / settings.cg_system.coordinates)
     cg_top = parse_top(base_dir / settings.cg_system.topology, include_dirs=[base_dir])
 
-    sys.box = (
-        units.distance(cg_gro.box[0]),
-        units.distance(cg_gro.box[1]),
-        units.distance(cg_gro.box[2]),
-    )
+    if cg_override is not None:
+        sys.box = cg_override.box
+    else:
+        sys.box = (
+            units.distance(cg_gro.box[0]),
+            units.distance(cg_gro.box[1]),
+            units.distance(cg_gro.box[2]),
+        )
 
     # Determine molecule counts from CG topology
     n_molecules = 0
@@ -468,14 +488,16 @@ def build_system(settings: Settings, base_dir: Path) -> System:
         mol_id = mol_idx + 1
         mol_atom_offset = atom_id
 
-        # CG atom positions from CG .gro
+        # CG atom positions (from override or CG .gro)
         cg_start = mol_idx * cg_atom_count
         cg_local_to_global: dict[int, int] = {}
 
         for ci, cg_atom in enumerate(cg_mol.atoms):
             atom_id += 1
             gro_idx = cg_start + ci
-            if gro_idx < len(cg_gro.atoms):
+            if cg_override is not None and gro_idx < len(cg_override.positions):
+                x, y, z = cg_override.positions[gro_idx]
+            elif gro_idx < len(cg_gro.atoms):
                 ga = cg_gro.atoms[gro_idx]
                 x = units.distance(ga.x)
                 y = units.distance(ga.y)
@@ -502,7 +524,9 @@ def build_system(settings: Settings, base_dir: Path) -> System:
         at_local_to_global: dict[int, int] = {}
         for bead_idx, bead in enumerate(mol_def.beads):
             cg_atom_gro_idx = cg_start + bead_idx
-            if cg_atom_gro_idx < len(cg_gro.atoms):
+            if cg_override is not None and cg_atom_gro_idx < len(cg_override.positions):
+                cx, cy, cz = cg_override.positions[cg_atom_gro_idx]
+            elif cg_atom_gro_idx < len(cg_gro.atoms):
                 cx = units.distance(cg_gro.atoms[cg_atom_gro_idx].x)
                 cy = units.distance(cg_gro.atoms[cg_atom_gro_idx].y)
                 cz = units.distance(cg_gro.atoms[cg_atom_gro_idx].z)

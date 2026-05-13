@@ -8,8 +8,14 @@ This page explains the backmapping method implemented in the package.
     *J. Chem. Theory Comput.* 2016, 12, 5549--5562.
     [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
 
-    Krajniak, Zhang et al., "Reverse Mapping Method for Complex Polymer Systems",
-    *J. Comput. Chem.* 2018.
+    Krajniak, Zhang, Pandiyan, Nies, Samaey, "Reverse Mapping Method for Complex
+    Polymer Systems", *J. Comput. Chem.* **2018**, *39*, 648--664 (first
+    published online **6 December 2017**). Extends the adaptive-resolution
+    reverse mapping idea to **topologies whose connectivity is not fixed
+    a priori**, including **epoxy** and **trimethylol melamine** networks,
+    a **hyperbranched** polymer, and **PET** from step-growth chemistry, using
+    the same single control-parameter construction as in the linear-polymer
+    formulation.
     [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
 
 ## Overview
@@ -19,6 +25,16 @@ into a coarse-grained simulation. The method implemented here uses a
 time-dependent, smooth transition controlled by a resolution parameter
 **&lambda;** that is ramped from 0 (fully CG) to 1 (fully AT) during the
 simulation.
+
+For **linear polymer melts**, the underlying formulation is described in the
+**JCTC 2016** reference above. **Polymer networks and other complex
+architectures** whose CG connectivity arises from **chemical reactions** or
+step-growth processes were treated with the same reverse-mapping construction
+in the **J. Comput. Chem.** work (online **2017**, volume **2018**). This
+repository focuses on delivering that methodology through **LAMMPS** and
+**`backmap-prep`** so users are not tied to legacy **ESPResSo++** bonded
+implementations; fully worked **network** examples are a natural extension of
+the current **melt** tutorials.
 
 Unlike instantaneous mapping approaches that place atoms geometrically and then
 energy-minimize, this method gradually introduces atomistic interactions while

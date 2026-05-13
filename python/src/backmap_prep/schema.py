@@ -111,13 +111,34 @@ class SimulationParams(BaseModel):
     timestep: float = 0.001
     timestep_backmapping: float = 0.001
 
-    equilibration_steps: int = 10000
-    production_steps: int = 10000
+    equilibration_steps: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "In-hybrid CG equilibration steps with λ frozen (fix_modify active no). "
+            "Use 0 when the CG melt was equilibrated before building the hybrid (recommended)."
+        ),
+    )
+    production_steps: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Optional extra MD steps after λ reaches 1 in the same input file. "
+            "Use 0 for backmapping-only output (write_data …_hybrid.data); run pure "
+            "atomistic production (e.g. RDF) in a separate input using the extracted "
+            "AT system."
+        ),
+    )
 
     temperature: float = 300.0
-    thermostat: Literal["langevin", "velocity_rescaling"] = "langevin"
+    ensemble: Literal["nvt", "npt"] = "nvt"
+    thermostat: Literal["langevin", "nose_hoover", "velocity_rescaling"] = "langevin"
     thermostat_gamma: float = 0.5
+    thermostat_tdamp: float = 0.1  # ps — Nosé-Hoover damping time
     thermostat_target: Literal["atomistic", "all", "cg_only"] = "atomistic"
+
+    pressure: float = 1.0  # bar (used when ensemble = npt)
+    barostat_pdamp: float = 1.0  # ps — barostat damping time
 
     lj_cutoff: float = 1.2
     cg_cutoff: float = 1.4
@@ -131,6 +152,8 @@ class SimulationParams(BaseModel):
     trajectory_interval: int = 1000
 
     rng_seed: int = -1
+
+    restart_interval: int | None = None
 
     # Deferred Phase 2 fields
     alpha2: float | None = None
@@ -158,6 +181,13 @@ class SimulationParams(BaseModel):
     def temperature_positive(cls, v: float) -> float:
         if v <= 0:
             raise ValueError("temperature must be positive")
+        return v
+
+    @field_validator("restart_interval")
+    @classmethod
+    def restart_interval_positive(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("restart_interval must be a positive integer")
         return v
 
 

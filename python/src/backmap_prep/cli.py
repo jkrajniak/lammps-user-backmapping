@@ -5,48 +5,23 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .builder import build_system
-from .schema import load_settings
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+from .builder import CGPositionOverride, System, build_system
+from .parsers import parse_lammps_data
+from .schema import Settings, load_settings
 from .table_converter import convert_tables
 from .writers import write_lammps_data, write_lammps_input
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="backmap-prep",
-        description="Generate LAMMPS input files for CG→AT backmapping",
-    )
-    parser.add_argument(
-        "settings",
-        type=Path,
-        help="YAML settings file",
-    )
-    parser.add_argument(
-        "--settings",
-        dest="settings_flag",
-        type=Path,
-        default=None,
-        help="Alternative: --settings settings.yaml (backward compatibility)",
-    )
-    parser.add_argument(
-        "--output-prefix",
-        type=str,
-        default=None,
-        help="Override output.prefix from YAML",
-    )
-
-    args = parser.parse_args(argv)
-    settings_path = args.settings_flag or args.settings
-
-    if not settings_path.exists():
-        print(f"Error: settings file not found: {settings_path}", file=sys.stderr)
-        return 1
-
-    settings = load_settings(settings_path)
-
+def _cmd_build(args: argparse.Namespace) -> int:
+    """Default build: generate hybrid data + input from GROMACS sources."""
+    settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = settings_path.parent
+    out_dir = args.settings.parent
 
     system = build_system(settings, base_dir=out_dir)
 
@@ -63,6 +38,216 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Wrote {tf}")
 
     return 0
+
+
+def _cmd_rebuild(args: argparse.Namespace) -> int:
+    """Rebuild hybrid data from an equilibrated CG LAMMPS data file.
+
+    Re-places AT fragments around each CG bead using the generic YAML
+    mapping, but with CG positions taken from the equilibrated frame
+    instead of the original GROMACS .gro.
+    """
+    settings = load_settings(args.settings)
+    prefix = args.output_prefix or settings.output.prefix
+    out_dir = args.settings.parent
+
+    cg_frame = parse_lammps_data(args.cg_frame)
+    positions = [(a.x, a.y, a.z) for a in sorted(cg_frame.atoms, key=lambda a: a.atom_id)]
+    box = (float(cg_frame.box[0]), float(cg_frame.box[1]), float(cg_frame.box[2]))
+    override = CGPositionOverride(positions=positions, box=box)
+
+    system = build_system(settings, base_dir=out_dir, cg_override=override)
+
+    data_path = out_dir / f"{prefix}.data"
+    write_lammps_data(system, data_path)
+    print(f"Wrote {data_path}")
+
+    input_path = out_dir / f"in.{prefix}"
+    write_lammps_input(system, settings, input_path, data_filename=f"{prefix}.data")
+    print(f"Wrote {input_path}")
+
+    table_files = convert_tables(system, settings, out_dir)
+    for tf in table_files:
+        print(f"Wrote {tf}")
+
+    return 0
+
+
+def _cmd_cg_only(args: argparse.Namespace) -> int:
+    """Extract CG-only system for pre-equilibration."""
+    settings = load_settings(args.settings)
+    prefix = args.output_prefix or settings.output.prefix
+    out_dir = args.settings.parent
+
+    system = build_system(settings, base_dir=out_dir)
+
+    cg_atoms = [a for a in system.atoms if a.is_cg]
+    cg_atom_ids = {a.atom_id for a in cg_atoms}
+    cg_bonds = [b for b in system.bonds if b.i in cg_atom_ids and b.j in cg_atom_ids]
+
+    from .builder import System
+
+    cg_system = System(
+        atoms=cg_atoms,
+        bonds=cg_bonds,
+        angles=[],
+        atom_types=[at for at in system.atom_types if at.is_cg],
+        bond_types=[bt for bt in system.bond_types if bt.keyword == "cg" or bt.style == "harmonic"],
+        angle_types=[],
+        pair_types=[pt for pt in system.pair_types if pt.kind == "cg"],
+        box=system.box,
+    )
+
+    data_path = out_dir / f"{prefix}_cg.data"
+    write_lammps_data(cg_system, data_path)
+    print(f"Wrote {data_path}")
+
+    equil_path = out_dir / f"in.{prefix}_cg_equil"
+    _write_cg_equilibration(cg_system, settings, equil_path, f"{prefix}_cg.data")
+    print(f"Wrote {equil_path}")
+
+    table_files = convert_tables(system, settings, out_dir)
+    for tf in table_files:
+        print(f"Wrote {tf}")
+
+    return 0
+
+
+def _write_cg_equilibration(
+    system: System,
+    settings: Settings,
+    path: Path,
+    data_filename: str,
+) -> None:
+    """Write a LAMMPS input script for CG-only equilibration."""
+    from . import units
+
+    sim = settings.simulation
+    temp = sim.temperature
+    tdamp_fs = units.time(sim.thermostat_tdamp) if sim.thermostat_tdamp > 0 else 100.0
+
+    with open(path, "w") as f:
+        f.write("# CG equilibration — generated by backmap-prep cg-only\n\n")
+        f.write("units real\n")
+        f.write("atom_style full\n")
+        f.write("boundary p p p\n\n")
+        f.write(f"read_data {data_filename}\n\n")
+
+        # Pair style: plain table for CG-CG
+        f.write("pair_style table linear 1000\n")
+        for pt in system.pair_types:
+            if pt.table_file:
+                f.write(f"pair_coeff {pt.itype} {pt.jtype} {pt.table_file} {pt.table_keyword}\n")
+            else:
+                f.write(f"pair_coeff {pt.itype} {pt.jtype} 0.0 0.0\n")
+        f.write("\n")
+
+        # Bond style: plain table for CG bonds
+        has_table = any(bt.table_file for bt in system.bond_types)
+        has_harmonic = any(bt.style == "harmonic" for bt in system.bond_types)
+        if has_table and has_harmonic:
+            f.write("bond_style hybrid harmonic table linear 1000\n")
+        elif has_table:
+            f.write("bond_style table linear 1000\n")
+        elif has_harmonic:
+            f.write("bond_style harmonic\n")
+
+        for bt in system.bond_types:
+            if bt.table_file:
+                if has_table and has_harmonic:
+                    f.write(f"bond_coeff {bt.type_id} table {bt.table_file} {bt.table_keyword}\n")
+                else:
+                    f.write(f"bond_coeff {bt.type_id} {bt.table_file} {bt.table_keyword}\n")
+            elif bt.style == "harmonic" and bt.params:
+                if has_table and has_harmonic:
+                    f.write(
+                        f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                    )
+                else:
+                    f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+        f.write("\n")
+
+        # NVT thermostat
+        if sim.ensemble == "npt":
+            p_atm = units.pressure(sim.pressure)
+            pdamp = units.time(sim.barostat_pdamp)
+            f.write(
+                f"fix equil all npt temp {temp:.1f} {temp:.1f} {tdamp_fs:.1f} "
+                f"iso {p_atm:.1f} {p_atm:.1f} {pdamp:.1f}\n\n"
+            )
+        else:
+            f.write(f"fix equil all nvt temp {temp:.1f} {temp:.1f} {tdamp_fs:.1f}\n\n")
+
+        ts_fs = units.time(sim.timestep)
+        f.write(f"timestep {ts_fs:.2f}\n")
+        f.write(f"thermo {sim.energy_interval}\n")
+        f.write("thermo_style custom step temp pe ke etotal press\n\n")
+
+        f.write(f"run {sim.equilibration_steps}\n\n")
+        f.write(f"write_data {data_filename.replace('.data', '_equil.data')}\n")
+
+
+_KNOWN_COMMANDS = {"build", "rebuild", "cg-only"}
+
+
+def _add_common_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("settings", type=Path, help="YAML settings file")
+    parser.add_argument("--output-prefix", type=str, default=None, help="Override output.prefix")
+
+
+def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # Backward compatibility: if first arg is not a subcommand, assume "build"
+    if argv and argv[0] not in _KNOWN_COMMANDS and not argv[0].startswith("-"):
+        argv = ["build", *argv]
+
+    parser = argparse.ArgumentParser(
+        prog="backmap-prep",
+        description="Generate LAMMPS input files for CG→AT backmapping",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    build_parser = subparsers.add_parser(
+        "build", help="Generate hybrid CG+AT data and input files (default)"
+    )
+    _add_common_args(build_parser)
+
+    rebuild_parser = subparsers.add_parser(
+        "rebuild",
+        help="Rebuild hybrid data from an equilibrated CG LAMMPS data file",
+    )
+    _add_common_args(rebuild_parser)
+    rebuild_parser.add_argument(
+        "--cg-frame",
+        type=Path,
+        required=True,
+        help="Equilibrated CG LAMMPS data file",
+    )
+
+    cg_parser = subparsers.add_parser(
+        "cg-only",
+        help="Extract CG-only system for pre-equilibration",
+    )
+    _add_common_args(cg_parser)
+
+    args = parser.parse_args(argv)
+
+    if args.command is None:
+        parser.print_help()
+        return 1
+
+    if not args.settings.exists():
+        print(f"Error: settings file not found: {args.settings}", file=sys.stderr)
+        return 1
+
+    commands: dict[str, Callable[[argparse.Namespace], int]] = {
+        "build": _cmd_build,
+        "rebuild": _cmd_rebuild,
+        "cg-only": _cmd_cg_only,
+    }
+    return commands[args.command](args)
 
 
 if __name__ == "__main__":

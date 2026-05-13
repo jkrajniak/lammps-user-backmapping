@@ -7,12 +7,62 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Fixed
+
+- `fix backmap` now accepts multiple CG atom types via `cg_type T1 T2 ...`
+  syntax, enabling correct bead-to-atom mapping in systems with more than one
+  CG bead type.
+- `fix backmap` COM tracking uses round-based PBC wrapping, correctly handling
+  ghost atoms that may be more than one box length from the local CG bead.
+- `fix backmap` bead map is rebuilt on every neighbor list rebuild (via
+  `pre_force()` callback), preventing stale local indices after LAMMPS atom
+  sorting.
+- `pair_style backmap` defers AT pair interactions until both atoms reach
+  &lambda; > 0.1, preventing LJ singularities from initial inter-molecular
+  overlaps.
+- Python writer emits `cg_type T1 T2 ...` with all CG type IDs and wraps
+  atom coordinates into [0, L) in the LAMMPS data file.
+
 ### Changed
 
+- Documentation: README, `docs/index.md`, `docs/theory.md`, and `AGENTS.md` now
+  tie the package motivation to **migrating from ESPResSo++** toward **LAMMPS**,
+  and cite the **complex polymer / network** reverse-mapping paper with
+  **December 2017** online publication date (DOI 10.1002/jcc.25129; print *J.
+  Comput. Chem.* 2018).
+
+- **backmap-prep** LAMMPS setup: emit `neigh_modify delay 0 every 1 check yes`
+  after group definitions; use the **backmapping timestep** for the first
+  dynamics segment (including λ-frozen equilibration when
+  `equilibration_steps` > 0) instead of the larger production timestep, so
+  hybrid relaxation does not start at an overly aggressive Δt.
+- **examples/dodecane/n250** `settings.yaml`: `timestep_backmapping: 0.00025` ps
+  and `equilibration_steps: 4000` so the default generated input completes the
+  λ ramp without early missing-bond errors on the 250-molecule melt.
+- **examples/dodecane/n250** RDF validation: `in.dodecane_n250_at`,
+  `in.dodecane_n250_at_ref`, and `compare_rdf_n250.sh` (runs
+  `../large/compare_rdf.py` strict + relaxed tolerances for small-N noise).
+
+- **backmap-prep** default `simulation.production_steps` is now `0`: generated
+  backmapping inputs end with `write_data …_hybrid.data` after the λ ramp only;
+  atomistic production (e.g. RDF) is intended as a separate run on the extracted
+  AT system. Set `production_steps` > 0 only to append an optional post-backmap
+  segment in the same file.
+- `scripts/run-backmap.sh`: supports single-segment restart layouts (only
+  `*.phase1`, backmapping-only) in addition to two- and three-segment flows.
 - Packaging and docs: Python project metadata (`pyproject.toml`, `uv.lock`) is now at repository root so `uv sync` from root installs `backmap-prep`; documentation and examples now use root-level `uv run backmap-prep ...` commands.
 - README: repository layout section now lists all example directories and the `scripts/` validation script.
 
 ### Added
+
+- **250-molecule dodecane** example layout: `examples/dodecane/n250/` with
+  `build_cg_conf.py` (subset of `large/cg_conf.gro`), matching `topol_*_250.top`
+  files, `settings.yaml`, and `prepare_inputs.sh`. Suited to laptops (hybrid
+  ~4500 atoms; serial LAMMPS RSS typically low compared to 32 GB RAM).
+
+- Small dodecane example: `examples/dodecane/in.dodecane_at` and
+  `extract_at_frame.py` for the hybrid → AT → RDF workflow; README documents
+  the `compare_rdf.py` sequence.
 
 - Restart/checkpoint support for preemptible cloud instances: new
   `restart_interval` setting in `simulation` generates `write_restart`

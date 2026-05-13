@@ -366,7 +366,9 @@ each atom gets a random offset applied to its starting lambda.
 
 #### `simulation.timestep`
 
-Timestep for equilibration and production phases (ps).
+Timestep for the **optional post-backmap production** segment (Phase 3), when
+`production_steps` > 0 (ps). It is **not** used for the λ-frozen equilibration
+segment (Phase 1) or the λ ramp (Phase 2); those use `timestep_backmapping`.
 
 | | |
 |---|---|
@@ -375,8 +377,10 @@ Timestep for equilibration and production phases (ps).
 
 #### `simulation.timestep_backmapping`
 
-Timestep during the backmapping phase (ps). Can be set smaller than the
-main timestep for stability during the transition.
+Timestep for the **first dynamics segment** in the generated input (ps): the
+λ-frozen equilibration when `equilibration_steps` > 0, and the λ ramp. Set
+smaller than `timestep` if the hybrid is stiff or dense. The writer also emits
+`neigh_modify delay 0 every 1 check yes` after the AT/CG groups.
 
 | | |
 |---|---|
@@ -387,21 +391,29 @@ main timestep for stability during the transition.
 
 #### `simulation.equilibration_steps`
 
-Number of CG equilibration steps (Phase 1).
+Optional in-hybrid relaxation with λ frozen (`fix_modify bm active no`): only
+atomistic atoms are thermostatted while CG sites stay fixed. Runs **before** the
+λ ramp, using `timestep_backmapping`. Use `0` when the CG melt was equilibrated
+before building the hybrid and the hybrid starts stable; use a few thousand
+steps for dense melts if you see missing-bond errors early in the ramp.
 
 | | |
 |---|---|
 | **Type** | `int` |
-| **Default** | `10000` |
+| **Default** | `0` |
 
 #### `simulation.production_steps`
 
-Number of AT production steps (Phase 3).
+Optional extra MD steps after λ reaches 1 **in the same generated input file**.
+Use `0` (default) for **backmapping only**: the writer emits `write_data …_hybrid.data`
+after the ramp; run pure-atomistic production (e.g. RDF) in a **separate** LAMMPS
+input on the extracted AT system. Set to a positive value only if you want a
+post-backmap segment in the same script (Phase 3 when `equilibration_steps > 0`).
 
 | | |
 |---|---|
 | **Type** | `int` |
-| **Default** | `10000` |
+| **Default** | `0` |
 
 ### Thermostat
 
@@ -615,8 +627,8 @@ cross_interactions:
 simulation:
   alpha: 0.0001
   timestep: 0.001
-  equilibration_steps: 10000
-  production_steps: 10000
+  equilibration_steps: 0
+  production_steps: 0
   temperature: 298.0
   thermostat: langevin
   thermostat_gamma: 30.0

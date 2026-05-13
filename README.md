@@ -7,18 +7,29 @@ The method ramps a per-atom resolution parameter **lambda** from 0 (pure CG) to
 1 (pure AT) uniformly across the simulation box, gradually restoring atomistic
 detail.
 
+**Goal:** bring the methodology that was originally implemented with **custom
+bonded extensions in ESPResSo++** into **standard LAMMPS** plus a small
+**`backmap-prep`** toolchain, so the same physics can be run with familiar
+inputs, restarts, and HPC/cloud workflows. The **linear-melt** examples in this
+repository are the natural first validation target; **reaction-formed
+topologies** (e.g. **epoxy and melamine networks**, hyperbranched polymers) were
+demonstrated at the fine-grained level in the **complex-system reverse mapping**
+publication cited below (first published online **December 2017**).
+
 **[Full Documentation](https://jkrajniak.github.io/lammps-user-backmapping/)**
 — settings reference, tutorials, theory, and LAMMPS component docs.
 
 ## Components
 
-| Component | Description |
-|-----------|-------------|
-| `fix backmap` | Lambda ramp, CG-AT mapping, COM tracking, CG force distribution |
-| `pair_style backmap` | Lambda-weighted non-bonded pair forces |
-| `bond_style backmap/harmonic` | Lambda-weighted harmonic cross-CG bond forces |
-| `bond_style backmap/table` | Lambda-weighted tabulated cross-CG bond forces |
-| `angle_style backmap/harmonic` | Lambda-weighted harmonic cross-CG angle forces |
+
+| Component                      | Description                                                     |
+| ------------------------------ | --------------------------------------------------------------- |
+| `fix backmap`                  | Lambda ramp, CG-AT mapping, COM tracking, CG force distribution |
+| `pair_style backmap`           | Lambda-weighted non-bonded pair forces                          |
+| `bond_style backmap/harmonic`  | Lambda-weighted harmonic cross-CG bond forces                   |
+| `bond_style backmap/table`     | Lambda-weighted tabulated cross-CG bond forces                  |
+| `angle_style backmap/harmonic` | Lambda-weighted harmonic cross-CG angle forces                  |
+
 
 ## Repository Layout
 
@@ -30,7 +41,8 @@ python/
 pyproject.toml              Python project metadata & tool config
 examples/
   dodecane/, pe/, pe4/,      Backmapping examples (each has large/ for
-  pe_10/, pe_aa/, melamine/ production-scale variants)
+  pe_10/, pe_aa/, melamine/ production-scale variants; dodecane also has
+  n250/ for a 250-molecule laptop-friendly melt)
 scripts/
   validate-large-scale-prep.sh   Optional: run backmap-prep on one large example
 openspec/                   Specifications and change tracking
@@ -40,7 +52,7 @@ Makefile                    Top-level convenience targets
 ## Prerequisites
 
 - **LAMMPS** ≥ `stable_22Jul2025` source tree (C++17) — this package uses the
-  `Domain::minimum_image(FLERR, ...)` API introduced in that release
+`Domain::minimum_image(FLERR, ...)` API introduced in that release
 - **CMake** ≥ 3.16
 - **Python** ≥ 3.10
 - **uv** (Python dependency manager)
@@ -86,8 +98,7 @@ docker run --rm -v "$(pwd)":/work lammps-backmap lmp -in in.backmap
 ```
 
 Override the LAMMPS version with `--build-arg LAMMPS_VERSION=<tag>`. Convert to
-Singularity/Apptainer for HPC clusters with `apptainer build lammps-backmap.sif
-docker-daemon://lammps-backmap:latest`. See the
+Singularity/Apptainer for HPC clusters with `apptainer build lammps-backmap.sif docker-daemon://lammps-backmap:latest`. See the
 [Docker docs](https://jkrajniak.github.io/lammps-user-backmapping/docker/) for
 full details.
 
@@ -163,11 +174,14 @@ If you use this package in your research, please cite:
 > Descriptions", *J. Chem. Theory Comput.* 2016.
 > [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
 
-If you are reverse mapping complex polymer structures (e.g. polymer networks),
+If you are reverse mapping **complex polymer structures** (connectivity created
+or evolved at the CG level, e.g. **epoxy networks**, **trimethylol melamine
+networks**, hyperbranched polymers, or **PET**-style step-growth products),
 please also cite:
 
 > Krajniak, Zhang, Pandiyan, Nies, Samaey, "Reverse Mapping Method for
-> Complex Polymer Systems", *J. Comput. Chem.* 2018.
+> Complex Polymer Systems", *J. Comput. Chem.* **39**, 648--664 (**2018**);
+> first published online **6 December 2017**.
 > [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
 
 ```bibtex
@@ -186,7 +200,9 @@ please also cite:
   volume={39},
   number={11},
   pages={648--664},
-  year={2018}
+  year={2018},
+  doi={10.1002/jcc.25129},
+  note={First published online 6 December 2017}
 }
 ```
 
@@ -200,5 +216,5 @@ GPL-3.0-or-later — see [LICENSE](LICENSE) for the full text.
 
 ## Authors
 
-- Jakub Krajniak (jkrajniak@gmail.com)
+- Jakub Krajniak ([jkrajniak@gmail.com](mailto:jkrajniak@gmail.com))
 - Zidan Zhang

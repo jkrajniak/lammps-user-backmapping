@@ -1,0 +1,43 @@
+{
+  "taskGroups": [
+    {
+      "taskSpec": {
+        "runnables": [
+          {
+            "container": {
+              "imageUri": "REGION-docker.pkg.dev/PROJECT_ID/REPO/lammps-backmap:latest",
+              "commands": ["run-backmap.sh", "-np", "4", "-in", "in.backmap"]
+            }
+          }
+        ],
+        "volumes": [
+          {
+            "gcs": {
+              "remotePath": "BUCKET_NAME/simulation-data"
+            },
+            "mountPath": "/work"
+          }
+        ],
+        "maxRetryCount": 3,
+        "maxRunDuration": "14400s"
+      },
+      "taskCount": "1"
+    }
+  ],
+  "allocationPolicy": {
+    "instances": [
+      {
+        "policy": {
+          "machineType": "c2-standard-8",
+          "provisioningModel": "SPOT"
+        }
+      }
+    ],
+    "location": {
+      "allowedLocations": ["zones/us-central1-a"]
+    }
+  },
+  "logsPolicy": {
+    "destination": "CLOUD_LOGGING"
+  }
+}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Any
 
 from . import units
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from .builder import System
-    from .schema import Settings
+    from .schema import Settings, SimulationParams
 
 
 def write_lammps_data(system: System, path: Path) -> None:
@@ -42,11 +42,15 @@ def write_lammps_data(system: System, path: Path) -> None:
             f.write(f"{at.type_id} {at.mass:.6f} {label}\n")
         f.write("\n")
 
-        # Atoms
+        # Atoms (coordinates wrapped into [0, L) per dimension)
         f.write("Atoms # full\n\n")
+        bx, by, bz = system.box
         for a in system.atoms:
+            wx = a.x % bx if bx > 0 else a.x
+            wy = a.y % by if by > 0 else a.y
+            wz = a.z % bz if bz > 0 else a.z
             f.write(
-                f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} {a.x:.6f} {a.y:.6f} {a.z:.6f}\n"
+                f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} {wx:.6f} {wy:.6f} {wz:.6f}\n"
             )
         f.write("\n")
 
@@ -83,33 +87,28 @@ def write_lammps_data(system: System, path: Path) -> None:
             print(f"  Angle type {angtype.type_id} = {angtype.style}{kw}")
 
 
-def write_lammps_input(
-    system: System,
-    settings: Settings,
-    path: Path,
-    data_filename: str,
-) -> None:
-    """Write a LAMMPS input script for backmapping."""
+def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
+    """Pre-compute unit-converted values and style lists used by multiple writers."""
     sim = settings.simulation
-
-    # Convert units
     timestep_fs = units.time(sim.timestep)
     lj_cut_ang = units.distance(sim.lj_cutoff)
     cg_cut_ang = units.distance(sim.cg_cutoff)
     coul_cut_ang = units.distance(sim.coulomb_cutoff)
     gamma_inv_fs = units.time(1.0 / sim.thermostat_gamma) if sim.thermostat_gamma > 0 else 100.0
+    tdamp_fs = units.time(sim.thermostat_tdamp)
+    pressure_atm = units.pressure(sim.pressure)
+    pdamp_fs = units.time(sim.barostat_pdamp)
     backmapping_steps = int(1.0 / sim.alpha)
+    ts_backmap_fs = units.time(sim.timestep_backmapping)
 
-    # Collect unique CG types for table pair coeffs
     cg_type_ids = sorted({at.type_id for at in system.atom_types if at.is_cg})
     at_type_ids = sorted({at.type_id for at in system.atom_types if not at.is_cg})
 
-    # Determine bond/angle style lines
     has_static_bonds = any(bt.style == "harmonic" for bt in system.bond_types)
     has_backmap_harm = any(bt.style == "backmap/harmonic" for bt in system.bond_types)
     has_backmap_table = any(bt.style == "backmap/table" for bt in system.bond_types)
 
-    bond_styles = []
+    bond_styles: list[str] = []
     if has_static_bonds:
         bond_styles.append("harmonic")
     if has_backmap_harm:
@@ -120,11 +119,220 @@ def write_lammps_input(
     has_static_angles = any(at.style == "harmonic" for at in system.angle_types)
     has_backmap_angles = any(at.style == "backmap/harmonic" for at in system.angle_types)
 
-    angle_styles = []
+    angle_styles: list[str] = []
     if has_static_angles:
         angle_styles.append("harmonic")
     if has_backmap_angles:
         angle_styles.append("backmap/harmonic")
+
+    return {
+        "timestep_fs": timestep_fs,
+        "lj_cut_ang": lj_cut_ang,
+        "cg_cut_ang": cg_cut_ang,
+        "coul_cut_ang": coul_cut_ang,
+        "gamma_inv_fs": gamma_inv_fs,
+        "tdamp_fs": tdamp_fs,
+        "pressure_atm": pressure_atm,
+        "pdamp_fs": pdamp_fs,
+        "backmapping_steps": backmapping_steps,
+        "ts_backmap_fs": ts_backmap_fs,
+        "cg_type_ids": cg_type_ids,
+        "at_type_ids": at_type_ids,
+        "bond_styles": bond_styles,
+        "angle_styles": angle_styles,
+    }
+
+
+def _write_integration(f: IO[str], sim: SimulationParams, params: dict[str, Any]) -> None:
+    """Write integration fixes (thermostat / barostat) for AT atoms."""
+    temp = sim.temperature
+    seed = sim.rng_seed if sim.rng_seed > 0 else 48279
+
+    if sim.thermostat == "nose_hoover":
+        tdamp = params["tdamp_fs"]
+        if sim.ensemble == "npt":
+            p = params["pressure_atm"]
+            pdamp = params["pdamp_fs"]
+            f.write(
+                f"fix integrate at_atoms npt temp {temp:.1f} {temp:.1f} {tdamp:.1f} "
+                f"iso {p:.1f} {p:.1f} {pdamp:.1f}\n\n"
+            )
+        else:
+            f.write(f"fix integrate at_atoms nvt temp {temp:.1f} {temp:.1f} {tdamp:.1f}\n\n")
+    else:
+        # Langevin: NVE + stochastic thermostat
+        f.write("fix integrate at_atoms nve\n")
+        f.write(
+            f"fix thermo at_atoms langevin {temp:.1f} "
+            f"{temp:.1f} {params['gamma_inv_fs']:.1f} {seed}\n\n"
+        )
+
+
+def _write_setup(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+    data_filename: str,
+    *,
+    use_read_data: bool = True,
+) -> None:
+    """Write the shared setup block (styles, coefficients, groups, fixes)."""
+    sim = settings.simulation
+    bond_styles = params["bond_styles"]
+    angle_styles = params["angle_styles"]
+
+    if use_read_data:
+        f.write(f"read_data {data_filename}\n\n")
+
+    # Pair style
+    f.write(
+        f"pair_style backmap {params['lj_cut_ang']:.2f} lj/cut/coul/cut "
+        f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f} "
+        f"{params['cg_cut_ang']:.2f} table linear 1000\n"
+    )
+    for pt in system.pair_types:
+        if pt.kind == "atomistic":
+            f.write(f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.6f} {pt.sigma:.6f}\n")
+        elif pt.kind == "cg":
+            if pt.table_file:
+                f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
+            else:
+                f.write(f"pair_coeff {pt.itype} {pt.jtype} cg 0.0 0.0\n")
+        else:
+            f.write(f"pair_coeff {pt.itype} {pt.jtype} none\n")
+    f.write("\n")
+
+    # Bond style
+    if len(bond_styles) > 1:
+        f.write(f"bond_style hybrid {' '.join(bond_styles)}\n")
+    elif bond_styles:
+        f.write(f"bond_style {bond_styles[0]}\n")
+
+    for bt in system.bond_types:
+        if len(bond_styles) > 1:
+            if bt.style == "harmonic":
+                f.write(f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+            elif bt.style == "backmap/harmonic":
+                f.write(
+                    f"bond_coeff {bt.type_id} backmap/harmonic "
+                    f"{bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                )
+            elif bt.style == "backmap/table":
+                f.write(
+                    f"bond_coeff {bt.type_id} backmap/table "
+                    f"{bt.keyword} {bt.table_file} {bt.table_keyword}\n"
+                )
+        else:
+            if bt.style == "harmonic":
+                f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+            elif bt.style == "backmap/harmonic":
+                f.write(
+                    f"bond_coeff {bt.type_id} {bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                )
+            elif bt.style == "backmap/table":
+                f.write(
+                    f"bond_coeff {bt.type_id} {bt.keyword} {bt.table_file} {bt.table_keyword}\n"
+                )
+    f.write("\n")
+
+    # Angle style
+    if system.angle_types:
+        if len(angle_styles) > 1:
+            f.write(f"angle_style hybrid {' '.join(angle_styles)}\n")
+        elif angle_styles:
+            f.write(f"angle_style {angle_styles[0]}\n")
+
+        for angtype in system.angle_types:
+            if len(angle_styles) > 1:
+                if angtype.style == "harmonic":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} harmonic "
+                        f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                    )
+                elif angtype.style == "backmap/harmonic":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} backmap/harmonic "
+                        f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                    )
+            else:
+                if angtype.style == "harmonic":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} "
+                        f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                    )
+                elif angtype.style == "backmap/harmonic":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} "
+                        f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                    )
+        f.write("\n")
+
+    # Special bonds (exclusions)
+    nrexcl = sim.exclusion_nrexcl
+    if nrexcl >= 3:
+        f.write("special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0\n\n")
+    elif nrexcl == 2:
+        f.write("special_bonds lj 0.0 0.0 1.0 coul 0.0 0.0 1.0\n\n")
+    elif nrexcl == 1:
+        f.write("special_bonds lj 0.0 1.0 1.0 coul 0.0 1.0 1.0\n\n")
+
+    # Groups
+    at_type_str = " ".join(str(t) for t in params["at_type_ids"])
+    cg_type_str = " ".join(str(t) for t in params["cg_type_ids"])
+    f.write(f"group at_atoms type {at_type_str}\n")
+    f.write(f"group cg_atoms type {cg_type_str}\n\n")
+    f.write("neigh_modify delay 0 every 1 check yes\n\n")
+
+    # Integration (AT atoms only) — must be defined BEFORE fix backmap so
+    # that NVE/NVT initial_integrate runs first, updating AT positions before
+    # fix backmap tracks the CG→COM.
+    _write_integration(f, sim, params)
+
+    # Fix backmap
+    nonuniform = "yes" if sim.nonuniform_lambda else "no"
+    cg_type_fix_str = " ".join(str(t) for t in params["cg_type_ids"])
+    f.write(
+        f"fix bm all backmap cg_type {cg_type_fix_str} "
+        f"alpha {sim.alpha} lambda0 {sim.initial_resolution} "
+        f"nonuniform {nonuniform}\n\n"
+    )
+
+    # Temperature compute on AT atoms only (CG atoms have zero velocity,
+    # which would dilute the reported temperature).
+    f.write("compute at_temp at_atoms temp\n\n")
+
+    # First dynamics segment always uses the backmapping timestep. Using the
+    # (often larger) production timestep during λ-frozen hybrid relaxation can
+    # blow up before the ramp starts (missing bonded neighbors on dense melts).
+    init_ts = params["ts_backmap_fs"]
+    f.write(f"timestep {init_ts:.2f}\n\n")
+    f.write(f"thermo {sim.energy_interval}\n")
+    f.write("thermo_style custom step temp pe ke etotal press\n")
+    f.write("thermo_modify temp at_temp\n\n")
+    f.write(f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n")
+    f.write("dump_modify traj sort id\n\n")
+
+
+def _write_restart_cmd(f: IO[str], restart_interval: int) -> None:
+    """Write the LAMMPS restart command for alternating checkpoint files."""
+    f.write(f"restart {restart_interval} restart.backmap restart.backmap2\n")
+
+
+def write_lammps_input(
+    system: System,
+    settings: Settings,
+    path: Path,
+    data_filename: str,
+) -> None:
+    """Write a LAMMPS input script for backmapping.
+
+    When ``settings.simulation.restart_interval`` is set, also generates
+    per-phase scripts and a shared setup include file.
+    """
+    sim = settings.simulation
+    params = _compute_params(system, settings)
+    restart = sim.restart_interval
 
     with open(path, "w") as f:
         f.write("# LAMMPS input for backmapping — generated by backmap-prep\n")
@@ -135,152 +343,166 @@ def write_lammps_input(
         f.write("atom_style full\n")
         f.write("boundary p p p\n\n")
 
-        f.write(f"read_data {data_filename}\n\n")
+        _write_setup(f, system, settings, params, data_filename)
 
-        # Pair style
-        f.write(
-            f"pair_style backmap {lj_cut_ang:.2f} lj/cut/coul/cut {lj_cut_ang:.2f} {coul_cut_ang:.2f} "
-            f"{cg_cut_ang:.2f} table linear 1000\n"
-        )
-        for pt in system.pair_types:
-            if pt.kind == "atomistic":
-                f.write(
-                    f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.6f} {pt.sigma:.6f}\n"
-                )
-            elif pt.kind == "cg":
-                if pt.table_file:
-                    f.write(
-                        f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n"
-                    )
-                else:
-                    f.write(f"pair_coeff {pt.itype} {pt.jtype} cg 0.0 0.0\n")
-            else:
-                f.write(f"pair_coeff {pt.itype} {pt.jtype} none\n")
-        f.write("\n")
-
-        # Bond style
-        if len(bond_styles) > 1:
-            f.write(f"bond_style hybrid {' '.join(bond_styles)}\n")
-        elif bond_styles:
-            f.write(f"bond_style {bond_styles[0]}\n")
-
-        for bt in system.bond_types:
-            if len(bond_styles) > 1:
-                if bt.style == "harmonic":
-                    f.write(
-                        f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
-                    )
-                elif bt.style == "backmap/harmonic":
-                    f.write(
-                        f"bond_coeff {bt.type_id} backmap/harmonic "
-                        f"{bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
-                    )
-                elif bt.style == "backmap/table":
-                    f.write(
-                        f"bond_coeff {bt.type_id} backmap/table "
-                        f"{bt.keyword} {bt.table_file} {bt.table_keyword}\n"
-                    )
-            else:
-                if bt.style == "harmonic":
-                    f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
-                elif bt.style == "backmap/harmonic":
-                    f.write(
-                        f"bond_coeff {bt.type_id} "
-                        f"{bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
-                    )
-                elif bt.style == "backmap/table":
-                    f.write(
-                        f"bond_coeff {bt.type_id} {bt.keyword} {bt.table_file} {bt.table_keyword}\n"
-                    )
-        f.write("\n")
-
-        # Angle style
-        if system.angle_types:
-            if len(angle_styles) > 1:
-                f.write(f"angle_style hybrid {' '.join(angle_styles)}\n")
-            elif angle_styles:
-                f.write(f"angle_style {angle_styles[0]}\n")
-
-            for angtype in system.angle_types:
-                if len(angle_styles) > 1:
-                    if angtype.style == "harmonic":
-                        f.write(
-                            f"angle_coeff {angtype.type_id} harmonic "
-                            f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
-                        )
-                    elif angtype.style == "backmap/harmonic":
-                        f.write(
-                            f"angle_coeff {angtype.type_id} backmap/harmonic "
-                            f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
-                        )
-                else:
-                    if angtype.style == "harmonic":
-                        f.write(
-                            f"angle_coeff {angtype.type_id} "
-                            f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
-                        )
-                    elif angtype.style == "backmap/harmonic":
-                        f.write(
-                            f"angle_coeff {angtype.type_id} "
-                            f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
-                        )
+        if restart:
+            _write_restart_cmd(f, restart)
             f.write("\n")
 
-        # Special bonds (exclusions)
-        nrexcl = sim.exclusion_nrexcl
-        if nrexcl >= 3:
-            f.write("special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0\n\n")
-        elif nrexcl == 2:
-            f.write("special_bonds lj 0.0 0.0 1.0 coul 0.0 0.0 1.0\n\n")
-        elif nrexcl == 1:
-            f.write("special_bonds lj 0.0 1.0 1.0 coul 0.0 1.0 1.0\n\n")
-
-        # Groups
-        at_type_str = " ".join(str(t) for t in at_type_ids)
-        cg_type_str = " ".join(str(t) for t in cg_type_ids)
-        f.write(f"group at_atoms type {at_type_str}\n")
-        f.write(f"group cg_atoms type {cg_type_str}\n\n")
-
-        # Fix backmap
-        nonuniform = "yes" if sim.nonuniform_lambda else "no"
-        f.write(
-            f"fix bm all backmap cg_type {system.cg_type_id} "
-            f"alpha {sim.alpha} lambda0 {sim.initial_resolution} "
-            f"nonuniform {nonuniform}\n\n"
-        )
-
-        # Integration (AT atoms only)
-        f.write("fix integrate at_atoms nve\n")
-        if sim.thermostat == "langevin":
-            seed = sim.rng_seed if sim.rng_seed > 0 else 48279
+        if sim.equilibration_steps > 0:
             f.write(
-                f"fix thermo at_atoms langevin {sim.temperature:.1f} "
-                f"{sim.temperature:.1f} {gamma_inv_fs:.1f} {seed}\n"
+                "# Phase 1: CG equilibration (λ frozen — optional if CG was pre-equilibrated)\n"
             )
+            f.write("fix_modify bm active no\n")
+            f.write(f"run {sim.equilibration_steps}\n")
+            if restart:
+                f.write("write_restart restart.backmap\n")
+                f.write("shell echo done > phase_1.done\n")
+            f.write("\n")
+
+        # Backmapping: λ 0 → 1
+        if sim.equilibration_steps > 0:
+            f.write("# Phase 2: Backmapping\n")
+            f.write(f"timestep {params['ts_backmap_fs']:.2f}\n")
+        else:
+            f.write("# Backmapping: λ 0 → 1\n")
+        f.write("fix_modify bm active yes\n")
+        f.write(f"run {params['backmapping_steps']}\n")
+        if restart:
+            f.write("write_restart restart.backmap\n")
+            if sim.equilibration_steps > 0:
+                f.write("shell echo done > phase_2.done\n")
+            else:
+                f.write("shell echo done > phase_1.done\n")
+        f.write("\n")
+        hybrid_out = data_filename.replace(".data", "_hybrid.data")
+        f.write(f"write_data {hybrid_out}\n")
+
+        if sim.production_steps > 0:
+            if sim.equilibration_steps > 0:
+                f.write("\n# Phase 3: AT production (optional post-backmap)\n")
+            else:
+                f.write("\n# AT production (λ = 1) in the same run\n")
+            f.write(f"timestep {params['timestep_fs']:.2f}\n")
+            f.write(f"run {sim.production_steps}\n")
+            if restart:
+                if sim.equilibration_steps > 0:
+                    f.write("shell echo done > phase_3.done\n")
+                else:
+                    f.write("shell echo done > phase_2.done\n")
+            final_out = data_filename.replace(".data", "_final.data")
+            f.write(f"\nwrite_data {final_out}\n")
+
+    # Generate per-phase scripts when restart is enabled
+    if restart:
+        _write_restart_scripts(system, settings, path, data_filename, params)
+
+
+def _write_restart_scripts(
+    system: System,
+    settings: Settings,
+    master_path: Path,
+    data_filename: str,
+    params: dict[str, Any],
+) -> None:
+    """Generate the setup include and per-phase restart scripts."""
+    sim = settings.simulation
+    restart = sim.restart_interval
+    assert restart is not None
+
+    parent = master_path.parent
+    stem = master_path.name  # e.g. "in.backmap"
+    phase3_path = parent / f"{stem}.phase3"
+
+    # --- in.<prefix>.setup ---
+    setup_path = parent / f"{stem}.setup"
+    with open(setup_path, "w") as f:
+        f.write("# Shared setup — generated by backmap-prep (do not edit)\n\n")
+        _write_setup(f, system, settings, params, data_filename, use_read_data=False)
+        _write_restart_cmd(f, restart)
         f.write("\n")
 
-        # Output
-        f.write(f"timestep {timestep_fs:.2f}\n\n")
-        f.write(f"thermo {sim.energy_interval}\n")
-        f.write("thermo_style custom step temp pe ke etotal press\n\n")
-        f.write(
-            f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n"
-        )
-        f.write("dump_modify traj sort id\n\n")
+    setup_name = setup_path.name
+    hybrid_out = data_filename.replace(".data", "_hybrid.data")
+    phase2_path = parent / f"{stem}.phase2"
 
-        # Phase 1: CG equilibration (lambda frozen at 0)
+    if sim.equilibration_steps == 0:
+        if phase3_path.exists():
+            phase3_path.unlink()
+
+        # --- in.<prefix>.phase1 — backmapping only ---
+        with open(parent / f"{stem}.phase1", "w") as f:
+            f.write("# Phase 1: Backmapping λ 0→1 (restart-aware) — generated by backmap-prep\n\n")
+            f.write("units real\n")
+            f.write("atom_style full\n")
+            f.write("boundary p p p\n\n")
+            f.write(f"read_data {data_filename}\n\n")
+            f.write(f"include {setup_name}\n\n")
+            f.write("# Backmapping: λ 0 → 1\n")
+            f.write(f"timestep {params['ts_backmap_fs']:.2f}\n")
+            f.write("fix_modify bm active yes\n")
+            f.write(f"run {params['backmapping_steps']}\n")
+            f.write("write_restart restart.backmap\n")
+            f.write(f"write_data {hybrid_out}\n")
+            f.write("shell echo done > phase_1.done\n")
+
+        if sim.production_steps > 0:
+            with open(phase2_path, "w") as f:
+                f.write("# Phase 2: AT production (restart-aware) — generated by backmap-prep\n\n")
+                f.write("units real\n")
+                f.write("atom_style full\n")
+                f.write("boundary p p p\n\n")
+                f.write("read_restart restart.backmap\n\n")
+                f.write(f"include {setup_name}\n\n")
+                f.write("# AT production (λ = 1)\n")
+                f.write(f"timestep {params['timestep_fs']:.2f}\n")
+                f.write(f"run {sim.production_steps}\n")
+                f.write("shell echo done > phase_2.done\n")
+        elif phase2_path.exists():
+            phase2_path.unlink()
+        return
+
+    # --- in.<prefix>.phase1 — CG equilibration ---
+    with open(parent / f"{stem}.phase1", "w") as f:
+        f.write("# Phase 1: CG equilibration (restart-aware) — generated by backmap-prep\n\n")
+        f.write("units real\n")
+        f.write("atom_style full\n")
+        f.write("boundary p p p\n\n")
+        f.write(f"read_data {data_filename}\n\n")
+        f.write(f"include {setup_name}\n\n")
         f.write("# Phase 1: CG equilibration\n")
         f.write("fix_modify bm active no\n")
-        f.write(f"run {sim.equilibration_steps}\n\n")
+        f.write(f"run {sim.equilibration_steps}\n")
+        f.write("write_restart restart.backmap\n")
+        f.write("shell echo done > phase_1.done\n")
 
-        # Phase 2: Backmapping (lambda ramp 0 → 1)
+    # --- in.<prefix>.phase2 — backmapping ---
+    with open(parent / f"{stem}.phase2", "w") as f:
+        f.write("# Phase 2: Backmapping (restart-aware) — generated by backmap-prep\n\n")
+        f.write("units real\n")
+        f.write("atom_style full\n")
+        f.write("boundary p p p\n\n")
+        f.write("read_restart restart.backmap\n\n")
+        f.write(f"include {setup_name}\n\n")
         f.write("# Phase 2: Backmapping\n")
-        ts_backmap = units.time(sim.timestep_backmapping)
-        f.write(f"timestep {ts_backmap:.2f}\n")
+        f.write(f"timestep {params['ts_backmap_fs']:.2f}\n")
         f.write("fix_modify bm active yes\n")
-        f.write(f"run {backmapping_steps}\n\n")
+        f.write(f"run {params['backmapping_steps']}\n")
+        f.write("write_restart restart.backmap\n")
+        f.write(f"write_data {hybrid_out}\n")
+        f.write("shell echo done > phase_2.done\n")
 
-        # Phase 3: AT production (lambda = 1, CG forces = 0)
-        f.write("# Phase 3: AT production\n")
-        f.write(f"timestep {timestep_fs:.2f}\n")
-        f.write(f"run {sim.production_steps}\n")
+    if sim.production_steps > 0:
+        with open(phase3_path, "w") as f:
+            f.write("# Phase 3: AT production (restart-aware) — generated by backmap-prep\n\n")
+            f.write("units real\n")
+            f.write("atom_style full\n")
+            f.write("boundary p p p\n\n")
+            f.write("read_restart restart.backmap\n\n")
+            f.write(f"include {setup_name}\n\n")
+            f.write("# Phase 3: AT production\n")
+            f.write(f"timestep {params['timestep_fs']:.2f}\n")
+            f.write(f"run {sim.production_steps}\n")
+            f.write("shell echo done > phase_3.done\n")
+    elif phase3_path.exists():
+        phase3_path.unlink()

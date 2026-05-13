@@ -36,7 +36,7 @@ def verify_data_file(path: Path) -> None:
     text = path.read_text()
     lines = text.splitlines()
 
-    check("180 atoms" in text, "180 atoms (10 mol × 18 atoms/mol)")
+    check("180 atoms" in text, "180 atoms (10 mol x 18 atoms/mol)")
     check("4 atom types" in text, "4 atom types (2 CG + 2 AT)")
     check("4 bond types" in text, "4 bond types")
 
@@ -76,17 +76,13 @@ def verify_data_file(path: Path) -> None:
 
     # Check that bond count is reasonable
     n_bonds = int(
-        [ln for ln in lines if "bonds" in ln.lower() and "types" not in ln.lower()][
-            0
-        ].split()[0]
+        next(ln for ln in lines if "bonds" in ln.lower() and "types" not in ln.lower()).split()[0]
     )
     check(n_bonds > 0, f"Bond count = {n_bonds} (positive)")
 
     # Check angle count
     n_angles = int(
-        [ln for ln in lines if "angles" in ln.lower() and "types" not in ln.lower()][
-            0
-        ].split()[0]
+        next(ln for ln in lines if "angles" in ln.lower() and "types" not in ln.lower()).split()[0]
     )
     check(n_angles > 0, f"Angle count = {n_angles} (positive)")
 
@@ -108,12 +104,11 @@ def verify_input_script(path: Path) -> None:
     check("group at_atoms type" in text, "AT atom group defined")
     check("group cg_atoms type" in text, "CG atom group defined")
 
-    # Three-phase run
-    check("Phase 1: CG equilibration" in text, "Phase 1 comment")
-    check("Phase 2: Backmapping" in text, "Phase 2 comment")
-    check("Phase 3: AT production" in text, "Phase 3 comment")
-    check("fix_modify bm active no" in text, "Lambda frozen in phase 1")
-    check("fix_modify bm active yes" in text, "Lambda ramp in phase 2")
+    # Backmapping then AT production (no in-hybrid CG equilibration by default)
+    check("# Backmapping: λ 0 → 1" in text, "Backmapping section comment")
+    check("# AT production" in text, "AT production section comment")
+    check("fix_modify bm active no" not in text, "No frozen-λ CG equilibration block")
+    check("fix_modify bm active yes" in text, "Lambda ramp active")
 
     # Check pair_coeff routing
     check("atomistic" in text, "Atomistic pair coefficients present")
@@ -121,9 +116,7 @@ def verify_input_script(path: Path) -> None:
     check("none" in text, "'none' cross-type pair coefficients")
 
     # Check bond_coeff routing
-    check(
-        "bond_coeff" in text and "harmonic" in text, "Static harmonic bond coefficients"
-    )
+    check("bond_coeff" in text and "harmonic" in text, "Static harmonic bond coefficients")
     check("bond_coeff" in text and "at" in text, "AT cross-bond coefficients")
     check("bond_coeff" in text and "cg" in text, "CG cross-bond coefficients")
 

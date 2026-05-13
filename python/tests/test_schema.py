@@ -44,6 +44,9 @@ class TestSimulationParams:
         assert sp.alpha == 0.001
         assert sp.temperature == 300.0
         assert sp.thermostat == "langevin"
+        assert sp.ensemble == "nvt"
+        assert sp.equilibration_steps == 0
+        assert sp.production_steps == 0
 
     def test_alpha_must_be_positive(self) -> None:
         with pytest.raises(ValueError, match="alpha must be positive"):
@@ -65,6 +68,17 @@ class TestSimulationParams:
         )
         assert sp.alpha == 0.01
         assert sp.temperature == 450.0
+
+    def test_nose_hoover_thermostat(self) -> None:
+        sp = SimulationParams(thermostat="nose_hoover", thermostat_tdamp=0.2)
+        assert sp.thermostat == "nose_hoover"
+        assert sp.thermostat_tdamp == 0.2
+
+    def test_npt_ensemble(self) -> None:
+        sp = SimulationParams(ensemble="npt", pressure=2.0, barostat_pdamp=0.5)
+        assert sp.ensemble == "npt"
+        assert sp.pressure == 2.0
+        assert sp.barostat_pdamp == 0.5
 
 
 class TestOutputConfig:
@@ -140,6 +154,24 @@ class TestLoadSettings:
     def test_missing_file_raises(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError):
             load_settings(tmp_path / "nonexistent.yaml")
+
+
+class TestRestartInterval:
+    def test_default_is_none(self) -> None:
+        sp = SimulationParams()
+        assert sp.restart_interval is None
+
+    def test_positive_value_accepted(self) -> None:
+        sp = SimulationParams(restart_interval=5000)
+        assert sp.restart_interval == 5000
+
+    def test_zero_rejected(self) -> None:
+        with pytest.raises(ValueError, match="restart_interval must be a positive integer"):
+            SimulationParams(restart_interval=0)
+
+    def test_negative_rejected(self) -> None:
+        with pytest.raises(ValueError, match="restart_interval must be a positive integer"):
+            SimulationParams(restart_interval=-100)
 
 
 class TestMoleculeDef:

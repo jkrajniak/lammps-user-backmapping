@@ -1,0 +1,65 @@
+# Backmapping simulation for dodecane
+# Reads the hybrid CG+AT data file (from place_at_atoms.py) and
+# runs the lambda ramp from CG to AT resolution.
+#
+# Prerequisites:
+#   1. Run in.cg_equil    → produces dodecane_cg_equil.data
+#   2. Run place_at_atoms.py → produces dodecane_hybrid.data
+
+units real
+atom_style full
+boundary p p p
+
+read_data dodecane_hybrid.data
+
+pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
+pair_coeff 1 1 cg table_A_A.table ENTRY
+pair_coeff 1 2 cg table_A_B.table ENTRY
+pair_coeff 1 3 none
+pair_coeff 1 4 none
+pair_coeff 2 2 cg table_B_B.table ENTRY
+pair_coeff 2 3 none
+pair_coeff 2 4 none
+pair_coeff 3 3 atomistic 0.207266 3.748000
+pair_coeff 3 4 atomistic 0.156387 3.826500
+pair_coeff 4 4 atomistic 0.117997 3.905000
+
+bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
+bond_coeff 1 harmonic 800.000883 1.530000
+bond_coeff 2 backmap/table cg table_b1.table ENTRY
+bond_coeff 3 backmap/table cg table_b1.table ENTRY
+bond_coeff 4 backmap/harmonic at 800.000883 1.530000
+
+angle_style backmap/harmonic
+angle_coeff 1 at 126.673180 111.0000
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+group at_atoms type 3 4
+group cg_atoms type 1 2
+
+timestep 1.00
+thermo 1000
+thermo_style custom step temp pe ke etotal press
+
+# NVT (Nosé-Hoover) must be defined BEFORE fix backmap so that its
+# initial_integrate runs first, updating AT positions before fix backmap
+# tracks the CG→COM.
+fix integrate at_atoms nvt temp 298.0 298.0 100.0
+
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+
+dump traj all custom 1000 dump.backmap id mol type x y z f_bm
+dump_modify traj sort id
+
+# ==========================================================================
+# Phase 1: Backmapping (lambda ramp 0 → 1)
+# ==========================================================================
+run 10000
+
+# ==========================================================================
+# Phase 2: AT production (lambda saturated at 1, AT fully active)
+# ==========================================================================
+run 10000
+
+write_data dodecane_final.data

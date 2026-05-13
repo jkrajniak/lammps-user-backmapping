@@ -1,0 +1,15 @@
+.git
+.github
+.cursor
+.specify
+.ruff_cache
+.mypy_cache
+__pycache__
+*.pyc
+build/
+lammps/
+openspec/
+specs/
+docs/
+.pre-commit-config.yaml
+*.egg-info

@@ -13,8 +13,9 @@ atomistic detail while maintaining thermodynamic consistency.
     *J. Chem. Theory Comput.* 2016, 12, 5549--5562.
     [DOI: 10.1021/acs.jctc.6b00595](https://doi.org/10.1021/acs.jctc.6b00595)
 
-    Krajniak, Zhang et al., "Reverse Mapping Method for Complex Polymer Systems",
-    *J. Comput. Chem.* 2018.
+    Krajniak, Zhang, Pandiyan, Nies, Samaey, "Reverse Mapping Method for Complex
+    Polymer Systems", *J. Comput. Chem.* **2018**, *39*, 648--664 (online
+    **Dec. 2017**) — networks (epoxy, melamine), hyperbranched polymer, PET.
     [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
 
 ## Features

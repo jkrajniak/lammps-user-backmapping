@@ -3,12 +3,14 @@
 ## Syntax
 
 ```
-fix ID group-ID backmap cg_type T alpha A lambda0 L0 [nonuniform yes/no]
+fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/no]
 ```
 
 - **ID** -- fix identifier (user-chosen)
 - **group-ID** -- group of atoms the fix applies to (typically `all`)
-- **cg_type** -- atom type number of CG beads (integer, 1-indexed)
+- **cg_type** -- one or more atom type numbers of CG beads (integers,
+  1-indexed). Multiple types are supported for systems with heterogeneous CG
+  bead types (e.g. end and middle beads).
 - **alpha** -- lambda ramp rate per timestep (positive float)
 - **lambda0** -- initial lambda value (float, default 0.0)
 - **nonuniform** -- `yes` or `no`; enable staggered initial lambda (optional,
@@ -20,10 +22,11 @@ fix ID group-ID backmap cg_type T alpha A lambda0 L0 [nonuniform yes/no]
 
 1. **Lambda ramp** -- per-atom resolution parameter that increases by `alpha`
    each timestep, clamped to \[0, 1\]
-2. **Molecule map** -- builds and maintains the mapping between CG beads and
-   their constituent AT atoms based on molecule IDs
+2. **Bead map** -- builds and maintains the per-bead mapping between CG beads
+   and their constituent AT atoms based on molecule IDs and global tag order.
+   Rebuilt automatically on every neighbor list rebuild.
 3. **COM tracking** -- after each timestep, updates CG bead positions to the
-   center-of-mass of their AT atoms
+   center-of-mass of their AT atoms (using PBC-aware displacement)
 4. **CG force distribution** -- redistributes forces on CG beads to AT atoms
    proportional to their mass fraction
 5. **CG velocity zeroing** -- sets CG bead velocities to zero each step
@@ -35,11 +38,15 @@ The per-atom lambda value is stored as a per-atom vector and accessible via
 
 ### `cg_type` (required)
 
-The numeric atom type identifying CG beads. All atoms with this type are
-treated as CG beads; all other atoms in the same molecule are AT atoms.
+One or more numeric atom types identifying CG beads. All atoms matching any
+listed type are treated as CG beads; all other atoms in the same molecule are
+AT atoms. Within each molecule, AT atoms are distributed evenly among CG beads
+in global tag order: CG bead *i* receives AT atoms
+\[i \times \text{apb},\ (i+1) \times \text{apb})\] where
+`apb = num_AT / num_CG`.
 
 ```
-fix bm all backmap cg_type 1 alpha 0.001
+fix bm all backmap cg_type 1 2 alpha 0.001
 ```
 
 ### `alpha` (required)
@@ -91,24 +98,33 @@ allowing seamless continuation of a backmapping simulation.
 
 ## Example
 
+Typical **single-segment** λ ramp (CG melt equilibrated before building the
+hybrid; `backmap-prep` default):
+
 ```
 # Define atom groups
 group at_atoms type 3 4
 group cg_atoms type 1 2
 
-# Set up backmapping fix
-fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.0 nonuniform no
+fix integrate at_atoms nvt temp 298.0 298.0 100.0
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+compute at_temp at_atoms temp
+thermo_modify temp at_temp
 
-# Phase 1: CG equilibration (lambda frozen)
-fix_modify bm active no
-run 10000
-
-# Phase 2: Backmapping (lambda ramps)
 fix_modify bm active yes
 run 10000
+write_data system_hybrid.data
+```
 
-# Phase 3: AT production (lambda = 1 everywhere)
+Optional **multi-segment** input (only if you need in-hybrid CG equilibration
+or post-backmap steps in the same file):
+
+```
+fix_modify bm active no
 run 10000
+fix_modify bm active yes
+run 10000
+write_data system_hybrid.data
 ```
 
 ## Mass Validation

@@ -1,0 +1,31 @@
+# Pure CG equilibration for dodecane
+# Run this FIRST to get an equilibrated CG configuration.
+
+units real
+atom_style full
+boundary p p p
+
+read_data dodecane_cg.data
+
+# Standard table pair and bond styles (no backmap dependency)
+pair_style table linear 1000
+pair_coeff 1 1 table_A_A.table ENTRY
+pair_coeff 1 2 table_A_B.table ENTRY
+pair_coeff 2 2 table_B_B.table ENTRY
+
+bond_style table linear 1000
+bond_coeff 1 table_b1.table ENTRY
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+timestep 2.0
+thermo 1000
+thermo_style custom step temp pe ke etotal press density
+
+# NVT equilibration at STP (298 K)
+fix nvt_cg all nvt temp 298.0 298.0 200.0
+
+run 50000
+
+# Write equilibrated CG frame
+write_data dodecane_cg_equil.data

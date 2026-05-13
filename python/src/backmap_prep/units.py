@@ -15,6 +15,7 @@ CHARGE = 1.0  # e → e
 MASS = 1.0  # g/mol → g/mol
 SPRING_BOND = KJ_TO_KCAL / (NM_TO_ANGSTROM**2)  # kJ/(mol·nm²) → kcal/(mol·Å²)
 SPRING_ANGLE = KJ_TO_KCAL  # kJ/(mol·rad²) → kcal/(mol·rad²)
+PRESSURE = 0.986923  # bar → atm
 
 
 def distance(val: float) -> float:
@@ -55,3 +56,8 @@ def sigma(val: float) -> float:
 def epsilon(val: float) -> float:
     """LJ epsilon: kJ/mol → kcal/mol"""
     return val * ENERGY
+
+
+def pressure(val: float) -> float:
+    """bar → atm"""
+    return val * PRESSURE

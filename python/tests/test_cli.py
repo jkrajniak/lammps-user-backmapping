@@ -81,7 +81,7 @@ def _write_full_example(base: Path) -> Path:
 
 class TestCLI:
     def test_missing_file_returns_1(self, tmp_path: Path) -> None:
-        result = main([str(tmp_path / "nonexistent.yaml")])
+        result = main(["build", str(tmp_path / "nonexistent.yaml")])
         assert result == 1
 
     def test_successful_run(self, tmp_path: Path) -> None:
@@ -90,6 +90,12 @@ class TestCLI:
         assert result == 0
         assert (tmp_path / "test_out.data").exists()
         assert (tmp_path / "in.test_out").exists()
+
+    def test_build_subcommand(self, tmp_path: Path) -> None:
+        settings_path = _write_full_example(tmp_path)
+        result = main(["build", str(settings_path)])
+        assert result == 0
+        assert (tmp_path / "test_out.data").exists()
 
     def test_output_prefix_override(self, tmp_path: Path) -> None:
         settings_path = _write_full_example(tmp_path)
@@ -112,3 +118,18 @@ class TestCLI:
         content = (tmp_path / "in.test_out").read_text()
         assert "units real" in content
         assert "fix bm all backmap" in content
+
+    def test_cg_only_subcommand(self, tmp_path: Path) -> None:
+        settings_path = _write_full_example(tmp_path)
+        result = main(["cg-only", str(settings_path)])
+        assert result == 0
+        assert (tmp_path / "test_out_cg.data").exists()
+        assert (tmp_path / "in.test_out_cg_equil").exists()
+
+    def test_cg_only_equilibration_script_content(self, tmp_path: Path) -> None:
+        settings_path = _write_full_example(tmp_path)
+        main(["cg-only", str(settings_path)])
+        content = (tmp_path / "in.test_out_cg_equil").read_text()
+        assert "units real" in content
+        assert "nvt temp" in content or "npt temp" in content
+        assert "write_data" in content

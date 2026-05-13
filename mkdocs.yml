@@ -50,6 +50,8 @@ extra_javascript:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Docker: docker.md
+  - Running on Cloud / HPC: cloud-hpc.md
   - Large-scale examples: large-scale-examples.md
   - Theory: theory.md
   - Settings Reference: settings-reference.md

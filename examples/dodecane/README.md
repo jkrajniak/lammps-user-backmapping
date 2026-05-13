@@ -31,11 +31,31 @@ lmp -in in.dodecane_movie
 uv run visualize_backmap_movie.py
 ```
 
+## RDF comparison (backmapped vs reference AT)
+
+From this directory, after `backmap-prep` (if you regenerate inputs):
+
+```bash
+lmp -in in.dodecane
+uv run extract_at_frame.py dodecane_hybrid.data dodecane_at.data --cg-types 1 2
+lmp -in in.dodecane_at
+lmp -in in.dodecane_at_ref    # independent reference, same box and 10 molecules
+uv run compare_rdf.py --backmap rdf_backmap.dat --reference rdf_reference.dat --plot rdf_comparison.png
+```
+
+`in.dodecane_at` uses NVT equilibration at 298 K before the RDF window. The
+reference run is longer; with only 10 molecules, `compare_rdf.py` tolerances may
+still fail on RMSD or CH₃–CH₃ peak position — increase system size or sampling
+for tighter agreement.
+
 ## Input Files
 
 | File | Description |
 |------|-------------|
-| `in.dodecane` | Production input (dump every 1000 steps, 30k total) |
+| `in.dodecane` | Backmapping only: λ 0→1, `write_data dodecane_hybrid.data` |
+| `in.dodecane_at` | Pure AT run after extraction; writes `rdf_backmap.dat` |
+| `in.dodecane_at_ref` | Independent AT reference; writes `rdf_reference.dat` |
+| `extract_at_frame.py` | Strip CG atoms from hybrid data → `dodecane_at.data` |
 | `in.dodecane_movie` | Movie input (dump every 50 steps, 6k total, ~120 frames) |
 | `dodecane.data` | LAMMPS data file (10 chains, 180 atoms) |
 | `settings.yaml` | backmap-prep configuration |
@@ -83,6 +103,12 @@ Features:
    - Bond lengths and angles relax to equilibrium
    - 10 separate chains should remain intact (no cross-linking)
 3. **Phase 3** (AT production): Only AT atoms visible, 10 correct dodecane chains
+
+## Medium-scale (250 molecules)
+
+`n250/` builds a **250-molecule** melt (subset of the bakery `large/cg_conf.gro`)
+with `topol_aa_250.top` / `topol_cg_250.top`. See
+[`n250/README.md`](n250/README.md) and `./n250/prepare_inputs.sh`.
 
 ## Large-scale variant
 
