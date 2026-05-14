@@ -321,6 +321,41 @@ class TestWriteLammpsInput:
         content = p.read_text()
         assert "special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0" in content
 
+    def test_fix_backmap_no_apb_when_uniform(self, tmp_path: Path) -> None:
+        """No apb keyword when all CG types have same atoms-per-bead."""
+        system = _make_system()
+        system.apb_by_cg_type = {1: 2}
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "fix bm all backmap" in content
+        assert " apb " not in content
+
+    def test_fix_backmap_apb_when_nonuniform(self, tmp_path: Path) -> None:
+        """apb keyword emitted when CG types differ in atoms-per-bead."""
+        system = _make_system()
+        system.atom_types = [
+            AtomTypeInfo(1, "A", 29.0, True),
+            AtomTypeInfo(2, "B", 28.0, True),
+            AtomTypeInfo(3, "CH3", 15.0, False),
+            AtomTypeInfo(4, "CH2", 14.0, False),
+        ]
+        system.pair_types = [
+            PairTypeInfo(1, 1, "cg"),
+            PairTypeInfo(1, 2, "cg"),
+            PairTypeInfo(2, 2, "cg"),
+            PairTypeInfo(3, 3, "atomistic", sigma=3.75, epsilon=0.21),
+            PairTypeInfo(3, 4, "none"),
+            PairTypeInfo(4, 4, "atomistic", sigma=3.91, epsilon=0.12),
+        ]
+        system.apb_by_cg_type = {1: 7, 2: 6}
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert " apb 1:7 2:6" in content
+
     def test_hybrid_bond_style(self, tmp_path: Path) -> None:
         system = _make_system()
         system.bond_types.append(BondTypeInfo(2, "backmap/harmonic", "at", [50.0, 1.5]))
