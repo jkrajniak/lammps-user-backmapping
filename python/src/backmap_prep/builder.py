@@ -100,6 +100,9 @@ class System:
     has_cross_bonds: bool = False
     has_cross_angles: bool = False
 
+    # Atoms-per-bead by CG type ID
+    apb_by_cg_type: dict[int, int] = field(default_factory=dict)
+
     # Table files to convert: (src, dst) pairs
     table_files: list[tuple[str, str]] = field(default_factory=list)  # bond tables
     pair_table_files: list[tuple[str, str]] = field(default_factory=list)  # pair tables
@@ -236,6 +239,22 @@ def build_system(
             parts = ref.split(":")
             atom_names.append(parts[-1])
         bead_atoms[bead.name] = atom_names
+
+    # Compute atoms-per-bead by CG type ID
+    for bead in mol_def.beads:
+        cg_type_name = bead.type
+        tid = type_map.get(cg_type_name)
+        if tid is None:
+            continue
+        n_atoms = len(bead.atoms)
+        if tid in sys.apb_by_cg_type:
+            if sys.apb_by_cg_type[tid] != n_atoms:
+                raise ValueError(
+                    f"Inconsistent atoms-per-bead for CG type '{cg_type_name}' "
+                    f"(type {tid}): {sys.apb_by_cg_type[tid]} vs {n_atoms}"
+                )
+        else:
+            sys.apb_by_cg_type[tid] = n_atoms
 
     # Build atom name → TopAtom index mapping for the AT molecule
     at_name_to_idx: dict[str, int] = {}
