@@ -54,28 +54,44 @@ thermo_modify temp at_temp
 dump traj all custom 5000 dump.backmap id mol type x y z f_bm
 dump_modify traj sort id
 
-# === Phase 0: Relax AT overlaps (CG frozen, nve/limit, small dt) ===
+# === Phase 0: Minimize AT overlaps ===
 fix freeze cg_atoms setforce 0.0 0.0 0.0
-fix relax at_atoms nve/limit 0.05
+minimize 1.0e-4 1.0e-6 1000 10000
 
-timestep 0.10
-run 2000
+print "Phase 0a complete: minimization done"
 
-print "Phase 0 complete: AT overlap relaxation done"
+# === Phase 0b: Gentle relaxation (CG frozen, nve/limit, tiny dt) ===
+fix relax at_atoms nve/limit 0.01
 
-# === Phase 1: Lambda ramp 0 → 1 (NVT, medium dt) ===
+timestep 0.01
+run 10000
+
+print "Phase 0b complete: AT overlap relaxation done"
+
+# === Phase 1: Lambda ramp with nve/limit for all (small dt) ===
 unfix relax
 unfix freeze
 
-fix integrate at_atoms nvt temp 298.0 298.0 100.0
+fix limit_all all nve/limit 0.05
 fix_modify bm active yes
+
+timestep 0.10
+run 20000
+
+print "Phase 1 complete: lambda ramp done"
+
+# === Phase 2: Switch to NVT equilibration ===
+unfix limit_all
+
+fix integrate at_atoms nvt temp 298.0 298.0 100.0
+fix cg_nvt cg_atoms nvt temp 298.0 298.0 100.0
 
 timestep 0.25
 run 10000
 
-print "Phase 1 complete: lambda ramp done (lambda = 1.0)"
+timestep 0.50
+run 5000
 
-# === Phase 2: Equilibration at full lambda (NVT, production dt) ===
 timestep 1.00
 run 5000
 
