@@ -17,7 +17,7 @@
 
    Syntax:
      fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0
-         [nonuniform yes/no]
+         [nonuniform yes/no] [apb T1:N1 T2:N2 ...]
 
    Reference: Krajniak et al., JCTC 2016, DOI: 10.1021/acs.jctc.6b00595 */
 
@@ -43,7 +43,8 @@ using namespace LAMMPS_NS;
 using namespace FixConst;
 
 static const std::set<std::string> KNOWN_KEYWORDS = {"alpha", "lambda0",
-                                                     "nonuniform", "phase"};
+                                                     "nonuniform", "phase",
+                                                     "apb"};
 
 /* ---------------------------------------------------------------------- */
 
@@ -104,6 +105,29 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
         utils::missing_cmd_args(FLERR, "fix backmap nonuniform", error);
       nonuniform = utils::logical(FLERR, arg[iarg + 1], false, lmp);
       iarg += 2;
+    } else if (strcmp(arg[iarg], "apb") == 0) {
+      iarg++;
+      if (iarg >= narg)
+        utils::missing_cmd_args(FLERR, "fix backmap apb", error);
+      while (iarg < narg &&
+             KNOWN_KEYWORDS.find(arg[iarg]) == KNOWN_KEYWORDS.end()) {
+        std::string token(arg[iarg]);
+        auto pos = token.find(':');
+        if (pos == std::string::npos)
+          error->all(FLERR, "fix backmap apb: expected type:count, got '{}'",
+                     arg[iarg]);
+        int t = utils::inumeric(FLERR, token.substr(0, pos).c_str(), false, lmp);
+        int c = utils::inumeric(FLERR, token.substr(pos + 1).c_str(), false, lmp);
+        if (t < 1 || t > atom->ntypes)
+          error->all(FLERR, "fix backmap apb type {} out of range [1,{}]", t,
+                     atom->ntypes);
+        if (c < 1)
+          error->all(FLERR, "fix backmap apb count must be positive, got {}", c);
+        apb_map_[t] = c;
+        iarg++;
+      }
+      if (apb_map_.empty())
+        error->all(FLERR, "fix backmap apb requires at least one type:count pair");
     } else {
       error->all(FLERR, "Illegal fix backmap argument: {}", arg[iarg]);
     }
@@ -462,14 +486,6 @@ void FixBackmap::build_bead_map() {
 
     if (n_at == 0) continue;
 
-    if (n_at % n_cg != 0)
-      error->all(FLERR,
-                 "fix backmap: molecule {} has {} AT atoms and {} CG beads, "
-                 "AT count must be divisible by CG count",
-                 mol_id, n_at, n_cg);
-
-    int apb = n_at / n_cg;
-
     // Sort by global tag to get consistent ordering
     std::sort(
         cg_atoms.begin(), cg_atoms.end(),
@@ -478,21 +494,72 @@ void FixBackmap::build_bead_map() {
         at_atoms.begin(), at_atoms.end(),
         [](const AtomRef &a, const AtomRef &b) { return a.gtag < b.gtag; });
 
-    for (int ci = 0; ci < n_cg; ci++) {
-      int cg_idx = cg_atoms[ci].local_idx;
-      if (cg_idx >= nlocal) continue;
+    if (apb_map_.empty()) {
+      // Legacy uniform mode
+      if (n_at % n_cg != 0)
+        error->all(FLERR,
+                   "fix backmap: molecule {} has {} AT atoms and {} CG beads, "
+                   "AT count must be divisible by CG count (or use apb keyword)",
+                   mol_id, n_at, n_cg);
+      int apb = n_at / n_cg;
+      for (int ci = 0; ci < n_cg; ci++) {
+        int cg_idx = cg_atoms[ci].local_idx;
+        if (cg_idx >= nlocal) continue;
 
-      BeadMap bm;
-      bm.cg_local = cg_idx;
-      bm.at_mass_sum = 0.0;
+        BeadMap bm;
+        bm.cg_local = cg_idx;
+        bm.at_mass_sum = 0.0;
 
-      for (int ai = ci * apb; ai < (ci + 1) * apb; ai++) {
-        int at_idx = at_atoms[ai].local_idx;
-        bm.at_local.push_back(at_idx);
-        bm.at_mass_sum += atom->mass[type[at_idx]];
+        for (int ai = ci * apb; ai < (ci + 1) * apb; ai++) {
+          int at_idx = at_atoms[ai].local_idx;
+          bm.at_local.push_back(at_idx);
+          bm.at_mass_sum += atom->mass[type[at_idx]];
+        }
+
+        bead_map.push_back(std::move(bm));
       }
+    } else {
+      // Per-type atom count mode
+      int expected_at = 0;
+      for (int ci = 0; ci < n_cg; ci++) {
+        int cg_idx = cg_atoms[ci].local_idx;
+        int cg_type = type[cg_idx];
+        auto it = apb_map_.find(cg_type);
+        if (it == apb_map_.end())
+          error->all(FLERR,
+                     "fix backmap: CG type {} not found in apb mapping",
+                     cg_type);
+        expected_at += it->second;
+      }
+      if (expected_at != n_at)
+        error->all(FLERR,
+                   "fix backmap: molecule {} apb sum ({}) != AT atom count ({})",
+                   mol_id, expected_at, n_at);
 
-      bead_map.push_back(std::move(bm));
+      int at_offset = 0;
+      for (int ci = 0; ci < n_cg; ci++) {
+        int cg_idx = cg_atoms[ci].local_idx;
+        int cg_type = type[cg_idx];
+        int apb = apb_map_.at(cg_type);
+
+        if (cg_idx >= nlocal) {
+          at_offset += apb;
+          continue;
+        }
+
+        BeadMap bm;
+        bm.cg_local = cg_idx;
+        bm.at_mass_sum = 0.0;
+
+        for (int ai = at_offset; ai < at_offset + apb; ai++) {
+          int at_idx = at_atoms[ai].local_idx;
+          bm.at_local.push_back(at_idx);
+          bm.at_mass_sum += atom->mass[type[at_idx]];
+        }
+
+        at_offset += apb;
+        bead_map.push_back(std::move(bm));
+      }
     }
   }
 }

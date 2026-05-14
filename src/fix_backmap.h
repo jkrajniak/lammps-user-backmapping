@@ -19,6 +19,7 @@ FixStyle(backmap,FixBackmap);
 #ifndef LMP_FIX_BACKMAP_H
 #define LMP_FIX_BACKMAP_H
 
+#include <map>
 #include <set>
 #include <vector>
 
@@ -67,6 +68,7 @@ class FixBackmap : public Fix {
   };
 
   std::set<int> cg_types;
+  std::map<int, int> apb_map_;  // CG type -> atoms-per-bead count
   double alpha;
   double lambda0;
   int nonuniform;
