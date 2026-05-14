@@ -68,6 +68,9 @@ dump.*
 *.mp4
 frames/
 
+# --- Git worktrees ---
+.worktrees/
+
 # --- OS ---
 .DS_Store
 Thumbs.db
