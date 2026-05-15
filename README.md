@@ -139,6 +139,12 @@ See `examples/dodecane/` for a complete working example with a dodecane system
 PE, 500-molecule melamine) are in each example’s `large/` subdirectory; see
 [Large-scale examples](https://jkrajniak.github.io/lammps-user-backmapping/large-scale-examples/) in the docs.
 
+Large-scale systems use a robust multi-phase protocol (energy minimisation,
+`nve/limit` relaxation, `nve/limit` lambda ramp, gradual NVT equilibration)
+to avoid instabilities from initial AT overlaps. See
+[Theory — Simulation Protocol](https://jkrajniak.github.io/lammps-user-backmapping/theory/#simulation-protocol)
+for details.
+
 ### Settings File
 
 The YAML settings file defines:

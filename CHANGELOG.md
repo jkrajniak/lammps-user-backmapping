@@ -7,7 +7,20 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Added
+
+- `apb` keyword in `fix backmap` for non-uniform atoms-per-bead mapping
+  (`apb T1:N1 T2:N2 ...`). Required for systems where different CG bead
+  types contain different numbers of AT atoms (e.g. all-atom PE with
+  7-atom end beads and 6-atom interior beads).
+- `atom->add_callback(Atom::GROW)` and `atom->add_callback(Atom::RESTART)` in
+  `fix backmap` to dynamically resize per-atom arrays when LAMMPS reallocates
+  atom storage, preventing heap-use-after-free segfaults.
+
 ### Fixed
+
+- All PE example input scripts now use `cg_type 1 2` (both CG bead types)
+  instead of `cg_type 1`, which caused incorrect bead-to-atom mapping.
 
 - `fix backmap` now accepts multiple CG atom types via `cg_type T1 T2 ...`
   syntax, enabling correct bead-to-atom mapping in systems with more than one
@@ -25,6 +38,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Changed
 
+- Large-scale example input scripts use a robust multi-phase simulation
+  protocol (minimise → `nve/limit` relaxation → `nve/limit` lambda ramp →
+  gradual NVT equilibration) instead of aggressive single-phase NVE + Langevin,
+  preventing "Bond atoms missing" errors in production-size systems.
 - Documentation: README, `docs/index.md`, `docs/theory.md`, and `AGENTS.md` now
   tie the package motivation to **migrating from ESPResSo++** toward **LAMMPS**,
   and cite the **complex polymer / network** reverse-mapping paper with

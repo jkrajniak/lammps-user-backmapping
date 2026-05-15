@@ -152,24 +152,51 @@ it represents. The `fix backmap` style manages the relationship:
 3. **Velocity zeroing**: CG bead velocities are set to zero at each step to
    prevent them from drifting independently of their AT atoms.
 
-## Simulation Phases
+## Simulation Protocol
 
-A typical backmapping simulation has three phases:
+When AT atoms are first placed inside CG beads, their positions are
+approximate and may overlap. A robust multi-phase protocol prevents the
+large forces from these overlaps from destabilising the simulation
+("Bond atoms missing" errors). The protocol has been validated on
+dodecane and polyethylene systems from 180 to 3 500 atoms.
 
-### Phase 1: CG Equilibration
+### Phase 0a: Energy Minimisation
 
-Lambda ramp is **inactive** (`fix_modify bm active no`). The system runs
-at CG resolution to equilibrate the starting configuration. AT atoms move
-under their intra-bead potentials but inter-bead interactions are purely CG.
+CG beads are frozen (`fix setforce 0.0 0.0 0.0`) and the system is
+energy-minimised to relieve the worst AT overlaps without moving CG
+positions.
 
-### Phase 2: Backmapping
+### Phase 0b: AT Relaxation
 
-Lambda ramp is **active** (`fix_modify bm active yes`). Lambda increases by
-&alpha; each timestep. CG interactions fade out while AT interactions fade in.
-This is the core of the backmapping process.
+AT atoms are integrated with `fix nve/limit` (max displacement
+&asymp; 0.01 &Aring;/step) at a very small timestep (e.g. 0.01 fs) for
+&sim;10 000 steps. CG beads remain frozen. This gently relaxes remaining
+steric clashes.
 
-### Phase 3: AT Production
+### Phase 1: Lambda Ramp
 
-Once &lambda; reaches 1.0 everywhere, the system is fully atomistic. CG
-interactions have zero weight. This phase runs standard AT dynamics for
-equilibration or production.
+All atoms are integrated with `fix nve/limit` (max displacement
+&asymp; 0.05 &Aring;/step) at a small timestep (e.g. 0.10 fs). The
+lambda ramp is activated (`fix_modify bm active yes`). Lambda increases
+by &alpha; each step; CG interactions fade out while AT interactions
+fade in. Using `nve/limit` instead of full NVE prevents force spikes
+from launching atoms out of the box.
+
+### Phase 2: NVT Equilibration
+
+Once &lambda; reaches 1.0, the system is fully atomistic. The integrator
+is switched to NVT and the timestep is ramped gradually:
+
+| Segment | Timestep | Steps | Purpose |
+|---------|----------|-------|---------|
+| 1 | 0.25 fs | 10 000 | Gentle thermalisation |
+| 2 | 0.50 fs | 5 000 | Intermediate relaxation |
+| 3 | 1.00 fs | 5 000 | Production timestep |
+
+The gradual ramp avoids sudden energy injection that can blow up a
+freshly backmapped system.
+
+!!! tip "Small systems"
+    For small test systems (&lt; 500 atoms), the simple protocol of
+    NVE + Langevin at `dt = 1.0 fs` may work. The multi-phase protocol
+    is essential for production-scale systems (&gt; 1 000 atoms).

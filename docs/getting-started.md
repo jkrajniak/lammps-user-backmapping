@@ -92,12 +92,19 @@ Output is written to `examples/dodecane/`. This produces:
 cd examples/dodecane && lmp -in in.dodecane
 ```
 
-By default the generated input runs **backmapping only**: λ ramps from 0 to 1
-in one segment, then writes `*_hybrid.data`. Equilibrate the CG melt **before**
-building the hybrid (`simulation.equilibration_steps: 0`). Optional
-`simulation.equilibration_steps` / `simulation.production_steps` add extra
-segments in the same file; for RDF or long AT runs, use a **separate** atomistic
+The generated input runs a **backmapping-only** λ ramp from 0 to 1, then
+writes `*_hybrid.data`. The CG melt should be equilibrated **before**
+building the hybrid. For RDF or long AT runs, use a **separate** atomistic
 input after extracting AT atoms from the hybrid frame.
+
+!!! warning "Large systems"
+    For production-scale systems (> 1 000 atoms), the default NVE + Langevin
+    protocol may produce "Bond atoms missing" errors due to initial AT
+    overlaps. Use the robust multi-phase protocol instead: energy
+    minimisation with CG frozen, `nve/limit` relaxation, `nve/limit` lambda
+    ramp at small timestep, then gradual NVT equilibration. See
+    [Theory — Simulation Protocol](theory.md#simulation-protocol) and the
+    `large/in.dodecane` input script for a working example.
 
 ### 3. Check the output
 

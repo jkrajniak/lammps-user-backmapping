@@ -118,4 +118,10 @@ A larger system is available in `large/`. Topologies and tables in `large/` are 
 2. From repo root: `uv run backmap-prep examples/dodecane/large/settings.yaml`
 3. Run LAMMPS from `examples/dodecane/large/`: `lmp -in in.dodecane`
 
+The large-scale input (`large/in.dodecane`) uses the robust multi-phase
+protocol: energy minimisation with CG frozen, `nve/limit` relaxation at
+dt = 0.01 fs, `nve/limit` lambda ramp at dt = 0.10 fs, then gradual NVT
+equilibration (0.25 → 0.50 → 1.00 fs). This prevents "Bond atoms missing"
+errors that occur with aggressive timesteps in large systems.
+
 See `large/README.md` for details and [Large-scale examples](../../docs/large-scale-examples.md) in the docs.

@@ -3,7 +3,7 @@
 ## Syntax
 
 ```
-fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/no]
+fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/no] [apb T1:N1 T2:N2 ...]
 ```
 
 - **ID** -- fix identifier (user-chosen)
@@ -69,6 +69,28 @@ Initial value of lambda for all atoms. Default: `0.0`.
 When `yes`, each atom receives a random offset to its initial lambda, creating
 a staggered transition. Default: `no`.
 
+### `apb` (optional)
+
+Specifies the number of AT atoms per CG bead for each CG type, when different
+CG bead types map to different numbers of AT atoms.
+
+```
+fix bm all backmap cg_type 1 2 alpha 0.0001 apb 1:7 2:6
+```
+
+Syntax: `apb T1:N1 T2:N2 ...` where `T` is a CG atom type and `N` is the
+number of AT atoms that each bead of that type contains. The sum of
+`N_i * count_i` across all CG bead types in a molecule must equal the total
+number of AT atoms in that molecule.
+
+This is required for all-atom representations of terminated chains where
+end beads (e.g. CH3 terminals) contain more atoms than interior beads.
+For example, in all-atom polyethylene with 2:1 mapping, end beads (type A)
+have 7 atoms (2C + 5H) while interior beads (type B) have 6 atoms (2C + 4H).
+
+When `apb` is absent, the fix divides AT atoms uniformly:
+`apb = n_at / n_cg`. This fails if `n_at` is not evenly divisible by `n_cg`.
+
 ## fix_modify Options
 
 ### `active`
@@ -98,31 +120,56 @@ allowing seamless continuation of a backmapping simulation.
 
 ## Example
 
-Typical **single-segment** λ ramp (CG melt equilibrated before building the
-hybrid; `backmap-prep` default):
+Robust multi-phase protocol (recommended for production systems):
 
 ```
-# Define atom groups
 group at_atoms type 3 4
 group cg_atoms type 1 2
+neigh_modify delay 0 every 1 check yes
 
-fix integrate at_atoms nvt temp 298.0 298.0 100.0
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
 compute at_temp at_atoms temp
 thermo_modify temp at_temp
 
-fix_modify bm active yes
+# Phase 0a: Minimise AT overlaps (CG frozen)
+fix freeze cg_atoms setforce 0.0 0.0 0.0
+minimize 1.0e-4 1.0e-6 1000 10000
+
+# Phase 0b: Gentle nve/limit relaxation
+fix relax at_atoms nve/limit 0.01
+timestep 0.01
 run 10000
+
+# Phase 1: Lambda ramp under nve/limit
+unfix relax
+unfix freeze
+fix limit_all all nve/limit 0.05
+fix_modify bm active yes
+timestep 0.10
+run 20000
+
+# Phase 2: NVT equilibration with gradual dt
+unfix limit_all
+fix nvt_at at_atoms nvt temp 298.0 298.0 100.0
+fix nvt_cg cg_atoms nvt temp 298.0 298.0 100.0
+
+timestep 0.25
+run 10000
+timestep 0.50
+run 5000
+timestep 1.00
+run 5000
+
 write_data system_hybrid.data
 ```
 
-Optional **multi-segment** input (only if you need in-hybrid CG equilibration
-or post-backmap steps in the same file):
+For small test systems, a simpler protocol may suffice:
 
 ```
-fix_modify bm active no
-run 10000
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
+fix integrate at_atoms nvt temp 298.0 298.0 100.0
 fix_modify bm active yes
+timestep 1.00
 run 10000
 write_data system_hybrid.data
 ```
