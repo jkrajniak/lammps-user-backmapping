@@ -57,4 +57,19 @@ Original system: 500 molecules; reduced to 50 for quick testing.
 
 ## Large-scale variant
 
-A 500-molecule variant is in `large/`. Copy `cg_conf_500.gro` from `bakery/examples/melamine/` as `large/cg_conf.gro` if needed, then run `backmap-prep` with `large/settings.yaml`. See `large/README.md` and [Large-scale examples](../../docs/large-scale-examples.md).
+A 500-molecule variant is in `large/` (15 000 atoms: 1 500 CG beads + 13 500
+AT atoms). The input script uses the robust multi-phase protocol: energy
+minimisation with CG frozen, `nve/limit` relaxation at dt = 0.01 fs,
+`nve/limit` lambda ramp at dt = 0.10 fs, then gradual NVT equilibration
+(0.25 → 0.50 → 1.00 fs). Validated: temperature stabilises at ~300 K, all
+lambda values reach 1.0.
+
+To regenerate the data file:
+
+```bash
+cd examples/melamine/large
+uv run backmap-prep settings.yaml
+lmp -in in.melamine
+```
+
+See `large/README.md` and [Large-scale examples](../../docs/large-scale-examples.md).

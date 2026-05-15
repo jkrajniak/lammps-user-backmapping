@@ -21,6 +21,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 - All PE example input scripts now use `cg_type 1 2` (both CG bead types)
   instead of `cg_type 1`, which caused incorrect bead-to-atom mapping.
+- Melamine large example: `topol_cg.top` molecule count corrected from 50 to
+  500; regenerated `melamine.data` (15 000 atoms).
+- Melamine input scripts (`in.melamine`) use the robust multi-phase protocol
+  instead of aggressive NVE + Langevin at dt = 1.0 fs.
 
 - `fix backmap` now accepts multiple CG atom types via `cg_type T1 T2 ...`
   syntax, enabling correct bead-to-atom mapping in systems with more than one
