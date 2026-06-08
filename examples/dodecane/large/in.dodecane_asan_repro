@@ -1,0 +1,70 @@
+# ASAN reproducer for multi-run segfault on Phase 1 start.
+# Mirrors the structure of in.dodecane (Phase 0 minimize+relax, Phase 1 ramp)
+# but with very short runs so ASAN finishes quickly.
+
+units real
+atom_style full
+boundary p p p
+
+read_data dodecane.data
+
+pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
+pair_coeff 1 1 cg table_A_A.table ENTRY
+pair_coeff 1 2 cg table_A_B.table ENTRY
+pair_coeff 1 3 none
+pair_coeff 1 4 none
+pair_coeff 2 2 cg table_B_B.table ENTRY
+pair_coeff 2 3 none
+pair_coeff 2 4 none
+pair_coeff 3 3 atomistic 0.207266 3.748000
+pair_coeff 3 4 atomistic 0.156387 3.826500
+pair_coeff 4 4 atomistic 0.117997 3.905000
+
+bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
+bond_coeff 1 harmonic 800.000883 1.530000
+bond_coeff 2 backmap/table cg table_b1.table ENTRY
+bond_coeff 3 backmap/table cg table_b1.table ENTRY
+bond_coeff 4 backmap/harmonic at 800.000883 1.530000
+
+angle_style backmap/harmonic
+angle_coeff 1 at 126.673180 111.0000
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+group at_atoms type 3 4
+group cg_atoms type 1 2
+
+neigh_modify delay 0 every 1 check yes
+
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+
+compute at_temp at_atoms temp
+
+thermo 50
+thermo_style custom step temp pe ke etotal press
+thermo_modify temp at_temp
+
+# Phase 0a: minimize
+fix freeze cg_atoms setforce 0.0 0.0 0.0
+minimize 1.0e-4 1.0e-6 200 2000
+
+print "ASAN_REPRO: Phase 0a (minimize) complete"
+
+# Phase 0b: relax (CG frozen, nve/limit, tiny dt)
+fix relax at_atoms nve/limit 0.01
+timestep 0.01
+run 200
+
+print "ASAN_REPRO: Phase 0b (relax run 1) complete"
+
+# Phase 1: unfix, refix, second run — this is the crash site
+unfix relax
+unfix freeze
+
+fix limit_all all nve/limit 0.05
+fix_modify bm active yes
+
+timestep 0.10
+run 200
+
+print "ASAN_REPRO: Phase 1 (second run) complete — NO SEGFAULT"

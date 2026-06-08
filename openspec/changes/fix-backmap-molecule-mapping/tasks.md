@@ -30,7 +30,7 @@
 
 - [x] 6.1 Regenerate `examples/dodecane/dodecane.data` with wrapped coordinates using the updated generator
 - [x] 6.2 Update `examples/dodecane/in.dodecane` to use `cg_type 1 2` syntax
-- [ ] 6.3 Run the dodecane example end-to-end (all 3 phases) and verify no crashes, no mass mismatch warnings, no bond-missing errors
+- [x] 6.3 Run the dodecane example end-to-end (all 3 phases) and verify no crashes, no mass mismatch warnings, no bond-missing errors (verified 2026-06-08 on `examples/dodecane/large/in.dodecane`: 50000 steps total, wall 31:40, final T=294 K, no SEGV/ERROR/mass-mismatch/missing-bond messages; multi-`run` segfault confirmed resolved by the `Atom::GROW/RESTART` callback fix)
 
 ## 7. Documentation and changelog
 

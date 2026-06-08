@@ -26,12 +26,18 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   (`apb T1:N1 T2:N2 ...`). Required for systems where different CG bead
   types contain different numbers of AT atoms (e.g. all-atom PE with
   7-atom end beads and 6-atom interior beads).
-- `atom->add_callback(Atom::GROW)` and `atom->add_callback(Atom::RESTART)` in
-  `fix backmap` to dynamically resize per-atom arrays when LAMMPS reallocates
-  atom storage, preventing heap-use-after-free segfaults.
 
 ### Fixed
 
+- `fix backmap` multi-`run` segfault on the 500-molecule dodecane example
+  (`Verlet::setup()` → `Domain::box_too_small_check()` reading a NULL `x[k]`
+  on the second `run` after `unfix`/`fix` changes). Resolved by registering
+  `atom->add_callback(Atom::GROW)` and `atom->add_callback(Atom::RESTART)`
+  in `fix backmap`, which now triggers `grow_arrays()` whenever LAMMPS
+  reallocates atom storage and prevents the heap-use-after-free of the
+  per-atom `lambda` array. Verified end-to-end on
+  `examples/dodecane/large/in.dodecane` (50 000 steps across all 3 phases,
+  final T = 294 K, no crashes / mass mismatches / bond-missing errors).
 - All PE example input scripts now use `cg_type 1 2` (both CG bead types)
   instead of `cg_type 1`, which caused incorrect bead-to-atom mapping.
 - Melamine large example: `topol_cg.top` molecule count corrected from 50 to
