@@ -394,7 +394,9 @@ Bond type assignment SHALL follow the three-category scheme from the design:
 
 The same three-category distinction applies to angles, dihedrals, and 1-4 pairs.
 
-Particle ordering within each molecule SHALL be: CG atom first, then AT atoms.
+Atom coordinates SHALL be wrapped inside the simulation box `[0, L)` for each dimension. Atoms with coordinates outside the box SHALL be wrapped using periodic boundary conditions before writing.
+
+Particle ordering within each molecule SHALL be: all CG atoms first (in bead order), then all AT atoms (in bead order, with atoms within each bead in their source file order).
 
 #### Scenario: Dodecane data file
 - **WHEN** generating data for 100 dodecane molecules (6 beads, 12 AT atoms each)
@@ -413,6 +415,18 @@ Particle ordering within each molecule SHALL be: CG atom first, then AT atoms.
 - **THEN** the generator SHALL print mapping tables:
   - Atom type mapping (e.g., "Type 1 = A, Type 2 = B, Type 3 = C1, ...")
   - Bond type mapping with category (e.g., "Bond type 1 = harmonic (intra-CG), Bond type 2 = backmap/harmonic at (cross-CG AT), ...")
+
+#### Scenario: Atoms outside box are wrapped
+- **WHEN** an AT atom has z-coordinate -1.57 and box is [0, 57.54]
+- **THEN** the data file SHALL contain z = 55.97 (wrapped coordinate)
+
+#### Scenario: Atoms inside box are unchanged
+- **WHEN** an AT atom has z-coordinate 30.0 and box is [0, 57.54]
+- **THEN** the data file SHALL contain z = 30.0
+
+#### Scenario: Atom ordering convention
+- **WHEN** a dodecane molecule has 6 CG beads and 12 AT atoms
+- **THEN** the data file SHALL list atoms 1-6 as CG (in bead order) and atoms 7-18 as AT (grouped by bead, in bead order)
 
 ### Requirement: Unit conversion
 
@@ -467,7 +481,15 @@ Table file paths are specified in `cross_interactions` entries with `table:` fie
 
 ### Requirement: LAMMPS input script generation
 
-The generator SHALL produce a LAMMPS input script (`.in`) configured for backmapping. The script SHALL include:
+The generator SHALL produce a LAMMPS input script (`.in`) configured for backmapping. The `fix backmap` command SHALL list ALL CG atom type IDs after the `cg_type` keyword:
+
+```
+fix bm all backmap cg_type T1 T2 ... alpha A lambda0 L0 nonuniform yes/no
+```
+
+Where `T1 T2 ...` are all atom type IDs marked as CG in the system's atom type list, sorted ascending.
+
+The script SHALL include:
 - `units real` and `atom_style full`
 - `read_data` for the generated data file
 - `pair_style backmap` with AT and CG sub-styles, configured from `simulation.lj_cutoff` and `simulation.cg_cutoff`
@@ -478,13 +500,25 @@ The generator SHALL produce a LAMMPS input script (`.in`) configured for backmap
 - Dihedral style routing: `dihedral_style hybrid backmap/ryckaert backmap/table` (only include sub-styles that are actually used)
 - `bond_coeff` / `angle_coeff` / `dihedral_coeff` for each type, routing to correct sub-style based on category (intra-CG static vs cross-CG AT vs cross-CG CG)
 - Group definitions for AT and CG atoms
-- `fix backmap` with parameters from `simulation` section, including `phase` if two-phase mode is enabled
+- `fix backmap` with ALL CG type IDs (not just one) plus parameters from `simulation` section, including `phase` if two-phase mode is enabled
 - `fix nve` and `fix langevin` applied to AT group only (or as configured by `thermostat_target`)
 - For two-phase mode: the run sequence SHALL include Phase 1 run, `fix_modify phase 2`, and Phase 2 run
 - `special_bonds` from `simulation.exclusion_nrexcl`
 - Thermo output every `simulation.energy_interval` steps
 - Dump configuration every `simulation.trajectory_interval` steps
 - Three-phase run sequence: CG equilibration -> backmapping -> AT production
+
+#### Scenario: Single CG type system (water)
+- **WHEN** the system has one CG type (WCG, type 1)
+- **THEN** the fix command SHALL be `fix bm all backmap cg_type 1 alpha ...`
+
+#### Scenario: Multiple CG type system (dodecane)
+- **WHEN** the system has CG types A (type 1) and B (type 2)
+- **THEN** the fix command SHALL be `fix bm all backmap cg_type 1 2 alpha ...`
+
+#### Scenario: CG types listed in ascending order
+- **WHEN** CG types are 3, 1, 5
+- **THEN** the fix command SHALL list them as `cg_type 1 3 5` (sorted ascending)
 
 #### Scenario: Water2 system (no cross bonds)
 - **WHEN** the settings describe a single-bead water system with no cross interactions
