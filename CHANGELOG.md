@@ -9,6 +9,19 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- Paper-grade RDF validation for the 500-molecule dodecane example:
+  `examples/dodecane/large/in.dodecane_at_long` (post-backmap AT, multi-phase
+  equilibration + 1 ns NVT production) and `in.dodecane_at_ref_long` (independent
+  all-atom reference at the same density / temperature), both averaging g(r) in
+  five 200 ps blocks via `fix ave/time 100 2000 200000`.
+- `examples/dodecane/large/compare_rdf_blocks.py` post-processor that parses
+  multi-block `fix ave/time` output, computes per-pair mean ± SEM across blocks,
+  plots SEM-shaded bands, and reports PASS/FAIL on first-peak position, height,
+  and L2(g_bm − g_ref) tolerances.
+- Committed reference outputs `examples/dodecane/large/rdf_comparison_long.{png,txt}`
+  documenting the validation: 9 / 9 metrics pass with first-peak positions
+  matching to the bin width (≤ 0.07 Å), heights agreeing within 0.5 %, and
+  L2(g_bm − g_ref) ≤ 0.003 across all three pairs.
 - `apb` keyword in `fix backmap` for non-uniform atoms-per-bead mapping
   (`apb T1:N1 T2:N2 ...`). Required for systems where different CG bead
   types contain different numbers of AT atoms (e.g. all-atom PE with
