@@ -1,0 +1,247 @@
+# RIM135 epoxy — Settings format v2 (native network prep, no bakery_xml)
+#
+# Run from repo root:
+#   uv run backmap-prep build-hybrid examples/epoxy/settings.v2.yaml
+#
+# Asset paths resolve via prep.data_dir → bakery/tests/rim135/
+
+version: 2
+
+prep:
+  engine: network
+  chain_rng_seed: 42
+  data_dir: ../../../../bakery/tests/rim135
+  tables_dir: ../../../../bakery/examples/network_backmapping/epoxy/backmapping_aa
+  forcefield_dir: forcefield
+
+molecules:
+  - name: EPO
+    source:
+      - molecule_degree: 0
+        coordinates: epon-828.gro
+        topology: epon-828.itp
+      - molecule_degree: 1
+        when: A1
+        coordinates: epon-828_deg1_A1.gro
+        topology: epon-828_deg1_A1.itp
+      - molecule_degree: 1
+        when: A2
+        coordinates: epon-828_deg1_A2.gro
+        topology: epon-828_deg1_A2.itp
+      - molecule_degree: 2
+        coordinates: epon-828_deg2.gro
+        topology: epon-828_deg2.itp
+    beads:
+      - name: A1
+        type: A
+        mapping:
+          - degree: 1
+            molecule_degree: "0"
+            atoms: [C1, O1, C2, H1, H2, H3, C3, O2, H23, H24]
+          - degree: 2
+            molecule_degree: "1,2"
+            base: 1
+            add: [H25]
+            active_sites: [{ atom: C1, max_degree: 4 }]
+      - name: B1
+        type: B
+        mapping:
+          - degree: 2
+            molecule_degree: "0,1,2"
+            atoms:
+              - C4, C5, C6, C7, C8, C9, H6, H7, H8, H9, C10
+              - C11, C12, H10, H11, H12, H13, H14, H15, C13, C14
+              - C15, C16, C17, C18, H16, H17, H4, H5
+      - name: A2
+        type: A
+        mapping:
+          - degree: 1
+            molecule_degree: "0"
+            atoms: [C20, O4, C21, H22, H18, H19, C19, O3, H20, H21]
+          - degree: 2
+            molecule_degree: "1,2"
+            base: 1
+            add: [H26]
+            active_sites: [{ atom: C21, max_degree: 4 }]
+
+  - name: HDD
+    source:
+      - molecule_degree: 0
+        coordinates: hdde.gro
+        topology: hdde.itp
+      - molecule_degree: 1
+        when: E1
+        coordinates: hdde_deg1_E1.gro
+        topology: hdde_deg1_E1.itp
+      - molecule_degree: 1
+        when: E2
+        coordinates: hdde_deg1_E2.gro
+        topology: hdde_deg1_E2.itp
+      - molecule_degree: 2
+        coordinates: hdde_deg2.gro
+        topology: hdde_deg2.itp
+    beads:
+      - name: E1
+        type: E
+        mapping:
+          - degree: 1
+            molecule_degree: "0"
+            atoms: [C1, O1, C2, H1, H2, H3, O2, C3, H4, H5]
+          - degree: 2
+            molecule_degree: "1,2"
+            base: 1
+            add: [H24]
+            active_sites: [{ atom: C1, max_degree: 4 }]
+      - name: F1
+        type: F
+        mapping:
+          - degree: 2
+            molecule_degree: "0,1,2"
+            atoms:
+              - C4, C5, C6, H6, H7, H8, H9, H10, H11, C7
+              - C8, C9, H12, H13, H14, H15, H16, H17
+      - name: E2
+        type: E
+        mapping:
+          - degree: 1
+            molecule_degree: "0"
+            atoms: [C11, O4, C12, H20, H21, H22, O3, C10, H18, H19]
+          - degree: 2
+            molecule_degree: "1,2"
+            base: 1
+            add: [H23]
+            active_sites: [{ atom: C12, max_degree: 4 }]
+
+  - name: IPD
+    source:
+      coordinates: ipd.gro
+      topology: ipd.itp
+    beads:
+      - name: K1
+        type: K
+        mapping:
+          - degree: 0
+            atoms:
+              - C1, C2, C3, C4, C5, C6, C7, C8, C9, C10
+              - H1, H2, H3, H4, H5, H6, H7, H10, H11, H14
+              - H15, H16, H17, H18, H19, H20, H21, H22
+              - N1, H8, H9, N2, H12, H13
+          - degree: 1
+            base: 0
+            remove: [H8]
+            active_sites: [{ atom: N1, max_degree: 3 }]
+          - degree: 2
+            base: 1
+            remove: [H12]
+            active_sites:
+              - { atom: N1, max_degree: 3 }
+              - { atom: N2, max_degree: 3 }
+          - degree: 3
+            base: 2
+            remove: [H9, H13]
+          - degree: 4
+            base: 3
+
+  - name: JEF
+    source:
+      coordinates: jeff400.gro
+      topology: jeff400.itp
+    beads:
+      - name: Q1
+        type: Q
+        mapping:
+          - degree: 1
+            atoms:
+              - N1, H1, H2, C1, C2, C3, O1, H3, H4, H5
+              - H6, H7, H8, C4, C5, C6, O2, H9, H10, H11
+              - H12, H13, H14
+          - degree: 2
+            base: 1
+            remove: [H1]
+            active_sites: [{ atom: N1, max_degree: 3 }]
+          - degree: 3
+            base: 2
+            remove: [H2]
+      - name: I1
+        type: I
+        mapping:
+          - degree: 2
+            atoms:
+              - C7, C8, C9, O3, H15, H16, H17, H18, H19, H20
+              - C10, C11, C12, O4, H21, H22, H23, H24, H25, H26
+              - C13, C14, C15, H27, H28, H29, H30, H31, H32
+      - name: Q2
+        type: Q
+        mapping:
+          - degree: 1
+            atoms:
+              - N2, H39, H40, C19, C20, C21, H41, H42, H43
+              - H44, H45, H46, C16, C17, C18, O6, H33, H34
+              - H35, H36, H37, H38, O5
+          - degree: 2
+            base: 1
+            remove: [H45]
+            active_sites: [{ atom: N2, max_degree: 3 }]
+          - degree: 3
+            base: 2
+            remove: [H46]
+
+cg_system:
+  coordinates: cg_cl_conf.gro
+  topology: cg_cl_topol.top
+  predefined_active_sites: predefined_active_sites.txt
+
+hybrid:
+  coordinates: hyb_conf.gro
+  topology: hyb_topol.top
+  includes:
+    - /usr/share/gromacs/top/oplsaa.ff/forcefield.itp
+  molecule_type:
+    name: HYB
+    exclusion: 3
+
+cross_interactions:
+  bonds:
+    - comment: EPO_C1/C2_IPD_N1/N2
+      pairs:
+        - [EPO:C1, IPD:N1]
+        - [EPO:C1, IPD:N2]
+        - [EPO:C21, IPD:N1]
+        - [EPO:C21, IPD:N2]
+    - comment: EPO_C1/C2_JEF_N1/N2
+      pairs:
+        - [EPO:C1, JEF:N1]
+        - [EPO:C1, JEF:N2]
+        - [EPO:C21, JEF:N1]
+        - [EPO:C21, JEF:N2]
+    - comment: HDD_C1/C2_IPD_N1/N2
+      pairs:
+        - [HDD:C1, IPD:N1]
+        - [HDD:C1, IPD:N2]
+        - [HDD:C12, IPD:N1]
+        - [HDD:C12, IPD:N2]
+    - comment: HDD_C1/C2_JEF_N1/N2
+      pairs:
+        - [HDD:C1, JEF:N1]
+        - [HDD:C1, JEF:N2]
+        - [HDD:C12, JEF:N1]
+        - [HDD:C12, JEF:N2]
+  angles_file: cross_angles_rim135.yaml
+
+simulation:
+  # Tier B bakery protocol (PR4): cap_force, gamma=15, velocity init, dt revert to 1 fs
+  alpha: 0.0001
+  temperature: 298.0
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  thermostat_gamma: 15.0
+  cap_force: 50000.0
+  equilibration_steps: 0
+  lj_cutoff: 1.2
+  cg_cutoff: 1.4
+  coulomb_cutoff: 0.9
+  table_groups: [A, B, E, F, H, I, K, Q]
+  production_steps: 10000
+
+output:
+  prefix: rim135

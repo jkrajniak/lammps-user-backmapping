@@ -143,6 +143,64 @@ angle_coeff 2 backmap/harmonic at 50.0 120.0  # cross-CG AT
 - **WHEN** `angle_coeff 2 backmap/harmonic at 50.0 120.0` and λ = 0.6
 - **THEN** the angle force SHALL be weighted by 0.36 (0.6²)
 
+### Requirement: Angle style `backmap/table`
+
+The `angle_style backmap/table` SHALL compute tabulated angle forces with lambda
+weighting:
+
+```
+F = w × F_table(θ)
+E = w × E_table(θ)
+```
+
+The weight `w` is computed from the lambda values of the first and last atoms of
+the angle (atoms i and k in the i-j-k triple), using the same AT/CG rules as
+`backmap/harmonic`.
+
+Command syntax:
+
+```
+angle_style backmap/table linear N
+angle_coeff M at/cg filename keyword
+```
+
+Used within `angle_style hybrid`:
+
+```
+angle_style hybrid backmap/harmonic backmap/table linear 1000
+angle_coeff 2 backmap/table cg table_a1.table ENTRY
+```
+
+#### Scenario: CG tabulated angle at lambda=0
+
+- **WHEN** `angle_coeff 2 backmap/table cg table_a1.table ENTRY` and λ_i = λ_k = 0
+- **THEN** the angle force SHALL be at full tabulated strength (weight = 1.0)
+
+#### Scenario: CG tabulated angle at lambda=0.5
+
+- **WHEN** `angle_coeff 2 backmap/table cg table_a1.table ENTRY` and λ_i = λ_k = 0.5
+- **THEN** the angle energy SHALL be scaled by 0.75 (weight = 1 − 0.25)
+
+#### Scenario: Missing fix backmap
+
+- **WHEN** a `backmap/table` angle is defined but no `fix backmap` exists
+- **THEN** the style SHALL abort with: "angle_style backmap/table requires fix backmap"
+
+### Requirement: Dihedral style `ryckaert` (static)
+
+The package SHALL provide `dihedral_style ryckaert` for intra-bead RB dihedrals without
+lambda weighting:
+
+```
+dihedral_style ryckaert
+dihedral_coeff N C0 C1 C2 C3 C4 C5
+```
+
+#### Scenario: Intra-bead RB dihedral
+
+- **WHEN** all four atoms of a dihedral belong to the same CG bead
+- **THEN** the generator SHALL assign a static `ryckaert` type with converted C0..C5
+
 ### Requirement: Dihedral style `backmap/ryckaert`
 
 The `dihedral_style backmap/ryckaert` SHALL compute Ryckaert-Bellemans dihedral forces with lambda weighting:
@@ -312,3 +370,17 @@ The `compute_backmap_weight()` function SHALL accept a phase parameter:
 #### Scenario: Phase 1 AT weight unchanged
 - **WHEN** `compute_backmap_weight(lambda_i=0.7, lambda_j=0.7, is_cg=false, phase=1)` is called
 - **THEN** it SHALL return 0.49 (AT weighting is the same regardless of phase)
+
+### Requirement: Fix `backmap/pairs`
+
+The package SHALL provide `fix backmap/pairs` for lambda-weighted explicit 1–4 LJ pairs
+excluded from the neighbor list by `special_bonds`:
+
+```
+fix ID group backmap/pairs at file pairs.dat cut CUTOFF
+```
+
+#### Scenario: AT cross 1–4 at lambda=0.5
+
+- **WHEN** a pair uses keyword `at` and λ_i = λ_j = 0.5
+- **THEN** the LJ force SHALL be scaled by 0.25 (weight = λ_i × λ_j)

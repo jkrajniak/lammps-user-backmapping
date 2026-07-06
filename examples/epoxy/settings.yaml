@@ -1,0 +1,13 @@
+# RIM135 epoxy network — Phase 3 hybrid prep
+# Mapping rules: bakery XML (degree-dependent sources, active sites, cross topology)
+# Data files: bakery/tests/rim135/ (see README.md)
+
+prep:
+  engine: network
+  # Path relative to this YAML file; rim135 assets live in bakery/tests/rim135
+  bakery_xml: ../../../../bakery/tests/rim135/settings.xml
+  chain_rng_seed: 42
+
+hybrid:
+  coordinates: hyb_conf.gro
+  topology: hyb_topol.top

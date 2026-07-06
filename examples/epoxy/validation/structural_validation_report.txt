@@ -1,0 +1,36 @@
+=== rim135 structural validation vs paper reference ===
+
+Dump: 11 frames from step 10000 to 20000
+
+--- C-O vs paper AA (rdf_s6_0.000001) ---
+  PASS: C-O peak position computed=0.241 nm ref=0.242 nm Δ=0.001 nm (tol=0.03)
+  PASS: C-O peak height computed=5.814 ref=4.675 rel err=0.24 (tol=0.35)
+  FAIL: C-O L2(g)=0.415 (tol=0.35)
+
+--- C-O vs paper UA (rdf_15_0.000001) ---
+  PASS: C-O peak position computed=0.241 nm ref=0.248 nm Δ=0.007 nm (tol=0.03)
+  FAIL: C-O peak height computed=5.814 ref=2.948 rel err=0.97 (tol=0.35)
+  FAIL: C-O L2(g)=0.598 (tol=0.35)
+
+--- C-N vs paper AA (rdf_s6_0.000001) ---
+  PASS: C-N peak position computed=0.249 nm ref=0.250 nm Δ=0.001 nm (tol=0.03)
+  PASS: C-N peak height computed=2.923 ref=4.346 rel err=0.33 (tol=0.35)
+  FAIL: C-N L2(g)=1.439 (tol=0.35)
+
+--- C-N vs paper UA (rdf_15_0.000001) ---
+  PASS: C-N peak position computed=0.249 nm ref=0.252 nm Δ=0.003 nm (tol=0.03)
+  PASS: C-N peak height computed=2.923 ref=3.427 rel err=0.15 (tol=0.35)
+  FAIL: C-N L2(g)=0.539 (tol=0.35)
+
+--- final structure checks (rim135_final.data) ---
+  FAIL: total charge = -0.002653 e (tol 1e-3)
+  PASS: max min-image bond = 12.31 Å (tol 20 Å)
+  INFO: max euclidean bond = 99.58 Å
+  INFO: density ≈ 1.894 g/cm³ (box 145.4 nm³)
+
+Plot saved to examples/epoxy/validation/rdf_comparison.png
+
+==================================================
+Results: 8 passed, 6 failed
+
+Note: only 10 ps AT production (10 dump frames) — RDF statistics are noisy vs long GROMACS runs in the 2018 paper (-b 2500 ps).

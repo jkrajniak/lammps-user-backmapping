@@ -23,6 +23,9 @@ def example_workdir(request, tmp_path: Path) -> Path:
         pytest.skip(f"Example {name} not found at {src}")
     dst = tmp_path / name
     shutil.copytree(src, dst)
+    ff_src = EXAMPLES_DIR / "forcefield"
+    if ff_src.is_dir():
+        shutil.copytree(ff_src, tmp_path / "forcefield", dirs_exist_ok=True)
     return dst
 
 
@@ -84,6 +87,9 @@ class TestDeterministicOutput:
         if not src.exists():
             pytest.skip(f"Example {example_name} not found")
 
+        ff_src = EXAMPLES_DIR / "forcefield"
+        if ff_src.is_dir():
+            shutil.copytree(ff_src, tmp_path / "forcefield", dirs_exist_ok=True)
         run1 = tmp_path / "run1"
         run2 = tmp_path / "run2"
         shutil.copytree(src, run1)

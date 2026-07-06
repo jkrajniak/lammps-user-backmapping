@@ -82,3 +82,51 @@ files.
 - [bond_style backmap/table](bond-styles.md#backmap-table) -- lambda-weighted
   tabulated bonds
 - [pair_style backmap](pair-backmap.md) -- lambda-weighted pair interactions
+
+# angle_style backmap/table
+
+## Syntax
+
+```
+angle_style backmap/table linear N
+angle_coeff M cg filename keyword
+```
+
+- **N** -- number of interpolation points (typically 1000)
+- **M** -- angle type number
+- **cg** -- weighting mode (CG cross-angles use `cg`; weight = 1 − λ<sub>i</sub> × λ<sub>k</sub>)
+- **filename** -- LAMMPS table file converted from GROMACS `table_a*.xvg`
+- **keyword** -- table section label (usually `ENTRY`)
+
+## Description
+
+Tabulated angle potential for CG cross-bead angles, scaled by the same
+lambda weight as [`angle_style backmap/harmonic`](#angle_style-backmapharmonic):
+
+\[
+E = w \times U(\theta)
+\]
+
+where \( U(\theta) \) comes from the table (angle in degrees, energy in
+kcal/mol) and \( w = 1 - \lambda_i \times \lambda_k \) for `cg` mode.
+At λ = 0 (pure CG), the full tabulated torque applies.
+
+## Example
+
+```
+angle_style hybrid backmap/harmonic backmap/table linear 1000
+
+angle_coeff 588 backmap/table cg table_a1.table ENTRY
+angle_coeff 589 backmap/table cg table_a2.table ENTRY
+```
+
+## Requirements
+
+Requires [`fix backmap`](fix-backmap.md). Source tables are GROMACS
+`table_a*.xvg` files (angle in degrees); `backmap-prep` converts them to
+LAMMPS `.table` format via `convert_tables`.
+
+## Related
+
+- [`angle_style backmap/harmonic`](#angle_style-backmapharmonic) -- harmonic cross angles
+- [`bond_style backmap/table`](bond-styles.md#backmap-table) -- tabulated cross bonds

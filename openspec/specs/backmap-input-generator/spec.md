@@ -460,6 +460,7 @@ All quantities SHALL be converted from GROMACS units to LAMMPS `real` units:
 The generator SHALL convert tabulated potential files to LAMMPS table format. This applies to:
 - **Non-bonded CG tables** (e.g., `table_WCG_WCG.xvg`) -> LAMMPS `pair_style table` format
 - **Bonded CG tables** (e.g., `table_b1.xvg`) -> LAMMPS `bond_style backmap/table` format
+- **Angle CG tables** (e.g., `table_a1.xvg`) -> LAMMPS `angle_style backmap/table` format
 - **Dihedral CG tables** (e.g., `table_d1.xvg`) -> LAMMPS `dihedral_style backmap/table` format
 
 Input table formats supported in Phase 1: GROMACS `.xvg` (columns: r, V, F).
@@ -474,6 +475,10 @@ Table file paths are specified in `cross_interactions` entries with `table:` fie
 #### Scenario: CG bond table conversion
 - **WHEN** the generator converts `table_b1.xvg` (a cross-CG CG bond)
 - **THEN** it SHALL produce `table_b1.table` in LAMMPS bond table format
+
+#### Scenario: CG angle table conversion
+- **WHEN** the generator converts `table_a1.xvg` (a cross-CG CG angle)
+- **THEN** it SHALL produce `table_a1.table` with angle in degrees (not nm→Å), energy in kcal/mol, and force in kcal/(mol·deg)
 
 #### Scenario: LAMMPS table passthrough (Phase 4)
 - **WHEN** a table file already has `.table` extension
@@ -544,6 +549,23 @@ The script SHALL include:
 - **WHEN** settings specify `timestep: 0.001` (ps), `temperature: 423.0`, `alpha: 0.0005`
 - **THEN** the `.in` file SHALL contain `timestep 1.0` (fs), `fix langevin ... 423.0 423.0 ...`, `fix backmap ... alpha 0.0005`
 
+### Requirement: Func-8 CG angle table routing
+
+When hybrid TOP angles have GROMACS func 8 (tabulated CG), the generator SHALL
+resolve `table_a{tablenr}.xvg` from `prep.tables_dir` and assign
+`angle_style backmap/table cg` types.
+
+#### Scenario: Rim135 func-8 cross-angles
+
+- **WHEN** `backmap-prep build examples/epoxy/settings.v2.yaml` is run
+- **THEN** all func-8 cross-angles SHALL reference `backmap/table cg` types
+- **AND** the generated input SHALL NOT contain `angle_coeff … cg 0.0 0.0`
+
+#### Scenario: Missing angle table file
+
+- **WHEN** a func-8 angle references tablenr N but `table_aN.xvg` is not found
+- **THEN** the generator SHALL fail with a clear error
+
 ### Requirement: Command-line interface
 
 The generator SHALL be invoked as:
@@ -595,6 +617,55 @@ Exclusions SHALL be written as `special_bonds` configuration in the LAMMPS input
 #### Scenario: nrexcl = 2 with 1-4 scaling
 - **WHEN** `exclusion_nrexcl: 2` and the topology defines fudgeLJ/fudgeQQ factors
 - **THEN** the input script SHALL contain `special_bonds lj 0.0 0.0 FUDGE_LJ coul 0.0 0.0 FUDGE_QQ`
+
+### Requirement: Hybrid TOP dihedral export
+
+The network builder SHALL parse `[ dihedrals ]` and `[ cross_dihedrals ]`, resolve func-3
+RB coefficients from `[ dihedraltypes ]` (via forcefield includes), and emit LAMMPS dihedral
+sections with static `ryckaert` for intra-bead terms and `backmap/ryckaert at` for cross-bead
+terms.
+
+Forcefield resolution SHALL check `prep.forcefield_dir` (relative to the settings YAML),
+then `GMXDATA` / `GROMACS_DATA` environment variables.
+
+#### Scenario: Rim135 dihedral count
+
+- **WHEN** `backmap-prep build examples/epoxy/settings.v2.yaml` runs
+- **THEN** `rim135.data` SHALL contain approximately 33,421 dihedrals
+
+#### Scenario: Missing dihedraltypes
+
+- **WHEN** a func-3 dihedral has no inline params and no dihedraltypes match
+- **THEN** the generator SHALL fail with a clear error naming the atom types
+
+### Requirement: Hybrid TOP cross-pair export
+
+The network builder SHALL parse `[ cross_pairs ]`, resolve func-1 LJ parameters, and
+emit `pairs.dat` plus `fix backmap/pairs`.
+
+#### Scenario: Rim135 cross-pair count
+
+- **WHEN** `backmap-prep build examples/epoxy/settings.v2.yaml` runs
+- **THEN** `pairs.dat` SHALL contain approximately 3,600 pairs
+
+### Requirement: Network hybrid molecule-aware unwrap
+
+For network hybrid systems with cross bonded interactions, the generator SHALL
+prepare coordinates by unwrapping each `mol_id` fragment independently, placing
+molecules along an inter-mol bond spanning tree, assigning bond-tree image flags,
+and sizing the LAMMPS communication cutoff for network bond extents.
+
+#### Scenario: Cross-mol bond minimum-image span
+
+- **WHEN** a cross bond connects atoms in different `mol_id` groups
+- **THEN** export preparation SHALL translate entire molecule fragments and assign
+  image flags so min-image bonded distance stays below the communication cutoff budget
+
+#### Scenario: Min-image bond validation
+
+- **WHEN** `validate_bond_geometry` runs after coordinate preparation
+- **THEN** it SHALL fail if any bonded pair exceeds `max(20 Å, 2 × lj/cg cutoff)`
+  in minimum-image distance (using unwrapped coords and image flags when present)
 
 ### Requirement: Feature phasing
 

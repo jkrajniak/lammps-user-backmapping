@@ -57,6 +57,41 @@ class TestSpringAngleConversion:
         assert units.spring_angle(1.0) == pytest.approx(0.239006)
 
 
+class TestGromacsRbConversion:
+    def test_sign_flip_and_energy(self) -> None:
+        gromacs = [10.0, -5.0, 2.0, 0.0, 0.0, 0.0]
+        lammps = units.gromacs_rb_to_lammps(gromacs)
+        assert lammps[0] == pytest.approx(units.energy(10.0))
+        assert lammps[1] == pytest.approx(-units.energy(-5.0))
+        assert lammps[2] == pytest.approx(units.energy(2.0))
+
+
+class TestLjPairParams:
+    def test_opls_combination_rule2_with_fudge(self) -> None:
+        sigma, epsilon = units.lj_pair_params(
+            0.5,
+            0.8,
+            0.34,
+            0.40,
+            combination_rule=2,
+            fudge_lj=0.5,
+        )
+        assert sigma == pytest.approx(0.5 * (units.sigma(0.34) + units.sigma(0.40)))
+        assert epsilon == pytest.approx(0.5 * (units.epsilon(0.5) * units.epsilon(0.8)) ** 0.5)
+
+    def test_geometric_combination_rule(self) -> None:
+        sigma, epsilon = units.lj_pair_params(
+            1.0,
+            1.0,
+            0.3,
+            0.5,
+            combination_rule=1,
+            fudge_lj=1.0,
+        )
+        assert sigma == pytest.approx(units.sigma((0.3 * 0.5) ** 0.5))
+        assert epsilon == pytest.approx(units.epsilon(1.0))
+
+
 class TestSigmaEpsilon:
     def test_sigma_is_distance(self) -> None:
         assert units.sigma(0.34) == pytest.approx(3.4)

@@ -29,13 +29,33 @@ class TestSourceFiles:
         assert sf.coordinates == "at.gro"
         assert sf.topology == "at.top"
 
-    def test_list_coordinates_rejected(self) -> None:
-        with pytest.raises(ValueError, match="not yet implemented"):
-            SourceFiles(coordinates=["a.gro", "b.gro"], topology="at.top")
+    def test_degree_dependent_sources_accepted(self) -> None:
+        sf = SourceFiles(
+            coordinates=[
+                {"file": "a.gro", "molecule_degree": 0},
+                {"file": "b.gro", "molecule_degree": 1, "when": "A1"},
+            ],
+            topology=[
+                {"file": "a.itp", "molecule_degree": 0},
+                {"file": "b.itp", "molecule_degree": 1, "when": "A1"},
+            ],
+        )
+        assert isinstance(sf.coordinates, list)
+        assert len(sf.coordinates) == 2
+        assert sf.coordinates[1].when == "A1"
 
-    def test_list_topology_rejected(self) -> None:
-        with pytest.raises(ValueError, match="not yet implemented"):
-            SourceFiles(coordinates="at.gro", topology=["a.top", "b.top"])
+
+class TestPrepConfig:
+    def test_network_engine_with_bakery_xml(self) -> None:
+        s = Settings(
+            prep={"engine": "network", "bakery_xml": "settings.xml"},
+        )
+        assert s.prep.engine == "network"
+        assert s.prep.bakery_xml == "settings.xml"
+
+    def test_linear_requires_molecules(self) -> None:
+        with pytest.raises(ValueError, match="linear prep requires"):
+            Settings(prep={"engine": "linear"})
 
 
 class TestSimulationParams:
@@ -111,20 +131,36 @@ class TestSettings:
         assert s.molecules[0].name == "TestMol"
         assert isinstance(s.cross_interactions, CrossInteractions)
 
-    def test_deferred_atoms_by_degree_rejected(self, minimal_settings_dict: dict) -> None:
-        minimal_settings_dict["molecules"][0]["beads"][0]["atoms_by_degree"] = ["C1"]
-        with pytest.raises(ValueError, match=r"atoms_by_degree.*not yet implemented"):
-            Settings(**minimal_settings_dict)
+    def test_atoms_by_degree_accepted(self, minimal_settings_dict: dict) -> None:
+        minimal_settings_dict["molecules"][0]["beads"][0]["atoms_by_degree"] = [
+            {"degree": 1, "molecule_degree": "0", "atoms": ["1:MOL:C1"]},
+        ]
+        s = Settings(**minimal_settings_dict)
+        bead = s.molecules[0].beads[0]
+        assert bead.atoms_by_degree is not None
+        assert bead.atoms_by_degree[0].degree == 1
 
-    def test_deferred_remove_rejected(self, minimal_settings_dict: dict) -> None:
-        minimal_settings_dict["molecules"][0]["beads"][0]["remove"] = ["H1"]
-        with pytest.raises(ValueError, match=r"remove.*not yet implemented"):
-            Settings(**minimal_settings_dict)
+    def test_remove_list_accepted(self, minimal_settings_dict: dict) -> None:
+        minimal_settings_dict["molecules"][0]["beads"][0]["remove"] = [
+            {"active_site": "MOL:ATOM", "atoms": ["1:MOL:H1"]},
+        ]
+        s = Settings(**minimal_settings_dict)
+        assert s.molecules[0].beads[0].remove is not None
 
-    def test_deferred_charge_management_rejected(self, minimal_settings_dict: dict) -> None:
-        minimal_settings_dict["molecules"][0]["charge_management"] = {"mode": "split"}
-        with pytest.raises(ValueError, match=r"charge_management.*not yet implemented"):
-            Settings(**minimal_settings_dict)
+    def test_charge_management_accepted(self, minimal_settings_dict: dict) -> None:
+        minimal_settings_dict["molecules"][0]["charge_management"] = {
+            "equilibrate": True,
+            "transfers": [
+                {
+                    "when": "IPD:N1:2",
+                    "from_atom": "IPD:H8",
+                    "to_atoms": "EPO:C1#H25",
+                },
+            ],
+        }
+        s = Settings(**minimal_settings_dict)
+        assert s.molecules[0].charge_management is not None
+        assert s.molecules[0].charge_management.equilibrate is True
 
     def test_deferred_two_phase_rejected(self, minimal_settings_dict: dict) -> None:
         minimal_settings_dict["simulation"] = {"two_phase": True}

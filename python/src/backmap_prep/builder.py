@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 from . import units
 from .parsers import parse_gro, parse_top
+from .parsers.top_parser import resolve_dihedral_params, resolve_pair_lj_params
+from .schema import resolve_forcefield_dir
 
 if TYPE_CHECKING:
     from .schema import Settings
@@ -24,6 +26,9 @@ class LammpsAtom:
     z: float  # Angstrom
     type_name: str = ""
     is_cg: bool = False
+    ix: int = 0
+    iy: int = 0
+    iz: int = 0
 
 
 @dataclass
@@ -44,6 +49,25 @@ class LammpsAngle:
 
 
 @dataclass
+class LammpsDihedral:
+    dihedral_id: int
+    type_id: int
+    i: int
+    j: int
+    k: int
+    l: int
+
+
+@dataclass
+class LammpsCrossPair:
+    i: int
+    j: int
+    sigma: float
+    epsilon: float
+    keyword: str = "at"
+
+
+@dataclass
 class BondTypeInfo:
     type_id: int
     style: str  # "harmonic", "backmap/harmonic", "backmap/table"
@@ -59,6 +83,18 @@ class AngleTypeInfo:
     style: str
     keyword: str
     params: list[float]
+    table_file: str | None = None
+    table_keyword: str | None = None
+
+
+@dataclass
+class DihedralTypeInfo:
+    type_id: int
+    style: str
+    keyword: str
+    params: list[float]
+    table_file: str | None = None
+    table_keyword: str | None = None
 
 
 @dataclass
@@ -91,17 +127,26 @@ class System:
     atoms: list[LammpsAtom] = field(default_factory=list)
     bonds: list[LammpsBond] = field(default_factory=list)
     angles: list[LammpsAngle] = field(default_factory=list)
+    dihedrals: list[LammpsDihedral] = field(default_factory=list)
     atom_types: list[AtomTypeInfo] = field(default_factory=list)
     bond_types: list[BondTypeInfo] = field(default_factory=list)
     angle_types: list[AngleTypeInfo] = field(default_factory=list)
+    dihedral_types: list[DihedralTypeInfo] = field(default_factory=list)
     pair_types: list[PairTypeInfo] = field(default_factory=list)
     box: tuple[float, float, float] = (0.0, 0.0, 0.0)  # Angstrom
     cg_type_id: int = 0
     has_cross_bonds: bool = False
     has_cross_angles: bool = False
+    has_cross_dihedrals: bool = False
+    has_cross_pairs: bool = False
+    cross_pairs: list[LammpsCrossPair] = field(default_factory=list)
+    cross_pairs_file: str = "pairs.dat"
+    write_image_flags: bool = False
 
     # Table files to convert: (src, dst) pairs
     table_files: list[tuple[str, str]] = field(default_factory=list)  # bond tables
+    angle_table_files: list[tuple[str, str]] = field(default_factory=list)  # angle tables
+    dihedral_table_files: list[tuple[str, str]] = field(default_factory=list)
     pair_table_files: list[tuple[str, str]] = field(default_factory=list)  # pair tables
 
 
@@ -117,6 +162,7 @@ def build_system(
     settings: Settings,
     base_dir: Path,
     cg_override: CGPositionOverride | None = None,
+    settings_path: Path | None = None,
 ) -> System:
     """Build the complete hybrid system from settings and source files.
 
@@ -129,13 +175,27 @@ def build_system(
     mol_def = settings.molecules[0]
     ident = mol_def.ident or mol_def.name
 
+    forcefield_dirs: list[Path] = []
+    if settings_path is not None:
+        ff_dir = resolve_forcefield_dir(settings_path, settings)
+        if ff_dir is not None:
+            forcefield_dirs.append(ff_dir)
+
     assert isinstance(mol_def.source.coordinates, str)
     assert isinstance(mol_def.source.topology, str)
     at_gro = parse_gro(base_dir / mol_def.source.coordinates)
-    at_top = parse_top(base_dir / mol_def.source.topology, include_dirs=[base_dir])
+    at_top = parse_top(
+        base_dir / mol_def.source.topology,
+        include_dirs=[base_dir],
+        forcefield_dirs=forcefield_dirs,
+    )
 
     cg_gro = parse_gro(base_dir / settings.cg_system.coordinates)
-    cg_top = parse_top(base_dir / settings.cg_system.topology, include_dirs=[base_dir])
+    cg_top = parse_top(
+        base_dir / settings.cg_system.topology,
+        include_dirs=[base_dir],
+        forcefield_dirs=forcefield_dirs,
+    )
 
     if cg_override is not None:
         sys.box = cg_override.box
@@ -419,6 +479,74 @@ def build_system(
             )
         )
 
+    # Intra-bead RB dihedral types from AT topology
+    dihedral_type_counter = 0
+    intra_dihedral_params: dict[tuple[float, ...], int] = {}
+    atom_type_by_index = {atom.index: atom.type for atom in at_mol.atoms}
+    combined_dihedraltypes = {**at_top.dihedraltypes, **cg_top.dihedraltypes}
+    combined_atom_type_defs = {**at_top.atom_types, **cg_top.atom_types}
+    for dih in at_mol.dihedrals:
+        ai = at_mol.atoms[dih.i - 1]
+        aj = at_mol.atoms[dih.j - 1]
+        ak = at_mol.atoms[dih.k - 1]
+        al = at_mol.atoms[dih.atom_l - 1]
+        all_in_same = False
+        for _bead_name, names in atoms_in_bead.items():
+            if ai.name in names and aj.name in names and ak.name in names and al.name in names:
+                all_in_same = True
+                break
+        if not all_in_same:
+            continue
+        func, raw_params = resolve_dihedral_params(
+            dih, atom_type_by_index, combined_dihedraltypes, combined_atom_type_defs
+        )
+        if func != 3:
+            continue
+        rb = units.gromacs_rb_to_lammps(raw_params)
+        key = tuple(round(value, 8) for value in rb)
+        if key not in intra_dihedral_params:
+            dihedral_type_counter += 1
+            intra_dihedral_params[key] = dihedral_type_counter
+            sys.dihedral_types.append(
+                DihedralTypeInfo(
+                    type_id=dihedral_type_counter,
+                    style="ryckaert",
+                    keyword="",
+                    params=rb,
+                )
+            )
+
+    for cd in settings.cross_interactions.dihedrals:
+        dihedral_type_counter += 1
+        sys.has_cross_dihedrals = True
+        kw = "cg" if cd.cg_bonded else "at"
+        table_file: str | None = None
+        params: list[float]
+        if cd.table:
+            style = "backmap/table"
+            params = []
+            table_out = Path(cd.table).stem + ".table"
+            table_file = table_out
+            if (cd.table, table_out) not in sys.dihedral_table_files:
+                sys.dihedral_table_files.append((cd.table, table_out))
+        else:
+            style = "backmap/ryckaert"
+            tokens = cd.params.split()
+            if len(tokens) >= 6:
+                params = units.gromacs_rb_to_lammps([float(token) for token in tokens[:6]])
+            else:
+                params = [0.0] * 6
+        sys.dihedral_types.append(
+            DihedralTypeInfo(
+                type_id=dihedral_type_counter,
+                style=style,
+                keyword=kw,
+                params=params,
+                table_file=table_file,
+                table_keyword="ENTRY" if table_file else None,
+            )
+        )
+
     # Build pair type classification
     n_types = type_id_counter
     for i in range(1, n_types + 1):
@@ -482,6 +610,7 @@ def build_system(
     atom_id = 0
     bond_id = 0
     angle_id = 0
+    dihedral_id = 0
     cg_atom_count = len(cg_mol.atoms)
 
     for mol_idx in range(n_molecules):
@@ -699,5 +828,111 @@ def build_system(
                             k=gk,
                         )
                     )
+
+        # Intra-bead RB dihedrals from AT topology
+        for dih in at_mol.dihedrals:
+            ai = at_mol.atoms[dih.i - 1]
+            aj = at_mol.atoms[dih.j - 1]
+            ak = at_mol.atoms[dih.k - 1]
+            al = at_mol.atoms[dih.atom_l - 1]
+            all_in_same = False
+            for _bead_name, names in atoms_in_bead.items():
+                if ai.name in names and aj.name in names and ak.name in names and al.name in names:
+                    all_in_same = True
+                    break
+            if not all_in_same:
+                continue
+            func, raw_params = resolve_dihedral_params(
+                dih, atom_type_by_index, combined_dihedraltypes, combined_atom_type_defs
+            )
+            if func != 3:
+                continue
+            rb = units.gromacs_rb_to_lammps(raw_params)
+            key = tuple(round(value, 8) for value in rb)
+            dt_id = intra_dihedral_params.get(key)
+            if dt_id is None:
+                continue
+            gi = at_local_to_global.get(dih.i)
+            gj = at_local_to_global.get(dih.j)
+            gk = at_local_to_global.get(dih.k)
+            gl = at_local_to_global.get(dih.atom_l)
+            if gi and gj and gk and gl:
+                dihedral_id += 1
+                sys.dihedrals.append(
+                    LammpsDihedral(
+                        dihedral_id=dihedral_id,
+                        type_id=dt_id,
+                        i=gi,
+                        j=gj,
+                        k=gk,
+                        l=gl,
+                    )
+                )
+
+        # Cross-CG dihedrals from settings
+        for cd_idx, cd in enumerate(settings.cross_interactions.dihedrals):
+            dt_offset = len(intra_dihedral_params)
+            dt_id = dt_offset + cd_idx + 1
+            for quad in cd.quadruples:
+                quad_names = [token.split(":")[-1] for token in quad]
+                idx_i = at_name_to_idx.get(quad_names[0])
+                idx_j = at_name_to_idx.get(quad_names[1])
+                idx_k = at_name_to_idx.get(quad_names[2])
+                idx_l = at_name_to_idx.get(quad_names[3])
+                if None in (idx_i, idx_j, idx_k, idx_l):
+                    continue
+                gi = at_local_to_global.get(idx_i)
+                gj = at_local_to_global.get(idx_j)
+                gk = at_local_to_global.get(idx_k)
+                gl = at_local_to_global.get(idx_l)
+                if gi and gj and gk and gl:
+                    dihedral_id += 1
+                    sys.dihedrals.append(
+                        LammpsDihedral(
+                            dihedral_id=dihedral_id,
+                            type_id=dt_id,
+                            i=gi,
+                            j=gj,
+                            k=gk,
+                            l=gl,
+                        )
+                    )
+
+        for pair_tokens in settings.cross_interactions.pairs:
+            if len(pair_tokens) < 2:
+                continue
+            name_i = pair_tokens[0].split(":")[-1]
+            name_j = pair_tokens[1].split(":")[-1]
+            idx_i = at_name_to_idx.get(name_i)
+            idx_j = at_name_to_idx.get(name_j)
+            if idx_i is None or idx_j is None:
+                continue
+            gi = at_local_to_global.get(idx_i)
+            gj = at_local_to_global.get(idx_j)
+            if not gi or not gj:
+                continue
+            atom_i = at_mol.atoms[idx_i - 1]
+            atom_j = at_mol.atoms[idx_j - 1]
+            sigma, epsilon = resolve_pair_lj_params(at_top, atom_i, atom_j, 1, [])
+            i_id, j_id = gi, gj
+            if i_id > j_id:
+                i_id, j_id = j_id, i_id
+            sys.cross_pairs.append(
+                LammpsCrossPair(i=i_id, j=j_id, sigma=sigma, epsilon=epsilon, keyword="at")
+            )
+            sys.has_cross_pairs = True
+
+    if (
+        sys.has_cross_bonds
+        or sys.has_cross_angles
+        or sys.has_cross_dihedrals
+        or sys.has_cross_pairs
+    ):
+        from backmap_prep.network.pbc import prepare_network_coordinates, validate_bond_geometry
+
+        prepare_network_coordinates(sys)
+        lj_cut = units.distance(settings.simulation.lj_cutoff)
+        cg_cut = units.distance(settings.simulation.cg_cutoff)
+        validate_bond_geometry(sys, max(lj_cut, cg_cut))
 
     return sys

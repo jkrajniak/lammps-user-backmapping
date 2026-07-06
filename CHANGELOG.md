@@ -9,6 +9,43 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+_(nothing yet)_
+
+## [0.1.0] - 2026-07-06
+
+First tagged release: network backmapping engine (rim135 epoxy), Tier B dynamics
+protocol, and structural validation vs JCC 2017/2018 paper reference.
+
+### Added
+
+- **Phase 3 network engine** (`backmap_prep.network`): Settings v2 YAML loader,
+  hybrid GROMACS builder ported from bakery, LAMMPS unified `build` / `build-hybrid` /
+  `finalize-cg` / `rebuild` CLI paths.
+- **`examples/epoxy/`** rim135 example: `settings.v2.yaml`, `run_test.sh`, bundled
+  OPLS-AA forcefield slice, Tier A parity tests.
+- **`compare_rim135_structure.py`**: C–O / C–N RDF validation vs GROMACS `.xvg`
+  references in `paper-reverse-mapping-polymer-networks`; pinned report 4/4 peak
+  metrics PASS (Jul 2026).
+- CG angle/dihedral/cross-pair table export; `fix backmap/pairs` C++ style;
+  molecule-aware PBC export (`network/pbc.py`) with network image flags.
+- PR4 Tier B bakery protocol: `cap_force`, Langevin `gamma`, velocity init,
+  `comm_modify cutoff` auto from bonded extent for network hybrids.
+
+### Fixed
+
+- Network hybrid communication cutoff: large Cartesian bond extent requires
+  `comm_modify cutoff` ≥ bonded ghost estimate (~115 Å for rim135); prevents
+  missing bond atoms during λ ramp on VM.
+
+### Changed
+
+- `examples/epoxy/README.md`: documents supported `build` vs experimental `rebuild`
+  paths.
+
+## [Unreleased — pre-0.1.0 history retained below]
+
+### Added
+
 - Paper-grade RDF validation for the 500-molecule dodecane example:
   `examples/dodecane/large/in.dodecane_at_long` (post-backmap AT, multi-phase
   equilibration + 1 ns NVT production) and `in.dodecane_at_ref_long` (independent

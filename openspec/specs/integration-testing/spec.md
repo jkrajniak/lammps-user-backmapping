@@ -69,6 +69,67 @@ Acceptance criteria:
 - **WHEN** the PE system uses tabulated CG bond potentials (`.table` format)
 - **THEN** the `backmap/table cg` bond forces SHALL be read from the table and weighted by `1−λ²`
 
+### Requirement: Rim135 CG angle table integration
+
+The rim135 integration test SHALL verify that func-8 CG cross-angles are wired
+to tabulated potentials.
+
+#### Scenario: Generated angle table files
+
+- **WHEN** `test_rim135_build_v2_lammps_smoke` runs successfully
+- **THEN** `table_a1.table` and `table_a2.table` SHALL exist in the output directory
+
+#### Scenario: No placeholder CG angle coefficients
+
+- **WHEN** `in.rim135` is generated from settings v2
+- **THEN** it SHALL contain `angle_coeff` lines with `backmap/table cg`
+- **AND** it SHALL NOT contain `angle_coeff … cg 0.000000 0.0000`
+
+#### Scenario: Distinct tablenr types
+
+- **WHEN** rim135 hybrid TOP has func-8 angles with tablenr 1 and 2
+- **THEN** the generated input SHALL reference both `table_a1.table` and
+  `table_a2.table` in angle_coeff lines
+
+### Requirement: Rim135 dihedral integration
+
+The rim135 integration test SHALL verify that hybrid TOP dihedrals and cross-dihedrals
+are exported with correct styles and counts.
+
+#### Scenario: Non-zero dihedral count
+
+- **WHEN** `test_rim135_build_v2_lammps_smoke` runs
+- **THEN** generated data SHALL NOT contain `0 dihedrals`
+
+#### Scenario: Hybrid dihedral styles in input
+
+- **WHEN** `in.rim135` is generated
+- **THEN** it SHALL contain `dihedral_style hybrid` with `ryckaert` and/or `backmap/ryckaert`
+
+#### Scenario: Rim135 dihedral count
+
+- **WHEN** `backmap-prep build examples/epoxy/settings.v2.yaml` runs
+- **THEN** `rim135.data` SHALL contain approximately 33,421 dihedrals
+
+### Requirement: Rim135 cross-pair integration
+
+#### Scenario: pairs.dat emitted
+
+- **WHEN** `test_rim135_build_v2_lammps_smoke` runs
+- **THEN** `pairs.dat` SHALL exist with > 0 pairs
+
+#### Scenario: fix backmap/pairs in input
+
+- **WHEN** `in.rim135` is generated
+- **THEN** it SHALL contain `fix backmap/pairs`
+
+### Requirement: Rim135 min-image bond gate
+
+#### Scenario: LAMMPS data bond spans after v2 build
+
+- **WHEN** `test_rim135_build_v2_lammps_smoke` runs
+- **THEN** max min-image bonded distance in the generated system SHALL be < 20 Å
+
 ### Requirement: MPI parallel correctness test
 
 The package SHALL include an MPI parallel correctness test that validates the backmapping produces identical (or numerically equivalent) results when run on multiple processors.

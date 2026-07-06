@@ -82,7 +82,7 @@ The documentation site SHALL include a getting-started page (`getting-started.md
 
 ### Requirement: LAMMPS component documentation
 
-The documentation site SHALL include pages documenting each LAMMPS style provided by the package: `fix backmap`, `pair_style backmap`, `bond_style backmap/harmonic`, `bond_style backmap/table`, and `angle_style backmap/harmonic`.
+The documentation site SHALL include pages documenting each LAMMPS style provided by the package: `fix backmap`, `pair_style backmap`, `bond_style backmap/harmonic`, `bond_style backmap/table`, `angle_style backmap/harmonic`, and `angle_style backmap/table`.
 
 #### Scenario: Fix backmap syntax documented
 

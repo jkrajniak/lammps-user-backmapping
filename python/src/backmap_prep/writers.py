@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import math
 from typing import IO, TYPE_CHECKING, Any
 
 from . import units
+from .builder import DihedralTypeInfo, System
+from .network.pbc import max_bond_length as _max_bond_length_from_pbc
+from .network.pbc import max_euclidean_bond_length, validate_bond_geometry
+from .schema import Settings, SimulationParams
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    from .builder import System
-    from .schema import Settings, SimulationParams
 
 
 def write_lammps_data(system: System, path: Path) -> None:
@@ -21,13 +23,13 @@ def write_lammps_data(system: System, path: Path) -> None:
         f.write(f"{len(system.atoms)} atoms\n")
         f.write(f"{len(system.bonds)} bonds\n")
         f.write(f"{len(system.angles)} angles\n")
-        f.write("0 dihedrals\n")
+        f.write(f"{len(system.dihedrals)} dihedrals\n")
         f.write("0 impropers\n\n")
 
         f.write(f"{len(system.atom_types)} atom types\n")
         f.write(f"{len(system.bond_types)} bond types\n")
         f.write(f"{len(system.angle_types)} angle types\n")
-        f.write("0 dihedral types\n")
+        f.write(f"{len(system.dihedral_types)} dihedral types\n")
         f.write("0 improper types\n\n")
 
         bx, by, bz = system.box
@@ -42,16 +44,31 @@ def write_lammps_data(system: System, path: Path) -> None:
             f.write(f"{at.type_id} {at.mass:.6f} {label}\n")
         f.write("\n")
 
-        # Atoms (coordinates wrapped into [0, L) per dimension)
+        # Atoms — network hybrids use folded coords + image flags; linear systems wrap per atom.
         f.write("Atoms # full\n\n")
         bx, by, bz = system.box
+        use_image_flags = (
+            system.write_image_flags
+            or system.has_cross_bonds
+            or system.has_cross_angles
+            or system.has_cross_dihedrals
+            or system.has_cross_pairs
+        )
+        wrap_coords = not use_image_flags
         for a in system.atoms:
-            wx = a.x % bx if bx > 0 else a.x
-            wy = a.y % by if by > 0 else a.y
-            wz = a.z % bz if bz > 0 else a.z
-            f.write(
-                f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} {wx:.6f} {wy:.6f} {wz:.6f}\n"
-            )
+            if wrap_coords:
+                wx = a.x % bx if bx > 0 else a.x
+                wy = a.y % by if by > 0 else a.y
+                wz = a.z % bz if bz > 0 else a.z
+                f.write(
+                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} "
+                    f"{wx:.6f} {wy:.6f} {wz:.6f}\n"
+                )
+            else:
+                f.write(
+                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} "
+                    f"{a.x:.6f} {a.y:.6f} {a.z:.6f} {a.ix} {a.iy} {a.iz}\n"
+                )
         f.write("\n")
 
         # Bonds
@@ -66,6 +83,12 @@ def write_lammps_data(system: System, path: Path) -> None:
             f.write("Angles\n\n")
             for ang in system.angles:
                 f.write(f"{ang.angle_id} {ang.type_id} {ang.i} {ang.j} {ang.k}\n")
+            f.write("\n")
+
+        if system.dihedrals:
+            f.write("Dihedrals\n\n")
+            for dih in system.dihedrals:
+                f.write(f"{dih.dihedral_id} {dih.type_id} {dih.i} {dih.j} {dih.k} {dih.l}\n")
             f.write("\n")
 
     # Print type mapping tables
@@ -85,6 +108,41 @@ def write_lammps_data(system: System, path: Path) -> None:
         for angtype in system.angle_types:
             kw = f" {angtype.keyword}" if angtype.keyword else ""
             print(f"  Angle type {angtype.type_id} = {angtype.style}{kw}")
+
+    if system.dihedral_types:
+        print("\n--- Dihedral type mapping ---")
+        for dihtype in system.dihedral_types:
+            kw = f" {dihtype.keyword}" if dihtype.keyword else ""
+            extra = f" (table: {dihtype.table_file})" if dihtype.table_file else ""
+            print(f"  Dihedral type {dihtype.type_id} = {dihtype.style}{kw}{extra}")
+
+
+def _min_image_distance(
+    x1: float,
+    y1: float,
+    z1: float,
+    x2: float,
+    y2: float,
+    z2: float,
+    box: tuple[float, float, float],
+) -> float:
+    """Minimum-image distance in an orthorhombic box (Angstrom)."""
+    bx, by, bz = box
+    dx = abs(x1 - x2)
+    dy = abs(y1 - y2)
+    dz = abs(z1 - z2)
+    if bx > 0:
+        dx = min(dx, bx - dx)
+    if by > 0:
+        dy = min(dy, by - dy)
+    if bz > 0:
+        dz = min(dz, bz - dz)
+    return math.sqrt(dx * dx + dy * dy + dz * dz)
+
+
+def _max_bond_length(system: System) -> float:
+    """Longest bonded distance in the system (minimum-image, Angstrom)."""
+    return _max_bond_length_from_pbc(system.atoms, system.bonds, system.box)
 
 
 def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
@@ -118,18 +176,65 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
 
     has_static_angles = any(at.style == "harmonic" for at in system.angle_types)
     has_backmap_angles = any(at.style == "backmap/harmonic" for at in system.angle_types)
+    has_backmap_angle_table = any(at.style == "backmap/table" for at in system.angle_types)
 
     angle_styles: list[str] = []
     if has_static_angles:
         angle_styles.append("harmonic")
     if has_backmap_angles:
         angle_styles.append("backmap/harmonic")
+    if has_backmap_angle_table:
+        angle_styles.append("backmap/table linear 1000")
+
+    has_static_dihedrals = any(dt.style == "ryckaert" for dt in system.dihedral_types)
+    has_static_harmonic_dihedrals = any(dt.style == "harmonic" for dt in system.dihedral_types)
+    has_static_charmm = any(dt.style == "charmm" for dt in system.dihedral_types)
+    has_backmap_rb = any(dt.style == "backmap/ryckaert" for dt in system.dihedral_types)
+    has_backmap_charmm = any(dt.style == "backmap/charmm" for dt in system.dihedral_types)
+    has_backmap_dihedral_table = any(dt.style == "backmap/table" for dt in system.dihedral_types)
+
+    dihedral_styles: list[str] = []
+    if has_static_dihedrals:
+        dihedral_styles.append("ryckaert")
+    if has_static_harmonic_dihedrals:
+        dihedral_styles.append("harmonic")
+    if has_static_charmm:
+        dihedral_styles.append("charmm")
+    if has_backmap_rb:
+        dihedral_styles.append("backmap/ryckaert")
+    if has_backmap_charmm:
+        dihedral_styles.append("backmap/charmm")
+    if has_backmap_dihedral_table:
+        dihedral_styles.append("backmap/table linear 1000")
+
+    max_bond_ang = _max_bond_length(system)
+    interaction_cutoff_ang = max(lj_cut_ang, cg_cut_ang)
+    comm_skin_ang = 1.0
+    comm_cutoff_ang = interaction_cutoff_ang + comm_skin_ang
+    is_network_hybrid = (
+        system.has_cross_bonds
+        or system.has_cross_angles
+        or system.has_cross_dihedrals
+        or system.has_cross_pairs
+    )
+    if is_network_hybrid:
+        max_euclidean_bond_ang = max_euclidean_bond_length(system.atoms, system.bonds)
+        # Polymer networks have crosslink bonds that span the box in primary-cell
+        # coordinates; min-image length stays chemical (~1–2 nm) but LAMMPS comm
+        # must cover the folded Cartesian extent for ghost exchange.
+        bond_extent = max(max_bond_ang, max_euclidean_bond_ang)
+        comm_cutoff_ang = max(
+            comm_cutoff_ang,
+            bond_extent + comm_skin_ang,
+        )
+        validate_bond_geometry(system, interaction_cutoff_ang)
 
     return {
         "timestep_fs": timestep_fs,
         "lj_cut_ang": lj_cut_ang,
         "cg_cut_ang": cg_cut_ang,
         "coul_cut_ang": coul_cut_ang,
+        "comm_cutoff_ang": comm_cutoff_ang,
         "gamma_inv_fs": gamma_inv_fs,
         "tdamp_fs": tdamp_fs,
         "pressure_atm": pressure_atm,
@@ -140,7 +245,67 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         "at_type_ids": at_type_ids,
         "bond_styles": bond_styles,
         "angle_styles": angle_styles,
+        "dihedral_styles": dihedral_styles,
     }
+
+
+def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]) -> str:
+    hybrid = len(dihedral_styles) > 1
+    if dihtype.style == "ryckaert":
+        coeffs = " ".join(f"{value:.6f}" for value in dihtype.params[:6])
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} ryckaert {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
+    if dihtype.style == "backmap/ryckaert":
+        coeffs = " ".join(f"{value:.6f}" for value in dihtype.params[:6])
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} backmap/ryckaert {dihtype.keyword} {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
+    if dihtype.style == "backmap/table":
+        if hybrid:
+            return (
+                f"dihedral_coeff {dihtype.type_id} backmap/table "
+                f"{dihtype.keyword} {dihtype.table_file} {dihtype.table_keyword}\n"
+            )
+        return (
+            f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} "
+            f"{dihtype.table_file} {dihtype.table_keyword}\n"
+        )
+    if dihtype.style == "harmonic":
+        k_val, sign_val, n_val = dihtype.params[:3]
+        coeffs = f"{k_val:.6f} {int(sign_val)} {int(n_val)}"
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} harmonic {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
+    if dihtype.style == "charmm":
+        k_val, n_val, delta = dihtype.params[:3]
+        shift = int(round(delta))
+        coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} charmm {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
+    if dihtype.style == "backmap/charmm":
+        k_val, n_val, delta = dihtype.params[:3]
+        shift = int(round(delta))
+        coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} backmap/charmm {dihtype.keyword} {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
+    return ""
+
+
+def _write_initial_velocities(f: IO[str], sim: SimulationParams, params: dict[str, Any]) -> None:
+    temp = sim.temperature
+    seed = sim.rng_seed if sim.rng_seed > 0 else 48279
+    f.write(f"# Initial velocities at T={temp:.1f} K\n")
+    f.write(f"velocity all create {temp:.1f} {seed} dist gaussian mom yes rot yes\n\n")
+
+
+def _write_cap_force(f: IO[str], sim: SimulationParams) -> None:
+    if sim.cap_force is None or sim.cap_force <= 0:
+        return
+    fmax = units.force(sim.cap_force)
+    f.write(f"fix cap all backmap/capforce {fmax:.4f}\n\n")
 
 
 def _write_integration(f: IO[str], sim: SimulationParams, params: dict[str, Any]) -> None:
@@ -181,9 +346,19 @@ def _write_setup(
     sim = settings.simulation
     bond_styles = params["bond_styles"]
     angle_styles = params["angle_styles"]
+    dihedral_styles = params["dihedral_styles"]
 
     if use_read_data:
         f.write(f"read_data {data_filename}\n\n")
+        if (
+            system.has_cross_bonds
+            or system.has_cross_angles
+            or system.has_cross_dihedrals
+            or system.has_cross_pairs
+        ):
+            f.write("reset_atoms image all\n\n")
+
+    f.write(f"comm_modify cutoff {params['comm_cutoff_ang']:.2f}\n\n")
 
     # Pair style
     f.write(
@@ -255,6 +430,11 @@ def _write_setup(
                         f"angle_coeff {angtype.type_id} backmap/harmonic "
                         f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
                     )
+                elif angtype.style == "backmap/table":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} backmap/table "
+                        f"{angtype.keyword} {angtype.table_file} {angtype.table_keyword}\n"
+                    )
             else:
                 if angtype.style == "harmonic":
                     f.write(
@@ -266,6 +446,23 @@ def _write_setup(
                         f"angle_coeff {angtype.type_id} "
                         f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
                     )
+                elif angtype.style == "backmap/table":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} "
+                        f"{angtype.keyword} {angtype.table_file} {angtype.table_keyword}\n"
+                    )
+        f.write("\n")
+
+    # Dihedral style
+    if system.dihedral_types:
+        if len(dihedral_styles) > 1:
+            f.write(f"dihedral_style hybrid {' '.join(dihedral_styles)}\n")
+        elif dihedral_styles:
+            f.write(f"dihedral_style {dihedral_styles[0]}\n")
+
+        for dihtype in system.dihedral_types:
+            coeff = _format_dihedral_coeff(dihtype, dihedral_styles)
+            f.write(coeff)
         f.write("\n")
 
     # Special bonds (exclusions)
@@ -284,6 +481,8 @@ def _write_setup(
     f.write(f"group cg_atoms type {cg_type_str}\n\n")
     f.write("neigh_modify delay 0 every 1 check yes\n\n")
 
+    _write_initial_velocities(f, sim, params)
+
     # Integration (AT atoms only) — must be defined BEFORE fix backmap so
     # that NVE/NVT initial_integrate runs first, updating AT positions before
     # fix backmap tracks the CG→COM.
@@ -297,6 +496,14 @@ def _write_setup(
         f"alpha {sim.alpha} lambda0 {sim.initial_resolution} "
         f"nonuniform {nonuniform}\n\n"
     )
+
+    if system.has_cross_pairs:
+        f.write(
+            f"fix pairs all backmap/pairs at file {system.cross_pairs_file} "
+            f"cut {params['lj_cut_ang']:.6f}\n\n"
+        )
+
+    _write_cap_force(f, sim)
 
     # Temperature compute on AT atoms only (CG atoms have zero velocity,
     # which would dilute the reported temperature).
@@ -317,6 +524,14 @@ def _write_setup(
 def _write_restart_cmd(f: IO[str], restart_interval: int) -> None:
     """Write the LAMMPS restart command for alternating checkpoint files."""
     f.write(f"restart {restart_interval} restart.backmap restart.backmap2\n")
+
+
+def write_cross_pairs_file(system: System, path: Path) -> None:
+    """Write explicit 1–4 LJ pairs for fix backmap/pairs."""
+    with open(path, "w") as f:
+        f.write(f"{len(system.cross_pairs)}\n")
+        for pair in system.cross_pairs:
+            f.write(f"{pair.i} {pair.j} {pair.sigma:.6f} {pair.epsilon:.6f}\n")
 
 
 def write_lammps_input(

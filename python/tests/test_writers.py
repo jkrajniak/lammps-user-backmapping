@@ -8,9 +8,11 @@ from backmap_prep.builder import (
     AngleTypeInfo,
     AtomTypeInfo,
     BondTypeInfo,
+    DihedralTypeInfo,
     LammpsAngle,
     LammpsAtom,
     LammpsBond,
+    LammpsDihedral,
     PairTypeInfo,
     System,
 )
@@ -83,6 +85,7 @@ class TestWriteLammpsData:
         assert "3 atoms" in content
         assert "1 bonds" in content
         assert "1 angles" in content
+        assert "0 dihedrals" in content
         assert "2 atom types" in content
         assert "1 bond types" in content
         assert "1 angle types" in content
@@ -141,6 +144,17 @@ class TestWriteLammpsData:
         content = p.read_text()
         assert "Angles" in content
         assert "1 1 1 2 3" in content
+
+    def test_network_atoms_include_image_flags(self, tmp_path: Path) -> None:
+        system = _make_system()
+        system.has_cross_bonds = True
+        system.atoms[0].ix = 0
+        system.atoms[0].iy = 0
+        system.atoms[0].iz = 0
+        p = tmp_path / "test.data"
+        write_lammps_data(system, p)
+        content = p.read_text()
+        assert "1 1 1 0.000000 1.000000 2.000000 3.000000 0 0 0" in content
 
     def test_coordinates_wrapped_into_box(self, tmp_path: Path) -> None:
         system = _make_system()
@@ -265,6 +279,40 @@ class TestWriteLammpsInput:
         assert "fix integrate at_atoms nve" in content
         assert "fix thermo at_atoms langevin" in content
 
+    def test_network_input_includes_velocity_create(self, tmp_path: Path) -> None:
+        system = _make_system()
+        settings = _make_settings()
+        settings.simulation.temperature = 298.0
+        settings.simulation.rng_seed = 48279
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "velocity all create 298.0 48279 dist gaussian mom yes rot yes" in content
+
+    def test_cap_force_fix_when_set(self, tmp_path: Path) -> None:
+        system = _make_system()
+        settings = _make_settings()
+        settings.simulation.cap_force = 50000.0
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "fix cap all backmap/capforce 1195.0300" in content
+
+    def test_langevin_damp_from_thermostat_gamma(self, tmp_path: Path) -> None:
+        system = _make_system()
+        settings = _make_settings()
+        settings.simulation.thermostat_gamma = 15.0
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        langevin_line = next(
+            (line for line in content.splitlines() if "fix thermo at_atoms langevin" in line),
+            "",
+        )
+        assert langevin_line
+        damp = float(langevin_line.split()[-2])
+        assert abs(damp - 66.7) < 0.1, langevin_line
+
     def test_fix_backmap_multi_cg_types(self, tmp_path: Path) -> None:
         system = _make_system()
         system.atom_types = [
@@ -329,6 +377,47 @@ class TestWriteLammpsInput:
         write_lammps_input(system, settings, p, "test.data")
         content = p.read_text()
         assert "bond_style hybrid" in content
+
+    def test_hybrid_angle_style_with_table(self, tmp_path: Path) -> None:
+        system = _make_system()
+        system.angle_types[0] = AngleTypeInfo(1, "backmap/harmonic", "at", [50.0, 111.0])
+        system.angle_types.append(
+            AngleTypeInfo(
+                2,
+                "backmap/table",
+                "cg",
+                [],
+                table_file="table_a1.table",
+                table_keyword="ENTRY",
+            )
+        )
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "angle_style hybrid backmap/harmonic backmap/table linear 1000" in content
+        assert "angle_coeff 2 backmap/table cg table_a1.table ENTRY" in content
+
+    def test_hybrid_dihedral_style(self, tmp_path: Path) -> None:
+        system = _make_system()
+        system.dihedral_types = [
+            DihedralTypeInfo(1, "ryckaert", "", [1.0, 0.5, 0.0, 0.0, 0.0, 0.0]),
+            DihedralTypeInfo(
+                2,
+                "backmap/ryckaert",
+                "at",
+                [2.0, -1.0, 0.0, 0.0, 0.0, 0.0],
+            ),
+        ]
+        system.dihedrals = [LammpsDihedral(1, 1, 1, 2, 3, 3)]
+        system.has_cross_dihedrals = True
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "dihedral_style hybrid ryckaert backmap/ryckaert" in content
+        assert "dihedral_coeff 1 ryckaert" in content
+        assert "dihedral_coeff 2 backmap/ryckaert at" in content
 
 
 class TestRestartGeneration:
