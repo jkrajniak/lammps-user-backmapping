@@ -22,7 +22,7 @@ prep:
   # (user-backmapping/), then into the published paper-data archive.
   data_dir: ../../../../paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping
   tables_dir: ../../../../paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping
-  forcefield_dir: forcefield
+  forcefield_dir: ../../epoxy/forcefield
 
 molecules:
   - name: H2O
