@@ -1,0 +1,65 @@
+# Independent PE melt reference (10 chains, 423 K) — RDF production
+# Prerequisites: uv run build_at_reference.py --output pe_at_ref.data
+
+units           real
+atom_style      full
+boundary        p p p
+
+pair_style      lj/cut 14.00
+bond_style      harmonic
+angle_style     harmonic
+dihedral_style  ryckaert
+
+read_data       pe_at_ref.data
+
+pair_modify     shift yes
+pair_coeff      1 1 0.207266 3.748000
+pair_coeff      1 2 0.156387 3.826500
+pair_coeff      2 2 0.117997 3.905000
+
+bond_coeff      1 633.365900 1.530000
+angle_coeff     1 124.283120 111.0000
+dihedral_coeff  1 0.717018 -2.217713 2.905285 3.135783 -0.731287 -6.271589
+
+special_bonds   lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+neighbor        2.0 bin
+neigh_modify    every 10 delay 0 check yes
+
+thermo          5000
+thermo_style    custom step temp pe ke etotal press density vol
+
+# --- Phase 0: remove bad contacts from lattice build ---
+minimize        1.0e-4 1.0e-4 500 5000
+
+# --- Phase A: high-T randomisation (10 ps) ---
+timestep        0.5
+fix             integrate all nvt temp 600.0 600.0 100.0
+run             20000
+unfix           integrate
+
+# --- Phase B: compress to target box (50 ps) ---
+fix             integrate all nvt temp 500.0 500.0 100.0
+fix             shrink all deform 1 x final 0.0 60.1855 y final 0.0 60.1855 z final 0.0 60.1855 units box
+run             100000
+unfix           shrink
+unfix           integrate
+
+# --- Phase C: NPT anneal to melt T (100 ps) ---
+timestep        1.0
+fix             integrate all npt temp 500.0 423.0 100.0 iso 1.0 1.0 1000.0
+run             100000
+unfix           integrate
+
+# --- Phase D: NVT equilibration at 423 K (100 ps) ---
+fix             integrate all nvt temp 423.0 423.0 100.0
+run             100000
+
+# --- Phase E: production 1 ns, RDF (5 x 200 ps blocks) ---
+compute         rdf_ref all rdf 200 1 1 1 2 2 2
+fix             rdf_out all ave/time 100 2000 200000 c_rdf_ref[*] file rdf_reference_long.dat mode vector
+run             1000000
+
+unfix           rdf_out
+unfix           integrate
+write_data      pe_at_ref_final.data

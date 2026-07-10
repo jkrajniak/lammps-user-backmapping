@@ -1,5 +1,5 @@
 # Converted from table_b2.xvg by backmap-prep
-# GROMACS units (nm, kJ/mol) → LAMMPS real (Å, kcal/mol)
+# GROMACS units → LAMMPS real (x=Å, kcal/mol)
 
 ENTRY
 N 501

@@ -1,0 +1,59 @@
+# Pure AT production after PE backmapping (423 K melt)
+# Prerequisites:
+#   uv run extract_at_frame.py pe_hybrid.data pe_at.data --cg-types 1 2
+
+units           real
+atom_style      full
+boundary        p p p
+
+read_data       pe_at.data
+
+pair_style      lj/cut 14.00
+pair_modify     shift yes
+pair_coeff      1 1 0.207266 3.748000
+pair_coeff      1 2 0.156387 3.826500
+pair_coeff      2 2 0.117997 3.905000
+
+bond_style      harmonic
+bond_coeff      1 633.365900 1.530000
+bond_coeff      2 633.365900 1.530000
+
+angle_style     harmonic
+angle_coeff     1 124.283120 111.0000
+
+dihedral_style  ryckaert
+dihedral_coeff  1 0.717018 -2.217713 2.905285 3.135783 -0.731287 -6.271589
+
+special_bonds   lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+neighbor        2.0 bin
+neigh_modify    every 1 delay 0 check yes
+
+thermo          5000
+thermo_style    custom step temp pe ke etotal press density vol
+
+# --- Phase 0: minimise overlaps after backmap ---
+minimize        1.0e-4 1.0e-6 1000 10000
+reset_atoms     image all
+reset_timestep  0
+velocity        all create 423.0 4928459 mom yes rot yes dist gaussian
+
+# --- Phase 1: gentle NPT relax at melt T (100 ps) ---
+timestep        0.5
+fix             integrate all npt temp 423.0 423.0 100.0 iso 1.0 1.0 500.0
+run             200000
+unfix           integrate
+
+# --- Phase 2: NVT equilibration (100 ps) ---
+timestep        1.0
+fix             integrate all nvt temp 423.0 423.0 100.0
+run             100000
+
+# --- Phase 3: production 1 ns with RDF (5 x 200 ps blocks) ---
+compute         rdf_at all rdf 200 1 1 1 2 2 2
+fix             rdf_out all ave/time 100 2000 200000 c_rdf_at[*] file rdf_backmap_long.dat mode vector
+run             1000000
+
+unfix           rdf_out
+unfix           integrate
+write_data      pe_at_final.data

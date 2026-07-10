@@ -1,0 +1,13 @@
+--- CH3-CH3 (n_blocks: backmap=23, ref=23) ---
+  1st-peak position : 4.478 +/- 0.276 Å (ref 5.005, |Δ|=0.527, tol=0.3) FAIL
+  1st-peak height   : 1.528 +/- 0.048    (ref 1.493, rel err=2.36%, tol=20%) PASS
+  L2(g_bm-g_ref)    : 0.1632 +/- 0.0172     (tol=0.2)  PASS
+--- CH3-CH2 (n_blocks: backmap=23, ref=23) ---
+  1st-peak position : 5.112 +/- 0.030 Å (ref 5.115, |Δ|=0.003, tol=0.3) PASS
+  1st-peak height   : 1.204 +/- 0.002    (ref 1.207, rel err=0.26%, tol=20%) PASS
+  L2(g_bm-g_ref)    : 0.0102 +/- 0.0005     (tol=0.2)  PASS
+--- CH2-CH2 (n_blocks: backmap=23, ref=23) ---
+  1st-peak position : 5.955 +/- 0.010 Å (ref 5.964, |Δ|=0.009, tol=0.3) PASS
+  1st-peak height   : 1.168 +/- 0.001    (ref 1.171, rel err=0.23%, tol=20%) PASS
+  L2(g_bm-g_ref)    : 0.0035 +/- 0.0003     (tol=0.2)  PASS
+Total: 8 PASS / 1 FAIL
