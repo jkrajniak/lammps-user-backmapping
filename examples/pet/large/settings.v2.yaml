@@ -1,0 +1,149 @@
+# PET (Dacron / polyethylene terephthalate) — Settings format v2
+# (native network prep, no bakery_xml)
+#
+# 3-species polyester network: TER (terephthalate) + DIO (ethylene glycol)
+# + H2O, with degree-dependent bead maps, charge equilibration, and
+# ester-spanning cross-link bonded terms.
+#
+# Run from repo root:
+#   uv run backmap-prep build-hybrid examples/pet/large/settings.v2.yaml
+#
+# Large inputs (cg_topol.top, hyb_topol.top, IBI tables) are sourced from
+# the published JCC 2018 reproducibility archive (data_dir / tables_dir).
+# Reference: Krajniak, Zhang et al., J. Comput. Chem. 2018, 39, 648-664
+# (10.1002/jcc.25129).
+
+version: 2
+
+prep:
+  engine: network
+  chain_rng_seed: 42
+  # 4 levels up from examples/pet/large/ reaches the workspace root
+  # (user-backmapping/), then into the published paper-data archive.
+  data_dir: ../../../../paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping
+  tables_dir: ../../../../paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping
+  forcefield_dir: forcefield
+
+molecules:
+  - name: H2O
+    ident: H2O
+    source:
+      - molecule_degree: "*"
+        coordinates: h2o.gro
+        topology: h2o.itp
+    beads:
+      - name: W1
+        type: W
+        atoms: [O1, H1, H2]
+
+  - name: DIO
+    ident: DIO
+    charge_management:
+      equilibrate: true
+    source:
+      - molecule_degree: "*"
+        coordinates: diol.gro
+        topology: diol.itp
+    beads:
+      - name: D1
+        type: D
+        mapping:
+          - degree: 0
+            molecule_degree: "0"
+            atoms: [O1, C1, C2, O2, H1, H2, H3, H4, H5, H6]
+      - name: E1
+        type: E
+        mapping:
+          - degree: 1
+            molecule_degree: "1"
+            atoms: [C1, C2, O2, H2, H3, H4, H5, H6]
+            active_sites: [{ atom: C1, max_degree: 4 }]
+          - degree: 2
+            molecule_degree: "2"
+            atoms: [C1, C2, H2, H3, H4, H5]
+            active_sites:
+              - { atom: C1, max_degree: 4 }
+              - { atom: C2, max_degree: 4 }
+            charge_map: [0.0, 0.0, "*", "*", "*", "*"]
+
+  - name: TER
+    ident: TER
+    charge_management:
+      equilibrate: true
+    source:
+      - molecule_degree: "*"
+        coordinates: ter.gro
+        topology: ter.itp
+    beads:
+      - name: A1
+        type: A
+        mapping:
+          - degree: 1
+            molecule_degree: "0"
+            atoms: [O1, C1, O2, H5]
+      - name: Q1
+        type: C
+        mapping:
+          - degree: 2
+            molecule_degree: "2"
+            atoms: [O1, C1, O2]
+            active_sites: [{ atom: O1, max_degree: 2 }]
+            charge_map: [0.0, "*", "*"]
+      - name: B1
+        type: B
+        atoms: [C2, C3, C4, C5, C6, C7, H1, H2, H3, H4]
+      - name: A2
+        type: A
+        mapping:
+          - degree: 1
+            molecule_degree: "0"
+            atoms: [O3, C8, O4, H6]
+      - name: Q2
+        type: C
+        mapping:
+          - degree: 2
+            molecule_degree: "2"
+            atoms: [O4, C8, O3]
+            active_sites: [{ atom: O4, max_degree: 2 }]
+            charge_map: [0.0, "*", "*"]
+
+cg_system:
+  coordinates: cg_conf.gro
+  topology: cg_topol.top
+
+hybrid:
+  coordinates: hyb_conf.gro
+  topology: hyb_topol.top
+  includes:
+    - /usr/share/gromacs/top/oplsaa.ff/forcefield.itp
+  molecule_type:
+    name: HYB
+    exclusion: 3
+
+cross_interactions:
+  bonds:
+    - comment: DIO_C1/C2_TER_O1/O4
+      pairs:
+        - [DIO:C1, TER:O1]
+        - [DIO:C1, TER:O4]
+        - [DIO:C2, TER:O1]
+        - [DIO:C2, TER:O4]
+  angles_file: cross_angles_pete.yaml
+  dihedrals_file: cross_dihedrals_pete.yaml
+
+simulation:
+  alpha: 0.0001
+  temperature: 298.0
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  thermostat_gamma: 15.0
+  cap_force: 50000.0
+  equilibration_steps: 0
+  lj_cutoff: 1.2
+  cg_cutoff: 1.4
+  coulomb_cutoff: 0.9
+  table_groups: [A, B, C, D, E, W, Z]
+  production_steps: 10000
+
+output:
+  prefix: pet
