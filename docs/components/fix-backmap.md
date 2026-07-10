@@ -180,6 +180,25 @@ During initialization, the fix checks that the CG bead mass equals the sum
 of AT atom masses within each molecule. A warning is issued if they differ
 by more than 10<sup>-4</sup>.
 
+## Parallel (MPI) runs
+
+`fix backmap` is MPI-correct under spatial domain decomposition: the COM
+update uses a reverse communication of per-CG-bead mass-weighted displacement
+accumulators, and the CG force distribution uses a forward communication of
+CG bead force/mass to ghost atoms. Each AT atom contributes on the rank that
+owns it, so results are independent of how molecules are split across ranks.
+
+**Requirement:** every AT atom must be able to see its mapped CG bead in the
+local or ghost atom set. Set `comm_modify cutoff` to at least the maximum
+CG-AT distance within a bead (a few angstrom for backmapped fragments; the
+examples use `comm_modify cutoff 15.00`). The fix emits a warning if a local
+AT atom has no resolvable CG partner, which indicates the cutoff is too
+small.
+
+A serial-vs-N-rank parity test lives in
+`examples/dodecane/large/test_mpi_serial_vs_4rank.sh`.
+
+
 ## Related
 
 - [pair_style backmap](pair-backmap.md) -- lambda-weighted non-bonded

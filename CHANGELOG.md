@@ -9,7 +9,23 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
-_(nothing yet)_
+- **MPI-correct `fix backmap`**: COM tracking and CG force distribution now use
+  atom-centric communication (`reverse_comm` for COM accumulation,
+  `forward_comm` for CG force) following the `fix_rigid_small` pattern, so
+  domain-decomposed runs no longer drop AT atoms on non-neighbour ranks or lose
+  force writes to ghost atoms. Requires `comm_modify cutoff` >= maximum CG-AT
+  distance within a bead (a few angstrom for backmapped fragments); the fix
+  warns if a local AT atom has no CG partner in local+ghost range.
+- **`compute_scalar`** on `fix backmap`: group-averaged lambda, printable as
+  `f_bm` in `thermo_style` (with `thermo_modify colname f_bm lambda`).
+- **MPI parity test**: `examples/dodecane/large/in.dodecane_mpi` +
+  `test_mpi_serial_vs_4rank.sh` + `compare_mpi_data.py`.
+
+### Fixed
+
+- `fix backmap` under MPI: incomplete COM sum (AT atoms on non-ghost ranks
+  missed) and lost CG-force contributions to ghost AT atoms.
+
 
 ## [0.1.0] - 2026-07-06
 
