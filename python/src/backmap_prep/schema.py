@@ -13,7 +13,7 @@ class DegreeSourceFile(BaseModel):
     """One degree-dependent AT source file (coordinates or topology)."""
 
     file: str
-    molecule_degree: int = 0
+    molecule_degree: int | str = 0
     when: str | None = None
 
 
@@ -114,7 +114,7 @@ class UnifiedSourceRow(BaseModel):
 
     coordinates: str
     topology: str
-    molecule_degree: int = 0
+    molecule_degree: int | str = 0
     when: str | None = None
 
 
@@ -229,6 +229,10 @@ class CrossInteractions(BaseModel):
     angles_file: str | None = Field(
         default=None,
         description="External YAML file with CrossAngle entries (v2)",
+    )
+    dihedrals_file: str | None = Field(
+        default=None,
+        description="External YAML file with CrossDihedral entries (v2)",
     )
 
 
@@ -463,6 +467,30 @@ def _merge_angles_file(settings: Settings, yaml_dir: Path) -> Settings:
     return settings.model_copy(update={"cross_interactions": cross})
 
 
+def _merge_dihedrals_file(settings: Settings, yaml_dir: Path) -> Settings:
+    """Load external cross-dihedral definitions referenced by dihedrals_file."""
+    dihedrals_file = settings.cross_interactions.dihedrals_file
+    if not dihedrals_file:
+        return settings
+    path = Path(dihedrals_file)
+    if not path.is_absolute():
+        path = (yaml_dir / path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"cross_interactions.dihedrals_file not found: {path}")
+    with open(path) as f:
+        raw_dihedrals = yaml.safe_load(f)
+    if not isinstance(raw_dihedrals, list):
+        raise ValueError(f"dihedrals_file must contain a YAML list: {path}")
+    extra = [
+        CrossDihedral(**entry) if isinstance(entry, dict) else entry for entry in raw_dihedrals
+    ]
+    merged = list(settings.cross_interactions.dihedrals) + extra
+    cross = settings.cross_interactions.model_copy(
+        update={"dihedrals": merged, "dihedrals_file": None}
+    )
+    return settings.model_copy(update={"cross_interactions": cross})
+
+
 def resolve_data_dir(settings_path: Path, settings: Settings) -> Path:
     """Return the working directory for relative network asset paths."""
     if settings.prep.data_dir:
@@ -495,4 +523,5 @@ def load_settings(path: Path) -> Settings:
     with open(path) as f:
         raw = yaml.safe_load(f)
     settings = Settings(**raw)
-    return _merge_angles_file(settings, path.parent)
+    settings = _merge_angles_file(settings, path.parent)
+    return _merge_dihedrals_file(settings, path.parent)
