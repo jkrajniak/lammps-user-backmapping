@@ -48,7 +48,8 @@ fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
 compute at_temp at_atoms temp
 
 thermo 2000
-thermo_style custom step temp pe ke etotal press
+thermo_style custom step temp pe ke etotal press f_bm
+thermo_modify colname f_bm lambda
 thermo_modify temp at_temp
 
 dump traj all custom 5000 dump.backmap id mol type x y z f_bm

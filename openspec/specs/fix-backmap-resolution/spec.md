@@ -186,6 +186,12 @@ fix_modify <fix-id> active no     # freeze lambda (existing)
 
 The per-atom λ values SHALL be accessible via `fix->extract()` for use with `dump custom` or other LAMMPS analysis tools. The fix SHALL support writing λ to restart files so that simulations can be continued.
 
+The fix SHALL expose the group-averaged λ as a global scalar via `compute_scalar()`, so it can be printed in thermo output as `f_bm` (for fix ID `bm`) with an optional `thermo_modify colname f_bm lambda` label.
+
+#### Scenario: Thermo average lambda
+- **WHEN** the input contains `thermo_style custom ... f_bm` and `fix bm` is active
+- **THEN** each thermo line SHALL report the arithmetic mean of λ over atoms in the fix group
+
 #### Scenario: Dump lambda values
 - **WHEN** the user specifies `dump custom ... f_backmap[1]` (or equivalent accessor)
 - **THEN** the output SHALL contain the current λ value for each atom

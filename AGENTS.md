@@ -6,7 +6,7 @@ Time-dependent backmapping from coarse-grained to atomistic resolution,
 implemented as a LAMMPS user package. Two main components:
 
 - **C++ LAMMPS styles** (`src/`) — `fix backmap`, `pair_style backmap`,
-`bond_style backmap/{harmonic,table}`, `angle_style backmap/harmonic`.
+`bond_style backmap/{harmonic,table}`, `angle_style backmap/{harmonic,table}`.
 - **Python CLI** (`python/`) — `backmap-prep` generates LAMMPS data files,
 input scripts, and interaction tables from GROMACS topologies.
 - **Docs** (`docs/`) — MkDocs Material site; **examples** in `examples/`.
