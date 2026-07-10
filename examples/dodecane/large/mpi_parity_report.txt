@@ -1,0 +1,8 @@
+MPI serial-vs-parallel comparison
+  serial:   /tmp/mpi-test/dodecane_hybrid_short_serial.data (9000 atoms)
+  parallel: /tmp/mpi-test/dodecane_hybrid_short_4rank.data (9000 atoms)
+  tags matched: 9000, missing on one side: 0
+  max position error: 4.271e-05 Å (tol 1e-04)
+  position failures: 0
+
+Result: PASS
