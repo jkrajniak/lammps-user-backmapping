@@ -215,6 +215,24 @@ class TestWriteLammpsInput:
         content = p.read_text()
         assert "read_data mydata.data" in content
 
+    def test_linear_cross_system_skips_reset_atoms(self, tmp_path: Path) -> None:
+        system = _make_system()
+        system.has_cross_bonds = True
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "reset_atoms image all" not in content
+
+    def test_network_system_includes_reset_atoms(self, tmp_path: Path) -> None:
+        system = _make_system()
+        system.write_image_flags = True
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "reset_atoms image all" in content
+
     def test_pair_style(self, tmp_path: Path) -> None:
         system = _make_system()
         settings = _make_settings()

@@ -217,11 +217,11 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         or system.has_cross_dihedrals
         or system.has_cross_pairs
     )
-    if is_network_hybrid:
+    if is_network_hybrid and system.write_image_flags:
         max_euclidean_bond_ang = max_euclidean_bond_length(system.atoms, system.bonds)
-        # Polymer networks have crosslink bonds that span the box in primary-cell
-        # coordinates; min-image length stays chemical (~1–2 nm) but LAMMPS comm
-        # must cover the folded Cartesian extent for ghost exchange.
+        # Cured networks (rim135): crosslink bonds can span the box in file
+        # coordinates; LAMMPS comm must cover the folded Cartesian extent.
+        # Linear polymer melts use min-image cross-CG bonds only — keep lj+cg cutoff.
         bond_extent = max(max_bond_ang, max_euclidean_bond_ang)
         comm_cutoff_ang = max(
             comm_cutoff_ang,
@@ -350,12 +350,7 @@ def _write_setup(
 
     if use_read_data:
         f.write(f"read_data {data_filename}\n\n")
-        if (
-            system.has_cross_bonds
-            or system.has_cross_angles
-            or system.has_cross_dihedrals
-            or system.has_cross_pairs
-        ):
+        if system.write_image_flags:
             f.write("reset_atoms image all\n\n")
 
     f.write(f"comm_modify cutoff {params['comm_cutoff_ang']:.2f}\n\n")
@@ -515,7 +510,8 @@ def _write_setup(
     init_ts = params["ts_backmap_fs"]
     f.write(f"timestep {init_ts:.2f}\n\n")
     f.write(f"thermo {sim.energy_interval}\n")
-    f.write("thermo_style custom step temp pe ke etotal press\n")
+    f.write("thermo_style custom step temp pe ke etotal press f_bm\n")
+    f.write("thermo_modify colname f_bm lambda\n")
     f.write("thermo_modify temp at_temp\n\n")
     f.write(f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n")
     f.write("dump_modify traj sort id\n\n")

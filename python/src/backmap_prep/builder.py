@@ -141,7 +141,7 @@ class System:
     has_cross_pairs: bool = False
     cross_pairs: list[LammpsCrossPair] = field(default_factory=list)
     cross_pairs_file: str = "pairs.dat"
-    write_image_flags: bool = False
+    write_image_flags: bool = False  # network builds: wide comm + image flags in data
 
     # Table files to convert: (src, dst) pairs
     table_files: list[tuple[str, str]] = field(default_factory=list)  # bond tables
@@ -460,24 +460,74 @@ def build_system(
         angle_type_counter += 1
         sys.has_cross_angles = True
         params_tokens = ca.params.split()
+        func_type = int(params_tokens[0]) if params_tokens else 1
 
-        kw = "cg" if ca.cg_bonded else "at"
-
-        if len(params_tokens) >= 3:
+        if ca.cg_bonded:
+            if ca.table:
+                style = "backmap/table"
+                kw = "cg"
+                table_out = Path(ca.table).stem + ".table"
+                sys.angle_types.append(
+                    AngleTypeInfo(
+                        type_id=angle_type_counter,
+                        style=style,
+                        keyword=kw,
+                        params=[],
+                        table_file=table_out,
+                        table_keyword="ENTRY",
+                    )
+                )
+                if (ca.table, table_out) not in sys.angle_table_files:
+                    sys.angle_table_files.append((ca.table, table_out))
+            else:
+                k_lammps = (
+                    units.spring_angle(float(params_tokens[2])) if len(params_tokens) > 2 else 0.0
+                )
+                theta0 = float(params_tokens[1]) if len(params_tokens) > 1 else 0.0
+                sys.angle_types.append(
+                    AngleTypeInfo(
+                        type_id=angle_type_counter,
+                        style="backmap/harmonic",
+                        keyword="cg",
+                        params=[k_lammps, theta0],
+                    )
+                )
+        elif func_type == 1 and len(params_tokens) >= 3:
             theta0 = float(params_tokens[1])
             k_lammps = units.spring_angle(float(params_tokens[2]))
-        else:
-            theta0 = 0.0
-            k_lammps = 0.0
-
-        sys.angle_types.append(
-            AngleTypeInfo(
-                type_id=angle_type_counter,
-                style="backmap/harmonic",
-                keyword=kw,
-                params=[k_lammps, theta0],
+            sys.angle_types.append(
+                AngleTypeInfo(
+                    type_id=angle_type_counter,
+                    style="backmap/harmonic",
+                    keyword="at",
+                    params=[k_lammps, theta0],
+                )
             )
-        )
+        elif func_type == 8 and ca.table:
+            style = "backmap/table"
+            kw = "at"
+            table_out = Path(ca.table).stem + ".table"
+            sys.angle_types.append(
+                AngleTypeInfo(
+                    type_id=angle_type_counter,
+                    style=style,
+                    keyword=kw,
+                    params=[],
+                    table_file=table_out,
+                    table_keyword="ENTRY",
+                )
+            )
+            if (ca.table, table_out) not in sys.angle_table_files:
+                sys.angle_table_files.append((ca.table, table_out))
+        else:
+            sys.angle_types.append(
+                AngleTypeInfo(
+                    type_id=angle_type_counter,
+                    style="backmap/harmonic",
+                    keyword="at",
+                    params=[0.0, 0.0],
+                )
+            )
 
     # Intra-bead RB dihedral types from AT topology
     dihedral_type_counter = 0
