@@ -24,6 +24,8 @@ class AtomsByDegree(BaseModel):
     atoms: list[str]
     molecule_degree: str | None = None
     active_site: str | None = None
+    charge_map: list[str | float] | None = None
+    type_map: list[str] | None = None
 
 
 class ChargeTransfer(BaseModel):
@@ -58,6 +60,8 @@ class BeadMappingEntry(BaseModel):
     add: list[str] = Field(default_factory=list)
     remove: list[str] = Field(default_factory=list)
     active_sites: list[ActiveSiteSpec] = Field(default_factory=list)
+    charge_map: list[str | float] | None = None
+    type_map: list[str] | None = None
 
     @model_validator(mode="after")
     def check_atoms_or_delta(self) -> BeadMappingEntry:
