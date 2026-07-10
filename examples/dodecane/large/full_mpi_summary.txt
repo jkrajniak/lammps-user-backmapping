@@ -1,0 +1,15 @@
+=== dodecane np=1 (serial) started 13:38:17 ===
+  rc=0 wall=[ 0:29:03] errors=0 final_temp=297.85141 final_etotal=-6388.7622
+=== dodecane np=4 (np4) started 14:07:21 ===
+  rc=0 wall=[ 0:08:37] errors=0 final_temp=297.08249 final_etotal=-6579.5746
+=== dodecane np=8 (np8) started 14:15:59 ===
+  rc=0 wall=[ 0:05:08] errors=0 final_temp=300.78883 final_etotal=-6406.9569
+=== pe np=1 (serial) started 14:21:08 ===
+  rc=0 wall=[ 0:01:02] errors=0 final_temp=412.67439 final_etotal=2369.951
+=== pe np=4 (np4) started 14:22:11 ===
+  rc=0 wall=[ 0:00:29] errors=0 final_temp=420.0349 final_etotal=2342.9346
+=== rim135 np=1 (serial) started 14:22:41 ===
+  rc=0 wall=[ 1:03:40] errors=0 final_temp=296.59636 final_etotal=-8783.3011
+=== rim135 np=4 (np4) started 15:26:22 ===
+  rc=0 wall=[ 0:28:53] errors=0 final_temp=299.36526 final_etotal=-6558.1416
+=== ALL DONE 15:55:16 ===
