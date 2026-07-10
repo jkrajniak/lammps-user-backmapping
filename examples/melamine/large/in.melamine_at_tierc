@@ -1,0 +1,135 @@
+# Pure AT production for melamine Tier C (500 mol, OPLS/AA)
+# Prerequisite: melamine_at.data from extract_at_frame.py on melamine_hybrid.data
+#
+# Protocol:
+#   Phase 0: minimisation
+#   Phase 1: NVT equilibration 300 K, 50 ps
+#   Phase 2: NVT production 500 ps with trajectory dump for RDF analysis
+
+units real
+atom_style full
+boundary p p p
+
+read_data melamine_at.data
+
+pair_style lj/cut/coul/cut 14.00 9.00
+pair_coeff 1 1 0.170000 3.250000
+pair_coeff 1 2 0.109087 3.400000
+pair_coeff 1 3 0.170000 3.250000
+pair_coeff 1 4 0.105924 3.375000
+pair_coeff 1 5 0.000000 0.000000
+pair_coeff 1 6 0.170000 3.185000
+pair_coeff 1 7 0.071414 2.875000
+pair_coeff 1 8 0.000000 0.000000
+pair_coeff 2 2 0.070000 3.550000
+pair_coeff 2 3 0.109087 3.400000
+pair_coeff 2 4 0.067970 3.525000
+pair_coeff 2 5 0.000000 0.000000
+pair_coeff 2 6 0.109087 3.335000
+pair_coeff 2 7 0.045826 3.025000
+pair_coeff 2 8 0.000000 0.000000
+pair_coeff 3 3 0.170000 3.250000
+pair_coeff 3 4 0.105924 3.375000
+pair_coeff 3 5 0.000000 0.000000
+pair_coeff 3 6 0.170000 3.185000
+pair_coeff 3 7 0.071414 2.875000
+pair_coeff 3 8 0.000000 0.000000
+pair_coeff 4 4 0.065999 3.500000
+pair_coeff 4 5 0.000000 0.000000
+pair_coeff 4 6 0.105924 3.310000
+pair_coeff 4 7 0.044497 3.000000
+pair_coeff 4 8 0.000000 0.000000
+pair_coeff 5 5 0.000000 0.000000
+pair_coeff 5 6 0.000000 0.000000
+pair_coeff 5 7 0.000000 0.000000
+pair_coeff 5 8 0.000000 0.000000
+pair_coeff 6 6 0.170000 3.120000
+pair_coeff 6 7 0.071414 2.810000
+pair_coeff 6 8 0.000000 0.000000
+pair_coeff 7 7 0.030000 2.500000
+pair_coeff 7 8 0.000000 0.000000
+pair_coeff 8 8 0.000000 0.000000
+
+bond_style harmonic
+bond_coeff 1 962.001062 1.350000
+bond_coeff 2 962.001062 1.370000
+bond_coeff 3 764.000843 1.470000
+bond_coeff 4 868.000958 1.010000
+bond_coeff 5 640.000707 1.430000
+bond_coeff 6 680.000751 1.100000
+bond_coeff 7 1106.001221 0.980000
+bond_coeff 8 1106.001221 0.970000
+bond_coeff 9 962.001062 1.350000
+bond_coeff 10 962.001062 1.360000
+
+angle_style harmonic
+angle_coeff 1 160.000177 115.9740
+angle_coeff 2 100.000110 122.7480
+angle_coeff 3 70.000077 117.1410
+angle_coeff 4 160.000177 112.2030
+angle_coeff 5 70.000077 109.7990
+angle_coeff 6 70.000077 110.3940
+angle_coeff 7 160.000177 116.1820
+angle_coeff 8 100.000110 123.0140
+angle_coeff 9 70.000077 117.6650
+angle_coeff 10 160.000177 112.1460
+angle_coeff 11 70.000077 110.3040
+angle_coeff 12 70.000077 109.9090
+angle_coeff 13 160.000177 118.7940
+angle_coeff 14 100.000110 123.0660
+angle_coeff 15 70.000077 117.2970
+angle_coeff 16 160.000177 112.5740
+angle_coeff 17 70.000077 109.7450
+angle_coeff 18 70.000077 110.2540
+angle_coeff 19 70.000077 116.4310
+angle_coeff 20 110.000121 107.8310
+angle_coeff 21 70.000077 107.8120
+angle_coeff 22 70.000077 108.1410
+angle_coeff 23 66.000073 108.3770
+angle_coeff 24 70.000077 116.7990
+angle_coeff 25 110.000121 108.8060
+angle_coeff 26 70.000077 107.8650
+angle_coeff 27 70.000077 107.9800
+angle_coeff 28 66.000073 108.2970
+angle_coeff 29 70.000077 116.9500
+angle_coeff 30 110.000121 107.5770
+angle_coeff 31 70.000077 108.1470
+angle_coeff 32 70.000077 107.7610
+angle_coeff 33 66.000073 108.4640
+angle_coeff 34 160.000177 125.0100
+angle_coeff 35 160.000177 116.1640
+angle_coeff 36 160.000177 125.2370
+angle_coeff 37 80.000088 114.8430
+angle_coeff 38 80.000088 114.8070
+angle_coeff 39 160.000177 118.7880
+angle_coeff 40 160.000177 124.9860
+angle_coeff 41 80.000088 115.1170
+angle_coeff 42 160.000177 118.8230
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+
+thermo 5000
+thermo_style custom step temp pe ke etotal press density vol
+
+# --- Phase 0: minimisation ------------------------------------------------
+minimize 1.0e-4 1.0e-6 500 5000
+reset_timestep 0
+velocity all create 300.0 4928459 mom yes rot yes dist gaussian
+
+# --- Phase 1: NVT equilibration 300 K, 50 ps -----------------------------
+timestep 1.0
+fix integrate all nvt temp 300.0 300.0 100.0
+run 50000
+
+# --- Phase 2: NVT production 500 ps ----------------------------------------
+dump traj all custom 5000 dump.at_prod id mol type x y z
+dump_modify traj sort id
+run 500000
+
+unfix integrate
+undump traj
+write_data melamine_at_final.data
+print "Melamine AT Tier C production complete."
