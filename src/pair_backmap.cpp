@@ -46,10 +46,14 @@
 
 using namespace LAMMPS_NS;
 
-// AT pair interactions are deferred until both atoms reach this lambda.
-// Prevents LJ singularities from inter-molecular overlaps at early lambda
-// (backmap-prep clusters all AT atoms near the first CG bead).
-static constexpr double LAMBDA_AT_ONSET = 0.1;
+// AT pair interactions are λ-weighted from λ=0 via compute_weight(), which
+// gives a smooth onset (0 at λ=0, ramping up). A hard threshold here would
+// keep AT-LJ fully off until the threshold then jump, shocking systems whose
+// AT atoms start overlapped (e.g. PET aromatic beads) before the λ-weighted
+// AT bonds have separated them. Leave the onset at 0 and rely on the smooth
+// λ-weighting plus the CG potentials + 1-2/1-3/1-4 exclusions to handle
+// overlaps.
+static constexpr double LAMBDA_AT_ONSET = 0.0;
 
 /* ---------------------------------------------------------------------- */
 
