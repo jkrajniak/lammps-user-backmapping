@@ -9,9 +9,10 @@ angle_coeff N at/cg K theta0
 
 - **N** -- angle type number
 - **at** or **cg** -- weighting mode
-    - `at`: weight = &lambda;<sub>i</sub> &times; &lambda;<sub>k</sub>
+    - `at`: full strength once the global &lambda; > 0 if all three atoms
+      map to the same CG bead, otherwise weight = &lambda;<sub>global</sub>
       (fades in during backmapping)
-    - `cg`: weight = 1 - &lambda;<sub>i</sub> &times; &lambda;<sub>k</sub>
+    - `cg`: weight = 1 - &lambda;<sub>global</sub>
       (fades out during backmapping)
 - **K** -- force constant (energy/radian&sup2; units)
 - **theta0** -- equilibrium angle (degrees)
@@ -24,9 +25,9 @@ A harmonic angle potential scaled by the lambda weight:
 E = w \times K (\theta - \theta_0)^2
 \]
 
-where \( w \) is computed from the lambda values of the **first and last**
-atoms in the angle triplet (*i*-*j*-*k*), using \( \lambda_i \) and
-\( \lambda_k \).
+where \( w \) is computed from the single global &lambda; value and whether
+all three atoms in the angle triplet (*i*-*j*-*k*) map to the same CG bead
+(see [theory: Force Weighting](../theory.md#force-weighting)).
 
 !!! note
     The equilibrium angle `theta0` is specified in **degrees** in the
@@ -36,13 +37,10 @@ atoms in the angle triplet (*i*-*j*-*k*), using \( \lambda_i \) and
 
 For an angle *i*-*j*-*k*:
 
-- **AT mode** (`at`): \( w = \lambda_i \times \lambda_k \)
-- **CG mode** (`cg`): \( w = 1 - \lambda_i \times \lambda_k \)
-
-The central atom *j*'s lambda value is not used in the weight calculation.
-This is because cross-CG angles typically involve atoms at the boundaries
-of adjacent beads, and the end atoms' resolution determines the relevance
-of the interaction.
+- **AT mode** (`at`), all three atoms in the same CG bead: \( w = 1 \) once
+  \( \lambda_\text{global} > 0 \)
+- **AT mode** (`at`), atoms span different CG beads: \( w = \lambda_\text{global} \)
+- **CG mode** (`cg`): \( w = 1 - \lambda_\text{global} \)
 
 ## Example
 
@@ -108,7 +106,7 @@ E = w \times U(\theta)
 \]
 
 where \( U(\theta) \) comes from the table (angle in degrees, energy in
-kcal/mol) and \( w = 1 - \lambda_i \times \lambda_k \) for `cg` mode.
+kcal/mol) and \( w = 1 - \lambda_\text{global} \) for `cg` mode.
 At λ = 0 (pure CG), the full tabulated torque applies.
 
 ## Example

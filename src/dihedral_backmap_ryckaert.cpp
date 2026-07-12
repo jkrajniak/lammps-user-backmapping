@@ -138,9 +138,13 @@ void DihedralBackmapRyckaert::compute(int eflag, int vflag) {
   edihedral = 0.0;
   ev_init(eflag, vflag);
 
-  double *lam = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lam)
-    error->all(FLERR, "dihedral_style backmap/ryckaert: cannot extract lambda");
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
+    error->all(FLERR,
+               "dihedral_style backmap/ryckaert: cannot extract atom2cg/"
+               "lambda_global");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -156,9 +160,9 @@ void DihedralBackmapRyckaert::compute(int eflag, int vflag) {
     i4 = dihedrallist[n][3];
     type = dihedrallist[n][4];
 
-    double li = BackmapLambda::clamp_lambda(lam[i1]);
-    double ll = BackmapLambda::clamp_lambda(lam[i4]);
-    double w = BackmapLambda::compute_weight(li, ll, is_cg[type]);
+    bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2, i3, i4);
+    double w =
+        BackmapLambda::compute_weight3(same_bead, is_cg[type], lambda_global);
 
     if (BackmapLambda::is_almost_zero(w)) continue;
 

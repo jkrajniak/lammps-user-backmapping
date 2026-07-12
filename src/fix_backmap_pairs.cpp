@@ -120,10 +120,13 @@ void FixBackmapPairs::post_force(int /*vflag*/) {
   if (!fix_backmap)
     fix_backmap = BackmapLambda::find_fix_backmap(lmp, "fix backmap/pairs");
 
-  double *lambda = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lambda)
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
     error->all(FLERR,
-               "fix backmap/pairs: cannot extract lambda from fix backmap");
+               "fix backmap/pairs: cannot extract atom2cg/lambda_global "
+               "from fix backmap");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -148,9 +151,9 @@ void FixBackmapPairs::post_force(int /*vflag*/) {
     double rsq = dx * dx + dy * dy + dz * dz;
     if (rsq >= cutsq || rsq <= 0.0) continue;
 
-    double li = BackmapLambda::clamp_lambda(lambda[i]);
-    double lj = BackmapLambda::clamp_lambda(lambda[j]);
-    double w = BackmapLambda::compute_weight(li, lj, par.is_cg);
+    bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
+    double w =
+        BackmapLambda::compute_weight3(same_bead, par.is_cg, lambda_global);
     if (BackmapLambda::is_almost_zero(w)) continue;
 
     double r2inv = 1.0 / rsq;

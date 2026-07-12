@@ -76,6 +76,7 @@ class FixBackmap : public Fix {
   int ramp_active;
 
   double *lambda;
+  double lambda_global;  // single authoritative global lambda scalar
   int maxatom;
 
   // MPI-correct partner map and communication scratch

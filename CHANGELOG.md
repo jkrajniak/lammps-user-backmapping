@@ -7,8 +7,29 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Fixed
+
+- **Lambda-weighting formula**: all 8 `backmap/*` styles (`pair_backmap`,
+  `bond_backmap_harmonic`/`table`, `angle_backmap_harmonic`/`table`,
+  `dihedral_backmap_ryckaert`/`table`, `fix_backmap/pairs`) previously
+  weighted interactions by the per-particle product `λ_i × λ_j` (AT) /
+  `1 − λ_i × λ_j` (CG). Replaced with a single global λ scalar
+  (`FixBackmap::lambda_global`, exposed via `extract("lambda_global", ...)`)
+  combined with same-CG-bead membership (`FixBackmap::atom2cg`, exposed via
+  `extract("atom2cg", ...)`): CG → `1 − λ_global`; AT atoms in the *same* CG
+  bead → full strength once `λ_global > 0` (not scaled); AT atoms in
+  *different* CG beads → `λ_global` (linear). See
+  `backmap_lambda_weights.h::compute_weight3()`/`same_bead()`.
+
 ### Added
 
+- **Fast C++ unit tests** (`tests/unit/`, GoogleTest via CMake `FetchContent`,
+  no LAMMPS build required): 21 tests covering the lambda-weighting formula
+  and same-bead detection. Wired into `.github/workflows/cpp-ci.yml`
+  (`unit-tests` job) and `make test-cpp`.
+- **`.clang-format`**: explicit `BasedOnStyle: Google` +
+  `PointerAlignment: Right` config so the pre-commit/CI `--style=file` hook
+  no longer relies on an undeclared fallback.
 - **MPI-correct `fix backmap`**: COM tracking and CG force distribution now use
   atom-centric communication (`reverse_comm` for COM accumulation,
   `forward_comm` for CG force) following the `fix_rigid_small` pattern, so

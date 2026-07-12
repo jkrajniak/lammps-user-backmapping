@@ -23,6 +23,9 @@ Thanks for your interest in contributing to the LAMMPS Backmapping Package!
    # C++ formatting
    clang-format --style=file --fallback-style=Google -i src/*.cpp src/*.h
 
+   # C++ unit tests (fast, no LAMMPS build required)
+   make test-cpp
+
    # Python checks
    make lint
    make format
@@ -35,7 +38,10 @@ Thanks for your interest in contributing to the LAMMPS Backmapping Package!
 ## Code Style
 
 - **C++**: Follow the existing LAMMPS coding style. Use `clang-format` with
-  the project configuration (Google fallback).
+  the project configuration (`.clang-format`, Google-based). Any change to
+  the lambda-weighting math in `backmap_lambda_weights.h` must keep
+  `tests/unit/` passing (`make test-cpp`) before being validated against a
+  full LAMMPS build/simulation.
 - **Python**: Code is formatted and linted with [Ruff](https://docs.astral.sh/ruff/)
   and type-checked with [mypy](https://mypy-lang.org/) in strict mode. See
   `pyproject.toml` for the full configuration.

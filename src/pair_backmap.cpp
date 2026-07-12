@@ -12,9 +12,11 @@
 
 /* pair_style backmap — lambda-weighted non-bonded pair forces for backmapping.
 
-   Delegates force computation to AT and CG sub-styles, then weights by:
-     AT: w = λ_i × λ_j
-     CG: w = 1 − λ_i × λ_j
+   Delegates force computation to AT and CG sub-styles, then weights by a
+   single global lambda scalar and CG-bead co-membership:
+     CG:                                   w = 1 - lambda_global
+     AT intra-bead (same CG bead):        w = 1 once lambda_global > 0
+     AT inter-bead (different CG beads):  w = lambda_global
 
    Syntax:
      pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ...
@@ -268,8 +270,9 @@ double PairBackmap::init_one(int i, int j) {
 /* C3 + C4: compute — lambda-weighted pair force and energy computation.
 
    For each pair:
-   - AT type pairs: compute AT force, weight by w_AT = λ_i × λ_j
-   - CG type pairs: compute CG force, weight by w_CG = 1 − λ_i × λ_j
+   - CG type pairs: compute CG force, weight by w_CG = 1 - lambda_global
+   - AT type pairs, same CG bead: full strength once lambda_global > 0
+   - AT type pairs, different CG beads: weight by w_AT = lambda_global
    - Cross-type or NONE pairs: skip */
 
 void PairBackmap::compute(int eflag, int vflag) {
@@ -278,10 +281,13 @@ void PairBackmap::compute(int eflag, int vflag) {
   if (!fix_backmap)
     fix_backmap = BackmapLambda::find_fix_backmap(lmp, "pair_style backmap");
 
-  double *lam = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lam)
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
     error->all(FLERR,
-               "pair_style backmap: cannot extract lambda from fix backmap");
+               "pair_style backmap: cannot extract atom2cg/lambda_global "
+               "from fix backmap");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -296,7 +302,6 @@ void PairBackmap::compute(int eflag, int vflag) {
 
   for (int ii = 0; ii < inum; ii++) {
     int i = ilist[ii];
-    double li = BackmapLambda::clamp_lambda(lam[i]);
     double xi = x[i][0];
     double yi = x[i][1];
     double zi = x[i][2];
@@ -319,13 +324,14 @@ void PairBackmap::compute(int eflag, int vflag) {
 
       if (rsq >= cutsq[itype][jtype]) continue;
 
-      double lj = BackmapLambda::clamp_lambda(lam[j]);
       bool is_cg = (kind == CG);
-      double w = BackmapLambda::compute_weight(li, lj, is_cg);
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
+      double w =
+          BackmapLambda::compute_weight3(same_bead, is_cg, lambda_global);
 
       if (BackmapLambda::is_almost_zero(w)) continue;
 
-      if (!is_cg && (li < LAMBDA_AT_ONSET || lj < LAMBDA_AT_ONSET)) continue;
+      if (!is_cg && lambda_global < LAMBDA_AT_ONSET) continue;
 
       Pair *sub = is_cg ? pair_cg : pair_at;
       double fforce = 0.0;
@@ -381,11 +387,13 @@ double PairBackmap::single(int i, int j, int itype, int jtype, double rsq,
 
   // Apply lambda weighting if fix is available
   if (fix_backmap) {
-    double *lam = BackmapLambda::extract_lambda(fix_backmap);
-    if (lam) {
-      double li = BackmapLambda::clamp_lambda(lam[i]);
-      double lj_val = BackmapLambda::clamp_lambda(lam[j]);
-      double w = BackmapLambda::compute_weight(li, lj_val, kind == CG);
+    int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+    double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+    if (atom2cg && lam_global_ptr) {
+      double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
+      double w =
+          BackmapLambda::compute_weight3(same_bead, kind == CG, lambda_global);
       fforce *= w;
       eng *= w;
     }
