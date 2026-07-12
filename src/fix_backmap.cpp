@@ -54,7 +54,10 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
       nonuniform(0),
       ramp_active(0),
       lambda(nullptr),
-      maxatom(0) {
+      maxatom(0),
+      atom2cg(nullptr),
+      com_buf(nullptr),
+      cg_fwd(nullptr) {
   if (narg < 7) utils::missing_cmd_args(FLERR, "fix backmap", error);
 
   restart_peratom = 1;
@@ -62,7 +65,10 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
   peratom_flag = 1;
   size_peratom_cols = 0;
   peratom_freq = 1;
-  comm_forward = 1;
+  scalar_flag = 1;
+  extscalar = 0;
+  comm_forward = 5;  // lambda + CG (fx, fy, fz, mass)
+  comm_reverse = 4;  // COM (mass, mdx, mdy, mdz)
   create_attribute = 1;
 
   int iarg = 3;
@@ -114,6 +120,10 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
 
   maxatom = atom->nmax;
   memory->create(lambda, maxatom, "backmap:lambda");
+  memory->create(atom2cg, maxatom, "backmap:atom2cg");
+  memory->create(com_buf, maxatom * 4, "backmap:com_buf");
+  memory->create(cg_fwd, maxatom * 4, "backmap:cg_fwd");
+  for (int i = 0; i < maxatom; i++) atom2cg[i] = -1;
   vector_atom = lambda;
 
   atom->add_callback(Atom::GROW);
@@ -137,6 +147,9 @@ FixBackmap::~FixBackmap() {
   atom->delete_callback(id, Atom::GROW);
   atom->delete_callback(id, Atom::RESTART);
   memory->destroy(lambda);
+  memory->destroy(atom2cg);
+  memory->destroy(com_buf);
+  memory->destroy(cg_fwd);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -196,46 +209,48 @@ void FixBackmap::initial_integrate(int /*vflag*/) {
   double *mass_type = atom->mass;
   int *type = atom->type;
   int nlocal = atom->nlocal;
+  int nghost = atom->nghost;
+  int ntotal = nlocal + nghost;
+  double *prd = domain->prd;
 
-  // Update CG bead positions to AT COM.  fix nve has already updated
-  // AT positions in its initial_integrate (created before this fix),
-  // so CG positions match current AT configuration when forces are
-  // computed later in this timestep.
-  for (auto &bm : bead_map) {
-    int cg = bm.cg_local;
-    if (cg < 0 || cg >= nlocal) continue;
+  // --- COM update (MPI-correct): each local AT atom contributes to its CG
+  // bead's accumulator; reverse_comm sums ghost-CG contributions to CG owners.
+  zero_com_buf();
 
-    double com_dx = 0.0, com_dy = 0.0, com_dz = 0.0;
-    double m_total = 0.0;
+  for (int i = 0; i < nlocal; i++) {
+    if (is_cg_type(type[i])) continue;
+    int cg = atom2cg[i];
+    if (cg < 0 || cg >= ntotal) continue;
+    double m_i = mass_type[type[i]];
+    double dx = x[i][0] - x[cg][0];
+    double dy = x[i][1] - x[cg][1];
+    double dz = x[i][2] - x[cg][2];
+    if (domain->xperiodic) dx -= prd[0] * round(dx / prd[0]);
+    if (domain->yperiodic) dy -= prd[1] * round(dy / prd[1]);
+    if (domain->zperiodic) dz -= prd[2] * round(dz / prd[2]);
+    int k = cg * 4;
+    com_buf[k + 0] += m_i;
+    com_buf[k + 1] += m_i * dx;
+    com_buf[k + 2] += m_i * dy;
+    com_buf[k + 3] += m_i * dz;
+  }
 
-    for (int at : bm.at_local) {
-      if (at < 0 || at >= nlocal) continue;
-      double m_i = mass_type[type[at]];
-      double dx = x[at][0] - x[cg][0];
-      double dy = x[at][1] - x[cg][1];
-      double dz = x[at][2] - x[cg][2];
-      // Use round-based wrapping to handle ghost atoms that may be
-      // more than one box length from the local CG bead.
-      double *prd = domain->prd;
-      if (domain->xperiodic) dx -= prd[0] * round(dx / prd[0]);
-      if (domain->yperiodic) dy -= prd[1] * round(dy / prd[1]);
-      if (domain->zperiodic) dz -= prd[2] * round(dz / prd[2]);
-      com_dx += m_i * dx;
-      com_dy += m_i * dy;
-      com_dz += m_i * dz;
-      m_total += m_i;
-    }
+  // Sum ghost-CG contributions back to local CG owners.
+  comm->reverse_comm(this, 4);
 
-    if (m_total > 0.0) {
-      double frac = lambda[cg];
-      x[cg][0] += frac * com_dx / m_total;
-      x[cg][1] += frac * com_dy / m_total;
-      x[cg][2] += frac * com_dz / m_total;
-    }
+  // Apply COM shift on local CG beads.
+  for (int cg = 0; cg < nlocal; cg++) {
+    if (!is_cg_type(type[cg])) continue;
+    int k = cg * 4;
+    double m_total = com_buf[k + 0];
+    if (m_total <= 0.0) continue;
+    double frac = lambda[cg];
+    x[cg][0] += frac * com_buf[k + 1] / m_total;
+    x[cg][1] += frac * com_buf[k + 2] / m_total;
+    x[cg][2] += frac * com_buf[k + 3] / m_total;
   }
 
   // Zero CG velocities and forces so they don't get integrated by NVE
-  nlocal = atom->nlocal;
   for (int i = 0; i < nlocal; i++) {
     if (is_cg_type(type[i])) {
       v[i][0] = v[i][1] = v[i][2] = 0.0;
@@ -261,31 +276,47 @@ void FixBackmap::pre_force(int /*vflag*/) {
 void FixBackmap::post_force(int /*vflag*/) {
   if (!ramp_active) return;
 
+  // Forward-comm lambda + CG (fx, fy, fz, mass) so each local AT atom can read
+  // its (local or ghost) CG bead's complete force.
+  comm->forward_comm(this);
+
   double **f = atom->f;
   double *mass = atom->mass;
   int *type = atom->type;
   int nlocal = atom->nlocal;
+  int nghost = atom->nghost;
+  int ntotal = nlocal + nghost;
 
-  for (auto &bm : bead_map) {
-    int cg = bm.cg_local;
-    if (cg < 0 || cg >= nlocal) continue;
+  // Distribute CG force to each LOCAL AT atom. All additions target local
+  // atoms, so no reverse_comm is needed.
+  for (int i = 0; i < nlocal; i++) {
+    if (is_cg_type(type[i])) continue;
+    int cg = atom2cg[i];
+    if (cg < 0 || cg >= ntotal) continue;
 
-    double fx_cg = f[cg][0];
-    double fy_cg = f[cg][1];
-    double fz_cg = f[cg][2];
-    double m_cg = mass[type[cg]];
-
-    if (m_cg <= 0.0) continue;
-
-    for (int at : bm.at_local) {
-      if (at < 0 || at >= nlocal) continue;
-      double ratio = mass[type[at]] / m_cg;
-      f[at][0] += ratio * fx_cg;
-      f[at][1] += ratio * fy_cg;
-      f[at][2] += ratio * fz_cg;
+    double fx_cg, fy_cg, fz_cg, m_cg;
+    if (cg < nlocal) {
+      fx_cg = f[cg][0];
+      fy_cg = f[cg][1];
+      fz_cg = f[cg][2];
+      m_cg = mass[type[cg]];
+    } else {
+      const double *p = &cg_fwd[cg * 4];
+      fx_cg = p[0];
+      fy_cg = p[1];
+      fz_cg = p[2];
+      m_cg = p[3];
     }
+    if (m_cg <= 0.0) continue;
+    double ratio = mass[type[i]] / m_cg;
+    f[i][0] += ratio * fx_cg;
+    f[i][1] += ratio * fy_cg;
+    f[i][2] += ratio * fz_cg;
+  }
 
-    f[cg][0] = f[cg][1] = f[cg][2] = 0.0;
+  // Zero CG forces on local CG beads after distribution.
+  for (int i = 0; i < nlocal; i++) {
+    if (is_cg_type(type[i])) f[i][0] = f[i][1] = f[i][2] = 0.0;
   }
 }
 
@@ -318,6 +349,27 @@ int FixBackmap::modify_param(int narg, char **arg) {
 
 /* ---------------------------------------------------------------------- */
 
+double FixBackmap::compute_scalar() {
+  int nlocal = atom->nlocal;
+  int *mask = atom->mask;
+  double sum = 0.0;
+  int n = 0;
+  for (int i = 0; i < nlocal; i++) {
+    if (mask[i] & groupbit) {
+      sum += lambda[i];
+      n++;
+    }
+  }
+  double all_sum = 0.0;
+  int all_n = 0;
+  MPI_Allreduce(&sum, &all_sum, 1, MPI_DOUBLE, MPI_SUM, world);
+  MPI_Allreduce(&n, &all_n, 1, MPI_INT, MPI_SUM, world);
+  if (all_n == 0) return 0.0;
+  return all_sum / static_cast<double>(all_n);
+}
+
+/* ---------------------------------------------------------------------- */
+
 void *FixBackmap::extract(const char *str, int &dim) {
   if (strcmp(str, "lambda") == 0) {
     dim = 1;
@@ -332,7 +384,13 @@ void FixBackmap::grow_arrays(int nmax) {
   int old_maxatom = maxatom;
   maxatom = nmax;
   memory->grow(lambda, maxatom, "backmap:lambda");
-  for (int i = old_maxatom; i < maxatom; i++) lambda[i] = 0.0;
+  memory->grow(atom2cg, maxatom, "backmap:atom2cg");
+  memory->grow(com_buf, maxatom * 4, "backmap:com_buf");
+  memory->grow(cg_fwd, maxatom * 4, "backmap:cg_fwd");
+  for (int i = old_maxatom; i < maxatom; i++) {
+    lambda[i] = 0.0;
+    atom2cg[i] = -1;
+  }
   vector_atom = lambda;
 }
 
@@ -340,6 +398,7 @@ void FixBackmap::grow_arrays(int nmax) {
 
 void FixBackmap::copy_arrays(int i, int j, int /*delflag*/) {
   lambda[j] = lambda[i];
+  atom2cg[j] = atom2cg[i];
 }
 
 /* ---------------------------------------------------------------------- */
@@ -358,12 +417,66 @@ int FixBackmap::unpack_exchange(int nlocal, double *buf) {
 
 int FixBackmap::pack_forward_comm(int n, int *list, double *buf,
                                   int /*pbc_flag*/, int * /*pbc*/) {
-  for (int i = 0; i < n; i++) buf[i] = lambda[list[i]];
-  return n;
+  double **f = atom->f;
+  double *mass_type = atom->mass;
+  int *type = atom->type;
+  int m = 0;
+  for (int k = 0; k < n; k++) {
+    int i = list[k];
+    buf[m++] = lambda[i];
+    if (is_cg_type(type[i])) {
+      buf[m++] = f[i][0];
+      buf[m++] = f[i][1];
+      buf[m++] = f[i][2];
+      buf[m++] = mass_type[type[i]];
+    } else {
+      buf[m++] = 0.0;
+      buf[m++] = 0.0;
+      buf[m++] = 0.0;
+      buf[m++] = 0.0;
+    }
+  }
+  return m;
 }
 
 void FixBackmap::unpack_forward_comm(int n, int first, double *buf) {
-  for (int i = 0; i < n; i++) lambda[first + i] = buf[i];
+  int m = 0;
+  int last = first + n;
+  for (int i = first; i < last; i++) {
+    lambda[i] = buf[m++];
+    int k = i * 4;
+    cg_fwd[k + 0] = buf[m++];
+    cg_fwd[k + 1] = buf[m++];
+    cg_fwd[k + 2] = buf[m++];
+    cg_fwd[k + 3] = buf[m++];
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+int FixBackmap::pack_reverse_comm(int n, int first, double *buf) {
+  int m = 0;
+  int last = first + n;
+  for (int i = first; i < last; i++) {
+    const double *p = &com_buf[i * 4];
+    buf[m++] = p[0];
+    buf[m++] = p[1];
+    buf[m++] = p[2];
+    buf[m++] = p[3];
+  }
+  return m;
+}
+
+void FixBackmap::unpack_reverse_comm(int n, int *list, double *buf) {
+  int m = 0;
+  for (int k = 0; k < n; k++) {
+    int i = list[k];
+    double *p = &com_buf[i * 4];
+    p[0] += buf[m++];
+    p[1] += buf[m++];
+    p[2] += buf[m++];
+    p[3] += buf[m++];
+  }
 }
 
 /* ---------------------------------------------------------------------- */
@@ -388,7 +501,9 @@ int FixBackmap::maxsize_restart() { return 2; }
 /* ---------------------------------------------------------------------- */
 
 double FixBackmap::memory_usage() {
-  return static_cast<double>(maxatom) * sizeof(double);
+  return static_cast<double>(maxatom) *
+         (sizeof(double) + sizeof(int) + 4 * sizeof(double) +
+          4 * sizeof(double));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -412,6 +527,9 @@ void FixBackmap::build_bead_map() {
   int nlocal = atom->nlocal;
   int nghost = atom->nghost;
   int ntotal = nlocal + nghost;
+
+  // Reset the per-atom CG partner map for all local+ghost atoms.
+  for (int i = 0; i < ntotal; i++) atom2cg[i] = -1;
 
   // Group atoms by molecule ID, separating CG and AT.
   // Deduplicate by tag: a local+ghost pair for the same physical atom
@@ -449,8 +567,8 @@ void FixBackmap::build_bead_map() {
   }
 
   for (auto &[mol_id, info] : mol_atoms) {
-    if (!info.has_local_cg) continue;
     if (info.cg_by_tag.empty()) continue;
+    if (info.at_by_tag.empty()) continue;
 
     // Flatten deduplicated maps into sorted vectors
     std::vector<AtomRef> cg_atoms, at_atoms;
@@ -480,21 +598,48 @@ void FixBackmap::build_bead_map() {
 
     for (int ci = 0; ci < n_cg; ci++) {
       int cg_idx = cg_atoms[ci].local_idx;
+
+      // Populate atom2cg for every AT atom of this bead (local or ghost).
+      for (int ai = ci * apb; ai < (ci + 1) * apb; ai++) {
+        int at_idx = at_atoms[ai].local_idx;
+        atom2cg[at_idx] = cg_idx;
+      }
+
+      // bead_map entry kept for setup logging + validate_masses (local CG
+      // only).
       if (cg_idx >= nlocal) continue;
 
       BeadMap bm;
       bm.cg_local = cg_idx;
       bm.at_mass_sum = 0.0;
-
       for (int ai = ci * apb; ai < (ci + 1) * apb; ai++) {
         int at_idx = at_atoms[ai].local_idx;
         bm.at_local.push_back(at_idx);
         bm.at_mass_sum += atom->mass[type[at_idx]];
       }
-
       bead_map.push_back(std::move(bm));
     }
   }
+
+  // Warn if any local AT atom has no resolvable CG partner on this rank,
+  // which indicates comm_modify cutoff is too small for the bead extent.
+  int nmissing = 0;
+  for (int i = 0; i < nlocal; i++) {
+    if (!is_cg_type(type[i]) && atom2cg[i] < 0) nmissing++;
+  }
+  if (nmissing > 0)
+    error->warning(FLERR,
+                   "fix backmap: {} local AT atom(s) have no CG partner in "
+                   "local+ghost range; increase comm_modify cutoff",
+                   nmissing);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixBackmap::zero_com_buf() {
+  int nghost = atom->nghost;
+  int ntotal = atom->nlocal + nghost;
+  for (int i = 0; i < ntotal * 4; i++) com_buf[i] = 0.0;
 }
 
 /* ---------------------------------------------------------------------- */

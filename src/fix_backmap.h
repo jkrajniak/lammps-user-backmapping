@@ -4,8 +4,8 @@
 
    Copyright (2003) Sandia Corporation.  Under the terms of Contract
    DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
-   certain rights in this software.  This software is distributed under
-   the GNU General Public License.
+   certain rights in this software.  This software is distributed under the
+   GNU General Public License.
 
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
@@ -39,6 +39,7 @@ class FixBackmap : public Fix {
   void post_force(int) override;
   void end_of_step() override;
   int modify_param(int, char **) override;
+  double compute_scalar() override;
 
   // Per-atom array grow/copy/exchange for domain decomposition
   void grow_arrays(int) override;
@@ -46,9 +47,11 @@ class FixBackmap : public Fix {
   int pack_exchange(int, double *) override;
   int unpack_exchange(int, double *) override;
 
-  // Ghost atom communication for lambda values
+  // Ghost atom communication for lambda + CG force (forward) and COM (reverse)
   int pack_forward_comm(int, int *, double *, int, int *) override;
   void unpack_forward_comm(int, int, double *) override;
+  int pack_reverse_comm(int, int, double *) override;
+  void unpack_reverse_comm(int, int *, double *) override;
 
   // Restart support
   int pack_restart(int, double *) override;
@@ -75,11 +78,20 @@ class FixBackmap : public Fix {
   double *lambda;
   int maxatom;
 
-  std::vector<BeadMap> bead_map;
+  // MPI-correct partner map and communication scratch
+  int *atom2cg;  // per atom: local-or-ghost index of mapped CG bead, -1 if none
+  double
+      *com_buf;  // per CG atom (4): mass, mdx, mdy, mdz (reverse-comm scratch)
+  double *cg_fwd;  // per CG atom (4): fx, fy, fz, mass (forward-comm scratch
+                   // for ghosts)
+
+  std::vector<BeadMap>
+      bead_map;  // used for setup logging + validate_masses only
 
   bool is_cg_type(int t) const { return cg_types.count(t) > 0; }
   void build_bead_map();
   void validate_masses();
+  void zero_com_buf();
 };
 
 }  // namespace LAMMPS_NS

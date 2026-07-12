@@ -1,0 +1,8 @@
+MPI serial-vs-parallel comparison
+  serial:   /tmp/mpi-test/pe_short_serial.data (1500 atoms)
+  parallel: /tmp/mpi-test/pe_short_4rank.data (1500 atoms)
+  tags matched: 1500, missing on one side: 0
+  max position error: 6.598e-05 Å (tol 1e-04)
+  position failures: 0
+
+Result: PASS

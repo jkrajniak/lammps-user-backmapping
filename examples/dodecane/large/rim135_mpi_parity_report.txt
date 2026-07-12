@@ -1,0 +1,8 @@
+MPI serial-vs-parallel comparison
+  serial:   /tmp/mpi-test/rim135_hybrid_short_serial.data (13653 atoms)
+  parallel: /tmp/mpi-test/rim135_hybrid_short_4rank.data (13653 atoms)
+  tags matched: 13653, missing on one side: 0
+  max position error: 9.938e-02 Å (tol 2e-01)
+  position failures: 0
+
+Result: PASS
