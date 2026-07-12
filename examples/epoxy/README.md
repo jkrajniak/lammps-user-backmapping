@@ -54,6 +54,7 @@ active-site choices match the reference topology.
 | `cross_angles_rim135.yaml` | Cross-bead angle triples for hybrid topology |
 | `settings.yaml` | Legacy bridge: `prep.bakery_xml` → bakery `settings.xml` |
 | `run_test.sh` | Runs `build-hybrid` in rim135 data dir and compares to refs |
+| `large/in.rim135` | LAMMPS Tier B/C 3-phase production script (see `large/README.md`) |
 
 All GROMACS/CG assets remain in `bakery/tests/rim135/` (not duplicated here).
 

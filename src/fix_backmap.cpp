@@ -54,6 +54,7 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
       nonuniform(0),
       ramp_active(0),
       lambda(nullptr),
+      lambda_global(0.0),
       maxatom(0),
       atom2cg(nullptr),
       com_buf(nullptr),
@@ -139,6 +140,10 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
     for (int i = 0; i < atom->nlocal; i++) lambda[i] = lambda0;
   }
   for (int i = atom->nlocal; i < maxatom; i++) lambda[i] = 0.0;
+
+  // lambda_global follows the uniform ramp rule regardless of nonuniform
+  // per-atom staggering; it is the single source of truth for weighting.
+  lambda_global = lambda0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -330,6 +335,8 @@ void FixBackmap::end_of_step() {
       lambda[i] += alpha;
       if (lambda[i] > 1.0) lambda[i] = 1.0;
     }
+    lambda_global += alpha;
+    if (lambda_global > 1.0) lambda_global = 1.0;
   }
 
   comm->forward_comm(this);
@@ -374,6 +381,14 @@ void *FixBackmap::extract(const char *str, int &dim) {
   if (strcmp(str, "lambda") == 0) {
     dim = 1;
     return static_cast<void *>(lambda);
+  }
+  if (strcmp(str, "atom2cg") == 0) {
+    dim = 1;
+    return static_cast<void *>(atom2cg);
+  }
+  if (strcmp(str, "lambda_global") == 0) {
+    dim = 0;
+    return static_cast<void *>(&lambda_global);
   }
   return nullptr;
 }

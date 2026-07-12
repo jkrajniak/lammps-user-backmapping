@@ -1,4 +1,4 @@
-.PHONY: help install install-dev install-hooks lint format typecheck test test-cov clean docs docs-serve
+.PHONY: help install install-dev install-hooks lint format typecheck test test-cov test-cpp clean docs docs-serve
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -37,6 +37,11 @@ test: ## Run pytest
 test-cov: ## Run pytest with coverage report
 	uv run pytest --cov=backmap_prep --cov-report=term-missing
 
+test-cpp: ## Run fast C++ unit tests (no LAMMPS build required)
+	cmake -S tests/unit -B tests/unit/build -DCMAKE_BUILD_TYPE=Release
+	cmake --build tests/unit/build -j
+	ctest --test-dir tests/unit/build --output-on-failure
+
 # ── Pre-commit ──────────────────────────────────────────────────────
 
 pre-commit: ## Run all pre-commit hooks on staged files
@@ -59,3 +64,4 @@ clean: ## Remove build artifacts and caches
 	rm -rf python/.mypy_cache python/.ruff_cache python/.pytest_cache
 	find python -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find python -type d -name '*.egg-info' -exec rm -rf {} + 2>/dev/null || true
+	rm -rf tests/unit/build

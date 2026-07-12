@@ -13,7 +13,8 @@
 /* angle_style backmap/harmonic — lambda-weighted harmonic angle for
    backmapping.
 
-   E = w × 0.5 × K × (θ - θ₀)²
+   E = w × K × (θ - θ₀)²   (matches ESPResSo++'s AngularHarmonic and native
+                             LAMMPS angle_harmonic — no extra factor of 1/2)
 
    Weight w uses lambda of the first and last atoms (i and k in i-j-k).
 
@@ -117,9 +118,13 @@ void AngleBackmapHarmonic::init_style() {
 void AngleBackmapHarmonic::compute(int eflag, int vflag) {
   ev_init(eflag, vflag);
 
-  double *lam = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lam)
-    error->all(FLERR, "angle_style backmap/harmonic: cannot extract lambda");
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
+    error->all(FLERR,
+               "angle_style backmap/harmonic: cannot extract atom2cg/"
+               "lambda_global");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -134,10 +139,10 @@ void AngleBackmapHarmonic::compute(int eflag, int vflag) {
     int i3 = anglelist[n][2];
     int atype = anglelist[n][3];
 
-    // Weight from first and last atoms of the angle triple
-    double li = BackmapLambda::clamp_lambda(lam[i1]);
-    double lk = BackmapLambda::clamp_lambda(lam[i3]);
-    double w = BackmapLambda::compute_weight(li, lk, is_cg[atype]);
+    // AT angle is intra-bead only if all three atoms map to the same bead.
+    bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2, i3);
+    double w =
+        BackmapLambda::compute_weight3(same_bead, is_cg[atype], lambda_global);
 
     if (BackmapLambda::is_almost_zero(w)) continue;
 
@@ -166,8 +171,14 @@ void AngleBackmapHarmonic::compute(int eflag, int vflag) {
     double dtheta = acos(c) - theta0[atype];
     double tk = w * k[atype] * dtheta;
 
-    // Force on each atom
-    double a = -tk * s;
+    // Force on each atom. Factor of 2 makes this consistent with E =
+    // w*k*dtheta^2 (dE/dtheta = 2*k*dtheta) — matches both native LAMMPS
+    // angle_harmonic.cpp and ESPResSo++'s AngularHarmonic::_computeForceRaw
+    // (dU_dtheta = -2*K*(theta-theta0)/sin_theta). A prior version of this
+    // file omitted the factor of 2, making the AT angle restoring force
+    // half of what the reported energy and the reference E++ / LAMMPS
+    // implementations imply.
+    double a = -2.0 * tk * s;
     double a11 = a * c / rsq1;
     double a12 = -a / (r1 * r2);
     double a22 = a * c / rsq2;
@@ -227,11 +238,13 @@ double AngleBackmapHarmonic::single(int atype, int i1, int i2, int i3) {
 
   double w = 1.0;
   if (fix_backmap) {
-    double *lam = BackmapLambda::extract_lambda(fix_backmap);
-    if (lam) {
-      double li = BackmapLambda::clamp_lambda(lam[i1]);
-      double lk = BackmapLambda::clamp_lambda(lam[i3]);
-      w = BackmapLambda::compute_weight(li, lk, is_cg[atype]);
+    int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+    double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+    if (atom2cg && lam_global_ptr) {
+      double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2, i3);
+      w = BackmapLambda::compute_weight3(same_bead, is_cg[atype],
+                                         lambda_global);
     }
   }
 

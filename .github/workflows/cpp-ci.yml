@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "src/**"
+      - "tests/unit/**"
       - ".github/workflows/cpp-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "src/**"
+      - "tests/unit/**"
       - ".github/workflows/cpp-ci.yml"
 
 concurrency:
@@ -20,6 +22,21 @@ env:
   LAMMPS_VERSION: stable_22Jul2025_update2
 
 jobs:
+  unit-tests:
+    name: Fast unit tests (no LAMMPS build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S tests/unit -B tests/unit/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build tests/unit/build -j "$(nproc)"
+
+      - name: Run
+        run: ctest --test-dir tests/unit/build --output-on-failure
+
   build:
     name: Build against LAMMPS (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

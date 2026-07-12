@@ -14,7 +14,11 @@ GROMACS func-3 RB entries convert via `C_lammps[n] = (-1)^n × energy(C_gromacs[
 
 ## `backmap/ryckaert` (cross-bead AT)
 
-Lambda weight uses endpoints **i** and **l**:
+Weight uses the single global lambda value and whether all four dihedral
+atoms (**i, j, k, l**) map to the same CG bead (see
+[theory: Force Weighting](../theory.md#force-weighting)): full strength once
+&lambda;<sub>global</sub> > 0 if all four are in the same bead, otherwise
+&lambda;<sub>global</sub> (linear fade-in).
 
 ```
 dihedral_style backmap/ryckaert

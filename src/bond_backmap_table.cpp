@@ -148,9 +148,13 @@ void BondBackmapTable::init_style() {
 void BondBackmapTable::compute(int eflag, int vflag) {
   ev_init(eflag, vflag);
 
-  double *lam = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lam)
-    error->all(FLERR, "bond_style backmap/table: cannot extract lambda");
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
+    error->all(FLERR,
+               "bond_style backmap/table: cannot extract atom2cg/"
+               "lambda_global");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -172,9 +176,9 @@ void BondBackmapTable::compute(int eflag, int vflag) {
     double r = sqrt(rsq);
 
     // Lambda weighting
-    double li = BackmapLambda::clamp_lambda(lam[i1]);
-    double lj = BackmapLambda::clamp_lambda(lam[i2]);
-    double w = BackmapLambda::compute_weight(li, lj, is_cg[btype]);
+    bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2);
+    double w =
+        BackmapLambda::compute_weight3(same_bead, is_cg[btype], lambda_global);
 
     if (BackmapLambda::is_almost_zero(w)) continue;
 
@@ -218,11 +222,13 @@ double BondBackmapTable::single(int btype, double rsq, int i, int j,
 
   double w = 1.0;
   if (fix_backmap) {
-    double *lam = BackmapLambda::extract_lambda(fix_backmap);
-    if (lam) {
-      double li = BackmapLambda::clamp_lambda(lam[i]);
-      double lj_val = BackmapLambda::clamp_lambda(lam[j]);
-      w = BackmapLambda::compute_weight(li, lj_val, is_cg[btype]);
+    int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+    double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+    if (atom2cg && lam_global_ptr) {
+      double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
+      w = BackmapLambda::compute_weight3(same_bead, is_cg[btype],
+                                         lambda_global);
     }
   }
   fforce *= w;

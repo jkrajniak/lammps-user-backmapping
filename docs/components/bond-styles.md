@@ -14,9 +14,10 @@ bond_coeff N at/cg K r0
 
 - **N** -- bond type number
 - **at** or **cg** -- weighting mode
-    - `at`: weight = &lambda;<sub>i</sub> &times; &lambda;<sub>j</sub>
+    - `at`: full strength once the global &lambda; > 0 if both atoms map to
+      the same CG bead, otherwise weight = &lambda;<sub>global</sub>
       (fades in during backmapping)
-    - `cg`: weight = 1 - &lambda;<sub>i</sub> &times; &lambda;<sub>j</sub>
+    - `cg`: weight = 1 - &lambda;<sub>global</sub>
       (fades out during backmapping)
 - **K** -- force constant (energy/distance&sup2; units)
 - **r0** -- equilibrium bond length (distance units)
@@ -33,7 +34,9 @@ E = w \times \frac{1}{2} K (r - r_0)^2
 F = -w \times K (r - r_0)
 \]
 
-where \( w \) is computed from the lambda values of the two bonded atoms.
+where \( w \) is computed from the single global &lambda; value and whether
+both bonded atoms map to the same CG bead (see
+[theory: Force Weighting](../theory.md#force-weighting)).
 
 This style is used for AT cross bonds (harmonic bonds between atoms in
 different CG beads) and, less commonly, for CG cross bonds when a harmonic

@@ -6,6 +6,12 @@ units real
 atom_style full
 boundary p p p
 
+# Network system: CG bead <-> AT-atom pairs can span farther than the pair
+# cutoff once cross-links are present, so widen the ghost-atom halo (see
+# rim135/in.rim135 for the same fix). Without this, build_bead_map() sees a
+# truncated AT-atom set per molecule on some MPI ranks and errors out.
+comm_modify cutoff 30.00
+
 read_data melamine.data
 
 pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
@@ -142,9 +148,14 @@ run 10000
 print "Phase 0b complete: AT overlap relaxation done"
 
 # === Phase 1: Lambda ramp with nve/limit ===
+# Thermostat runs throughout the ramp (matching the original AdResS
+# protocol's always-on Langevin damping — Krajniak et al. JCTC 2016), so
+# transient force spikes from AT interactions turning on are removed as
+# heat instead of accumulating as runaway kinetic energy.
 unfix relax
 unfix freeze
 fix limit_all all nve/limit 0.05
+fix therm_ramp at_atoms langevin 300.0 300.0 100.0 71934
 fix_modify bm active yes
 timestep 0.10
 run 20000
@@ -152,6 +163,7 @@ print "Phase 1 complete: lambda ramp done"
 
 # === Phase 2: NVT equilibration with gradual dt ===
 unfix limit_all
+unfix therm_ramp
 fix nvt_at at_atoms nvt temp 300.0 300.0 100.0
 fix nvt_cg cg_atoms nvt temp 300.0 300.0 100.0
 timestep 0.25

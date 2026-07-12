@@ -17,14 +17,17 @@ pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ...
 
 `pair_style backmap` is a hybrid-like pair style that delegates force
 computation to two sub-styles (AT and CG) and weights the results by the
-current lambda values of the interacting atoms.
+single global lambda value (`lambda_global`) and whether the pair's atoms
+map to the same CG bead (see [theory: Force Weighting](../theory.md#force-weighting)).
 
 For each pair of atoms *i* and *j*:
 
-- **AT-type pairs** (tagged `atomistic` in `pair_coeff`):
-  force is weighted by \( w_\text{AT} = \lambda_i \times \lambda_j \)
 - **CG-type pairs** (tagged `cg` in `pair_coeff`):
-  force is weighted by \( w_\text{CG} = 1 - \lambda_i \times \lambda_j \)
+  force is weighted by \( w_\text{CG} = 1 - \lambda_\text{global} \)
+- **AT-type pairs** (tagged `atomistic` in `pair_coeff`), same CG bead:
+  full strength once \( \lambda_\text{global} > 0 \)
+- **AT-type pairs**, different CG beads:
+  force is weighted by \( w_\text{AT} = \lambda_\text{global} \)
 - **None pairs** (tagged `none`): no interaction
 
 Both force and energy are scaled by the weight factor. Interactions with

@@ -149,9 +149,13 @@ void AngleBackmapTable::init_style() {
 void AngleBackmapTable::compute(int eflag, int vflag) {
   ev_init(eflag, vflag);
 
-  double *lam = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lam)
-    error->all(FLERR, "angle_style backmap/table: cannot extract lambda");
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
+    error->all(FLERR,
+               "angle_style backmap/table: cannot extract atom2cg/"
+               "lambda_global");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -166,9 +170,9 @@ void AngleBackmapTable::compute(int eflag, int vflag) {
     int i3 = anglelist[n][2];
     int atype = anglelist[n][3];
 
-    double li = BackmapLambda::clamp_lambda(lam[i1]);
-    double lk = BackmapLambda::clamp_lambda(lam[i3]);
-    double w = BackmapLambda::compute_weight(li, lk, is_cg[atype]);
+    bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2, i3);
+    double w =
+        BackmapLambda::compute_weight3(same_bead, is_cg[atype], lambda_global);
 
     if (BackmapLambda::is_almost_zero(w)) continue;
 
@@ -263,11 +267,13 @@ double AngleBackmapTable::single(int atype, int i1, int i2, int i3) {
 
   double w = 1.0;
   if (fix_backmap) {
-    double *lam = BackmapLambda::extract_lambda(fix_backmap);
-    if (lam) {
-      double li = BackmapLambda::clamp_lambda(lam[i1]);
-      double lk = BackmapLambda::clamp_lambda(lam[i3]);
-      w = BackmapLambda::compute_weight(li, lk, is_cg[atype]);
+    int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+    double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+    if (atom2cg && lam_global_ptr) {
+      double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2, i3);
+      w = BackmapLambda::compute_weight3(same_bead, is_cg[atype],
+                                         lambda_global);
     }
   }
   return eng * w;

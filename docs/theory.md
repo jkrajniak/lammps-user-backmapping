@@ -70,32 +70,40 @@ from a sudden global transition.
 
 ## Force Weighting
 
-All interactions (pair, bond, angle) are weighted by lambda. The weighting
-scheme uses the product of the lambda values of the interacting atoms.
+All interactions (pair, bond, angle, dihedral) are weighted by a single
+**global** lambda value, `lambda_global` (not a per-particle product), plus
+whether the interacting atoms belong to the same CG bead
+(`atom2cg` co-membership):
 
-### Non-bonded Pair Interactions
-
-For a pair of atoms *i* and *j*:
-
-- **AT interactions**: weighted by \( w_\text{AT} = \lambda_i \times \lambda_j \)
-- **CG interactions**: weighted by \( w_\text{CG} = 1 - \lambda_i \times \lambda_j \)
+- **CG term**: \( w_\text{CG} = 1 - \lambda_\text{global} \)
+- **AT term, same CG bead** (intra-bead): full strength as soon as
+  \( \lambda_\text{global} > 0 \) — a step function, not scaled by
+  \( \lambda_\text{global} \)
+- **AT term, different CG beads** (inter-bead): \( w_\text{AT} = \lambda_\text{global} \)
 
 This ensures:
 
-- At &lambda; = 0: only CG interactions are active (\( w_\text{CG} = 1 \), \( w_\text{AT} = 0 \))
-- At &lambda; = 1: only AT interactions are active (\( w_\text{CG} = 0 \), \( w_\text{AT} = 1 \))
-- During the transition: both sets of interactions contribute with complementary weights
+- At &lambda; = 0: only CG interactions are active (\( w_\text{CG} = 1 \), all AT terms 0)
+- At &lambda; = 1: only AT interactions are active (\( w_\text{CG} = 0 \), all AT terms 1)
+- During the transition: intra-bead AT motion is driven at full strength as
+  soon as the ramp starts, while inter-bead AT terms and CG terms fade
+  in/out linearly with the global ramp
 
-### Bonded Interactions (Bonds and Angles)
+See `backmap_lambda_weights.h::compute_weight3()`/`same_bead()` for the
+implementation; both are covered by fast unit tests in `tests/unit/`.
 
-Cross-CG bonded interactions (bonds and angles that span CG bead boundaries)
-use the same weighting scheme:
+### Non-bonded Pair Interactions
 
-- **AT cross bonds/angles**: \( w = \lambda_i \times \lambda_j \)
-- **CG cross bonds/angles**: \( w = 1 - \lambda_i \times \lambda_j \)
+`pair_style backmap` classifies each pair by atom type (AT vs CG) *and*, for
+AT-AT pairs, by whether both atoms map to the same CG bead
+(via `atom2cg`) to select the intra-bead vs inter-bead case above.
 
-For angles, the weight is computed from the first and last atoms of the
-angle triplet (*i*-*j*-*k*), using \( \lambda_i \) and \( \lambda_k \).
+### Bonded Interactions (Bonds, Angles, Dihedrals)
+
+Cross-CG bonded interactions (bonds/angles/dihedrals that span CG bead
+boundaries) use the same three-way formula, checking same-bead membership
+across all atoms in the interaction (2 for bonds, 3 for angles, 4 for
+dihedrals).
 
 Intra-bead AT bonds and angles (within a single CG bead) use standard LAMMPS
 styles without lambda weighting, since they exist at both resolutions.
@@ -113,16 +121,17 @@ methods, and are provided as tabulated potentials. They fade out as &lambda;
 increases:
 
 \[
-F_\text{CG bond} = (1 - \lambda_i \lambda_j) \times F_\text{table}(r)
+F_\text{CG bond} = (1 - \lambda_\text{global}) \times F_\text{table}(r)
 \]
 
 ### AT Cross Bonds
 
 These are the atomistic bonds between atoms in different CG beads. They fade
-in as &lambda; increases:
+in linearly with &lambda; (atoms in the *same* CG bead instead jump to full
+strength as soon as &lambda; > 0 — see [Force Weighting](#force-weighting)):
 
 \[
-F_\text{AT bond} = \lambda_i \lambda_j \times (-k)(r - r_0)
+F_\text{AT bond, inter-bead} = \lambda_\text{global} \times (-k)(r - r_0)
 \]
 
 ### AT Cross Angles

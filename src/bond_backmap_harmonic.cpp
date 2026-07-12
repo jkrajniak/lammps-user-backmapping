@@ -15,7 +15,9 @@
    F = -w × k × (r - r0)
    E = w × 0.5 × k × (r - r0)²
 
-   where w = λ_i × λ_j (at) or 1 − λ_i × λ_j (cg).
+   where w comes from a single global lambda scalar and CG-bead
+   co-membership: 1-lambda_global (cg), 1 once lambda_global>0 (at,
+   same bead), or lambda_global (at, different beads).
 
    Syntax:
      bond_style backmap/harmonic
@@ -114,9 +116,13 @@ void BondBackmapHarmonic::init_style() {
 void BondBackmapHarmonic::compute(int eflag, int vflag) {
   ev_init(eflag, vflag);
 
-  double *lam = BackmapLambda::extract_lambda(fix_backmap);
-  if (!lam)
-    error->all(FLERR, "bond_style backmap/harmonic: cannot extract lambda");
+  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+  if (!atom2cg || !lam_global_ptr)
+    error->all(FLERR,
+               "bond_style backmap/harmonic: cannot extract atom2cg/"
+               "lambda_global");
+  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
   double **x = atom->x;
   double **f = atom->f;
@@ -140,9 +146,9 @@ void BondBackmapHarmonic::compute(int eflag, int vflag) {
     double rk = k[btype] * dr;
 
     // Lambda weighting
-    double li = BackmapLambda::clamp_lambda(lam[i1]);
-    double lj = BackmapLambda::clamp_lambda(lam[i2]);
-    double w = BackmapLambda::compute_weight(li, lj, is_cg[btype]);
+    bool same_bead = BackmapLambda::same_bead(atom2cg, i1, i2);
+    double w =
+        BackmapLambda::compute_weight3(same_bead, is_cg[btype], lambda_global);
 
     if (BackmapLambda::is_almost_zero(w)) continue;
 
@@ -181,11 +187,13 @@ double BondBackmapHarmonic::single(int btype, double rsq, int i, int j,
 
   double w = 1.0;
   if (fix_backmap) {
-    double *lam = BackmapLambda::extract_lambda(fix_backmap);
-    if (lam) {
-      double li = BackmapLambda::clamp_lambda(lam[i]);
-      double lj = BackmapLambda::clamp_lambda(lam[j]);
-      w = BackmapLambda::compute_weight(li, lj, is_cg[btype]);
+    int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+    double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+    if (atom2cg && lam_global_ptr) {
+      double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
+      w = BackmapLambda::compute_weight3(same_bead, is_cg[btype],
+                                         lambda_global);
     }
   }
 

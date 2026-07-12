@@ -11,15 +11,17 @@
 ------------------------------------------------------------------------- */
 
 /* Shared lambda-access utilities for all backmap styles.
-   Provides: fix lookup, per-atom lambda access, weight computation,
-   and negligible-weight check.
+   Provides: fix lookup, atom2cg/lambda_global access. The pure weighting
+   math (compute_weight3, same_bead, clamp_lambda, is_almost_zero) lives in
+   backmap_lambda_weights.h so it can be unit-tested without LAMMPS.
 
    Usage pattern in a style's compute():
-     double *lambda = BackmapLambda::extract_lambda(fix_backmap);
-     for each interaction:
-       double li = BackmapLambda::clamp_lambda(lambda[i]);
-       double lj = BackmapLambda::clamp_lambda(lambda[j]);
-       double w  = BackmapLambda::compute_weight(li, lj, is_cg);
+     int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+     double lambda_global =
+         BackmapLambda::clamp_lambda(*BackmapLambda::extract_lambda_global(fix_backmap));
+     for each interaction (e.g. pair i,j):
+       bool same = BackmapLambda::same_bead(atom2cg, i, j);
+       double w  = BackmapLambda::compute_weight3(same, is_cg, lambda_global);
        if (BackmapLambda::is_almost_zero(w)) continue;
        ... compute force, scale by w ...
 */
@@ -27,9 +29,9 @@
 #ifndef LMP_BACKMAP_LAMBDA_H
 #define LMP_BACKMAP_LAMBDA_H
 
-#include <cmath>
 #include <cstring>
 
+#include "backmap_lambda_weights.h"
 #include "error.h"
 #include "fix.h"
 #include "lmptype.h"
@@ -37,8 +39,6 @@
 
 namespace LAMMPS_NS {
 namespace BackmapLambda {
-
-static constexpr double WEIGHT_ZERO_THRESHOLD = 1.0e-10;
 
 // Scan the fix list for a fix with style "backmap". Aborts if not found.
 inline Fix *find_fix_backmap(LAMMPS *lmp, const char *caller) {
@@ -59,25 +59,20 @@ inline double *extract_lambda(Fix *fix_backmap) {
   return ptr;
 }
 
-// Clamp lambda: negative values (from nonuniform init) → 0, cap at 1.
-inline double clamp_lambda(double val) {
-  if (val < 0.0) return 0.0;
-  if (val > 1.0) return 1.0;
-  return val;
+// Extract the per-atom CG-bead-membership map (local-or-ghost index of the
+// mapped CG bead, -1 if none) from fix backmap.
+inline int *extract_atom2cg(Fix *fix_backmap) {
+  int dim = 0;
+  auto *ptr = static_cast<int *>(fix_backmap->extract("atom2cg", dim));
+  return ptr;
 }
 
-// Compute the weight for a pair interaction.
-//   AT style (is_cg=false):  w = λ_i × λ_j
-//   CG style (is_cg=true):   w = 1 − λ_i × λ_j
-inline double compute_weight(double lambda_i, double lambda_j, bool is_cg) {
-  double w = lambda_i * lambda_j;
-  return is_cg ? (1.0 - w) : w;
-}
-
-// Returns true when the weight is negligible and the interaction
-// can be skipped for efficiency.
-inline bool is_almost_zero(double w) {
-  return std::fabs(w) < WEIGHT_ZERO_THRESHOLD;
+// Extract a pointer to the single authoritative global lambda scalar from
+// fix backmap. Dereference to get the current value.
+inline double *extract_lambda_global(Fix *fix_backmap) {
+  int dim = 0;
+  auto *ptr = static_cast<double *>(fix_backmap->extract("lambda_global", dim));
+  return ptr;
 }
 
 }  // namespace BackmapLambda

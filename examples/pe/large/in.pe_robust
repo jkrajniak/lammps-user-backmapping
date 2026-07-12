@@ -68,9 +68,14 @@ run 10000
 print "Phase 0b complete: AT overlap relaxation done"
 
 # === Phase 1: Lambda ramp with nve/limit ===
+# Thermostat runs throughout the ramp (matching the original AdResS
+# protocol's always-on Langevin damping — Krajniak et al. JCTC 2016), so
+# transient force spikes from AT interactions turning on are removed as
+# heat instead of accumulating as runaway kinetic energy.
 unfix relax
 unfix freeze
 fix limit_all all nve/limit 0.05
+fix therm_ramp at_atoms langevin 423.0 423.0 100.0 58213
 fix_modify bm active yes
 timestep 0.10
 run 20000
@@ -78,6 +83,7 @@ print "Phase 1 complete: lambda ramp done"
 
 # === Phase 2: NVT equilibration at melt T (423 K) ===
 unfix limit_all
+unfix therm_ramp
 fix nvt_at at_atoms nvt temp 423.0 423.0 100.0
 fix nvt_cg cg_atoms nvt temp 423.0 423.0 100.0
 timestep 0.25

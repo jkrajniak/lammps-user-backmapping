@@ -113,6 +113,15 @@ The fix stores one per-atom value: the current lambda. Access it via:
 - `f_ID` in thermo output
 - `extract("lambda", dim)` from C++ code
 
+For the lambda-weighting formula used by every `backmap/*` style, C++ code
+also reads two more `extract()` keys (see
+[theory: Force Weighting](../theory.md#force-weighting)):
+
+- `extract("atom2cg", dim)` -- per-atom (local + ghost) index of the mapped
+  CG bead, or `-1` if unmapped; `dim=1`
+- `extract("lambda_global", dim)` -- pointer to the single authoritative
+  global lambda scalar (ramped the same way as per-atom `lambda[]`); `dim=0`
+
 ## Restart
 
 Per-atom lambda values are written to restart files and restored on restart,
