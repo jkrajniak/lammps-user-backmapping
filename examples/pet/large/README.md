@@ -26,7 +26,7 @@ archive, `paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping/
 | `pairs.dat` | yes (483 KB, under 500 KB pre-commit limit) | 1-4 pair list for `fix backmap/pairs` |
 | `pet.data` | **no** (4.8 MB) | generated LAMMPS data file — regenerate via `backmap-prep build` (see below) |
 | `table_a0.table`..`table_a3.table`, `table_d0.table`, `table_d1.table` | **no** (1.8-3.7 MB each) | large angle/dihedral tables — regenerate the same way |
-| `log.pet_tierb.lammps`, `pet_tierb.out` | no | most recent VM run log, kept locally for debugging reference |
+| `log.pet_*.lammps`, `pet_tierb.out` | no | VM run logs; regenerate on demand, don't keep stale ones around (gitignored) |
 
 ## How to regenerate the large files
 
