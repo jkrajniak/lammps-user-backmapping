@@ -15,7 +15,7 @@
    Delegates force computation to AT and CG sub-styles, then weights by a
    single global lambda scalar and CG-bead co-membership:
      CG:                                   w = 1 - lambda_global
-     AT intra-bead (same CG bead):        w = 1 once lambda_global > 0
+     AT intra-bead (same CG bead):        w = 1 always
      AT inter-bead (different CG beads):  w = lambda_global
 
    Syntax:
@@ -46,14 +46,13 @@
 
 using namespace LAMMPS_NS;
 
-// AT pair interactions are λ-weighted from λ=0 via compute_weight(), which
-// gives a smooth onset (0 at λ=0, ramping up). A hard threshold here would
-// keep AT-LJ fully off until the threshold then jump, shocking systems whose
-// AT atoms start overlapped (e.g. PET aromatic beads) before the λ-weighted
-// AT bonds have separated them. Leave the onset at 0 and rely on the smooth
-// λ-weighting plus the CG potentials + 1-2/1-3/1-4 exclusions to handle
-// overlaps.
-static constexpr double LAMBDA_AT_ONSET = 0.0;
+// Inter-bead (intermolecular) AT-AT pair interactions are deferred until
+// lambda_global reaches this value. Prevents LJ singularities from
+// inter-molecular overlaps at early lambda (backmap-prep does not relax
+// fragment placement against other molecules' fragments). Does NOT apply
+// to intra-bead (same CG bead / same-molecule) AT-AT terms, which are
+// always active (see backmap_lambda_weights.h).
+static constexpr double LAMBDA_AT_ONSET = 0.1;
 
 /* ---------------------------------------------------------------------- */
 
@@ -275,8 +274,11 @@ double PairBackmap::init_one(int i, int j) {
 
    For each pair:
    - CG type pairs: compute CG force, weight by w_CG = 1 - lambda_global
-   - AT type pairs, same CG bead: full strength once lambda_global > 0
-   - AT type pairs, different CG beads: weight by w_AT = lambda_global
+   - AT type pairs, same CG bead: always full strength, unconditionally
+     (real intra-molecular chemistry, independent of lambda_global)
+   - AT type pairs, different CG beads: weight by w_AT = lambda_global,
+     deferred below LAMBDA_AT_ONSET for numerical safety against
+     un-relaxed inter-molecular overlaps
    - Cross-type or NONE pairs: skip */
 
 void PairBackmap::compute(int eflag, int vflag) {
@@ -335,7 +337,7 @@ void PairBackmap::compute(int eflag, int vflag) {
 
       if (BackmapLambda::is_almost_zero(w)) continue;
 
-      if (!is_cg && lambda_global < LAMBDA_AT_ONSET) continue;
+      if (!is_cg && !same_bead && lambda_global < LAMBDA_AT_ONSET) continue;
 
       Pair *sub = is_cg ? pair_cg : pair_at;
       double fforce = 0.0;

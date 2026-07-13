@@ -9,6 +9,20 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **AT intra-bead lambda weighting**: `compute_weight3` incorrectly gated
+  AT intra-bead (same-CG-bead) terms to `w = 0` at `lambda_global = 0`
+  instead of always `w = 1`. Intra-molecular AT chemistry (bonds, angles,
+  dihedrals, LJ within one fragment) exists independent of the CG/AT
+  resolution ramp, matching ESPResSo++'s production driver
+  (`start_backmapping.py`), which builds the full AT interaction list
+  unconditionally before the ramp mechanism is ever activated. Fixed in
+  `backmap_lambda_weights.h`; `pair_backmap`'s `LAMBDA_AT_ONSET` deferral
+  now only applies to inter-bead (intermolecular) AT-AT pairs. Validated
+  by 21 unit tests and a VM regression across dodecane/PE/rim135/melamine
+  (all Tier B PASS after also adding a Phase 0b Langevin thermostat to
+  each example, since AT strain now releases as real, un-damped kinetic
+  energy during that stage).
+
 - **Lambda-weighting formula**: all 8 `backmap/*` styles (`pair_backmap`,
   `bond_backmap_harmonic`/`table`, `angle_backmap_harmonic`/`table`,
   `dihedral_backmap_ryckaert`/`table`, `fix_backmap/pairs`) previously

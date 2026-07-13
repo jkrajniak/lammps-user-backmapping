@@ -61,10 +61,14 @@ fix freeze cg_atoms setforce 0.0 0.0 0.0
 minimize 1.0e-4 1.0e-6 1000 10000
 print "Phase 0a complete: minimization done"
 
-# === Phase 0b: Gentle relaxation (CG frozen, nve/limit) ===
+# === Phase 0b: Gentle relaxation (CG frozen, nve/limit). AT intra-bead
+# chemistry is always fully active (see docs/theory.md), so a thermostat
+# is needed here too, not just during the ramp. ===
 fix relax at_atoms nve/limit 0.01
+fix therm_relax at_atoms langevin 423.0 423.0 20.0 58212
 timestep 0.01
 run 10000
+unfix therm_relax
 print "Phase 0b complete: AT overlap relaxation done"
 
 # === Phase 1: Lambda ramp with nve/limit ===

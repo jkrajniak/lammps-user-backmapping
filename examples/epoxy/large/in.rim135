@@ -15,13 +15,15 @@
 #   Phase 0a — minimize with CG frozen (removes AT/AT overlaps from rigid
 #              fragment placement before any dynamics).
 #   Phase 0b — gentle AT relaxation (CG still frozen), tiny dt (0.01 fs),
-#              nve/limit, no thermostat needed since KE stays bounded.
+#              nve/limit + Langevin thermostat. AT intra-bead chemistry is
+#              always fully active (see notebook
+#              2026-07-12_at-intrabead-always-on-fix.md), so the network's
+#              strained rigid-fragment placement releases as real kinetic
+#              energy here; without a thermostat this accumulates into a
+#              multi-hundred-thousand-K spike once the ramp starts.
 #   Phase 1  — lambda ramp (dt 0.10 fs), nve/limit + Langevin thermostat on
 #              AT atoms throughout, matching the original AdResS protocol's
-#              always-on damping (Krajniak et al. JCTC 2016). Without the
-#              thermostat, the new model's "instant full-strength AT
-#              same-bead" onset spikes T to ~1e7 K within a few thousand
-#              steps; with it, T recovers to ~300 K by lambda=0.5.
+#              always-on damping (Krajniak et al. JCTC 2016).
 #   Phase 2  — NVT production with a gradual dt ramp-up (0.25 -> 0.50 -> 1.00 fs).
 
 units real
@@ -1001,11 +1003,17 @@ fix freeze cg_atoms setforce 0.0 0.0 0.0
 minimize 1.0e-4 1.0e-6 1000 10000
 print "Phase 0a complete: minimization done"
 
-# === Phase 0b: Gentle AT relaxation (CG frozen, nve/limit, tiny dt) ===
+# === Phase 0b: Gentle AT relaxation (CG frozen, nve/limit, tiny dt). AT
+# intra-bead chemistry is always fully active (see docs/theory.md), so a
+# thermostat is needed here too, not just during the ramp: the network's
+# rigid fragment placement is more strained than dodecane/PE, and without
+# damping this strain release accumulates as runaway kinetic energy. ===
 fix relax at_atoms nve/limit 0.01
+fix therm_relax at_atoms langevin 298.0 298.0 20.0 48280
 timestep 0.01
 run 10000
 unfix relax
+unfix therm_relax
 print "Phase 0b complete: AT overlap relaxation done"
 
 # === Phase 1: Lambda ramp (small dt, thermostat active throughout) ===

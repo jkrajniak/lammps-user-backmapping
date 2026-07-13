@@ -14,9 +14,9 @@ bond_coeff N at/cg K r0
 
 - **N** -- bond type number
 - **at** or **cg** -- weighting mode
-    - `at`: full strength once the global &lambda; > 0 if both atoms map to
-      the same CG bead, otherwise weight = &lambda;<sub>global</sub>
-      (fades in during backmapping)
+    - `at`: always full strength if both atoms map to the same CG bead
+      (real intra-molecular chemistry, independent of &lambda;), otherwise
+      weight = &lambda;<sub>global</sub> (fades in during backmapping)
     - `cg`: weight = 1 - &lambda;<sub>global</sub>
       (fades out during backmapping)
 - **K** -- force constant (energy/distance&sup2; units)

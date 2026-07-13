@@ -2,7 +2,9 @@
    dihedral_style backmap/ryckaert — lambda-weighted RB dihedral.
 
    E = w × Σ Cn cos^n(φ)
-   Weight w uses lambda of endpoints i and l.
+   w comes from a single global lambda scalar and CG-bead co-membership
+   across all four atoms: 1-lambda_global (cg), 1 always (at, same bead),
+   or lambda_global (at, different beads).
 
    Syntax:
      dihedral_style backmap/ryckaert
