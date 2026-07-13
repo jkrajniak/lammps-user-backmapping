@@ -16,8 +16,8 @@
    E = w × 0.5 × k × (r - r0)²
 
    where w comes from a single global lambda scalar and CG-bead
-   co-membership: 1-lambda_global (cg), 1 once lambda_global>0 (at,
-   same bead), or lambda_global (at, different beads).
+   co-membership: 1-lambda_global (cg), 1 always (at, same bead), or
+   lambda_global (at, different beads).
 
    Syntax:
      bond_style backmap/harmonic

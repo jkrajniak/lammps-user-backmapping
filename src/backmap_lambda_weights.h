@@ -18,9 +18,18 @@
    Weighting uses a single global lambda scalar (not a per-particle
    product) and per-atom CG-bead membership, giving three cases:
      - CG-CG (is_cg=true):                       w = 1 - lambda_global
-     - AT-AT intra-bead (same CG bead):          w = 1 once lambda_global>0
+     - AT-AT intra-bead (same CG bead):          w = 1 always
      - AT-AT inter-bead (different CG beads):    w = lambda_global
-*/
+
+   The intra-bead case is deliberately NOT gated by lambda: it represents
+   real intra-molecular chemistry (bonds/angles/dihedrals/LJ within the
+   same fragment) that exists independent of the CG/AT resolution ramp,
+   matching the original ESPResSo++ production driver
+   (bakery/src/start_backmapping.py), which builds the full AT interaction
+   list once, unconditionally, before the resolution ramp is ever
+   activated. Only the *inter-bead* (intermolecular) AT-AT term and the
+   CG-CG term are actually resolution-dependent. See notebook
+   2026-07-12_at-intrabead-always-on-fix.md. */
 
 #ifndef LMP_BACKMAP_LAMBDA_WEIGHTS_H
 #define LMP_BACKMAP_LAMBDA_WEIGHTS_H
@@ -62,14 +71,14 @@ inline bool same_bead(const int *atom2cg, int i1, int i2, int i3, int i4) {
 // scalar (not a per-particle product) and CG-bead co-membership:
 //   CG term (is_cg=true):                       w = 1 - lambda_global
 //     (Phase 1 override: w = 1.0 regardless of lambda_global)
-//   AT intra-bead term (same_bead=true):         w = 1 once lambda_global>0
+//   AT intra-bead term (same_bead=true):         w = 1 always
 //   AT inter-bead term (same_bead=false):        w = lambda_global
 // `phase` defaults to 2 (the standard, single-phase MVP behavior). Only
 // the CG case is phase-sensitive; AT weighting is identical in both phases.
 inline double compute_weight3(bool is_same_bead, bool is_cg,
                               double lambda_global, int phase = 2) {
   if (is_cg) return (phase == 1) ? 1.0 : (1.0 - lambda_global);
-  if (is_same_bead) return (lambda_global > 0.0) ? 1.0 : 0.0;
+  if (is_same_bead) return 1.0;
   return lambda_global;
 }
 

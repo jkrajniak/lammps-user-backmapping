@@ -9,9 +9,9 @@ angle_coeff N at/cg K theta0
 
 - **N** -- angle type number
 - **at** or **cg** -- weighting mode
-    - `at`: full strength once the global &lambda; > 0 if all three atoms
-      map to the same CG bead, otherwise weight = &lambda;<sub>global</sub>
-      (fades in during backmapping)
+    - `at`: always full strength if all three atoms map to the same CG bead
+      (real intra-molecular chemistry, independent of &lambda;), otherwise
+      weight = &lambda;<sub>global</sub> (fades in during backmapping)
     - `cg`: weight = 1 - &lambda;<sub>global</sub>
       (fades out during backmapping)
 - **K** -- force constant (energy/radian&sup2; units)
