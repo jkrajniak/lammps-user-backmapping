@@ -76,18 +76,32 @@ whether the interacting atoms belong to the same CG bead
 (`atom2cg` co-membership):
 
 - **CG term**: \( w_\text{CG} = 1 - \lambda_\text{global} \)
-- **AT term, same CG bead** (intra-bead): full strength as soon as
-  \( \lambda_\text{global} > 0 \) — a step function, not scaled by
-  \( \lambda_\text{global} \)
-- **AT term, different CG beads** (inter-bead): \( w_\text{AT} = \lambda_\text{global} \)
+- **AT term, same CG bead** (intra-bead): \( w_\text{AT,intra} = 1 \) always,
+  unconditionally — this represents real intra-molecular chemistry
+  (bonds/angles/dihedrals/LJ within one fragment), which exists independent
+  of the CG/AT resolution ramp
+- **AT term, different CG beads** (inter-bead): \( w_\text{AT,inter} = \lambda_\text{global} \)
 
 This ensures:
 
-- At &lambda; = 0: only CG interactions are active (\( w_\text{CG} = 1 \), all AT terms 0)
-- At &lambda; = 1: only AT interactions are active (\( w_\text{CG} = 0 \), all AT terms 1)
-- During the transition: intra-bead AT motion is driven at full strength as
-  soon as the ramp starts, while inter-bead AT terms and CG terms fade
-  in/out linearly with the global ramp
+- At &lambda; = 0: CG interactions are fully active
+  (\( w_\text{CG} = 1 \)), intra-bead AT chemistry is also fully active
+  (\( w_\text{AT,intra} = 1 \)), and inter-bead (intermolecular) AT terms
+  are off (\( w_\text{AT,inter} = 0 \)) — matching the original ESPResSo++
+  production driver, which builds the full AT interaction list once,
+  unconditionally, before the resolution ramp is activated
+  (`bakery/src/start_backmapping.py`)
+- At &lambda; = 1: CG interactions are off (\( w_\text{CG} = 0 \)) and both
+  AT terms are fully active
+- During the transition: intra-bead AT chemistry is unaffected by the ramp;
+  only the inter-bead AT terms and CG terms fade in/out linearly with the
+  global ramp
+
+`pair_style backmap` additionally defers inter-bead (not intra-bead) AT-AT
+pair evaluation until \( \lambda_\text{global} \) exceeds a small onset
+threshold (`LAMBDA_AT_ONSET`), purely for numerical safety against
+un-relaxed inter-molecular overlaps from rigid fragment placement — this is
+a pair-style-level guard, not part of the weighting formula itself.
 
 See `backmap_lambda_weights.h::compute_weight3()`/`same_bead()` for the
 implementation; both are covered by fast unit tests in `tests/unit/`.
@@ -105,8 +119,10 @@ boundaries) use the same three-way formula, checking same-bead membership
 across all atoms in the interaction (2 for bonds, 3 for angles, 4 for
 dihedrals).
 
-Intra-bead AT bonds and angles (within a single CG bead) use standard LAMMPS
-styles without lambda weighting, since they exist at both resolutions.
+Intra-bead AT bonds, angles, and dihedrals (within a single CG bead) use the
+same `backmap/*` styles as cross-CG terms, but resolve to weight 1
+unconditionally (see above) since they represent real intra-molecular
+chemistry that exists independent of the resolution ramp.
 
 ## Cross Interactions
 

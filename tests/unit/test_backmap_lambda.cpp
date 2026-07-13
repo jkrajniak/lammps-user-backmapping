@@ -38,16 +38,19 @@ TEST(ComputeWeight3, CgPhase1OverridesToFullStrength) {
   EXPECT_DOUBLE_EQ(compute_weight3(false, true, 1.0, /*phase=*/1), 1.0);
 }
 
-// ---- AT intra-bead (same_bead=true): step function, not scaled ----
+// ---- AT intra-bead (same_bead=true): always full strength, independent
+// of lambda_global. Represents real intra-molecular chemistry that exists
+// regardless of the CG/AT resolution ramp (matches the original
+// ESPResSo++ production driver, which builds the full AT interaction list
+// once, unconditionally, before the resolution ramp is ever activated). ----
 
-TEST(ComputeWeight3, AtIntraBeadIsZeroAtLambdaZero) {
+TEST(ComputeWeight3, AtIntraBeadIsFullStrengthAtLambdaZero) {
   EXPECT_DOUBLE_EQ(compute_weight3(/*same_bead=*/true, /*is_cg=*/false, 0.0),
-                   0.0);
+                   1.0);
 }
 
-TEST(ComputeWeight3, AtIntraBeadIsFullStrengthAsSoonAsLambdaPositive) {
-  constexpr double kTinyEpsilon = 1.0e-9;
-  EXPECT_DOUBLE_EQ(compute_weight3(true, false, kTinyEpsilon), 1.0);
+TEST(ComputeWeight3, AtIntraBeadIsFullStrengthAtAnyLambda) {
+  EXPECT_DOUBLE_EQ(compute_weight3(true, false, 1.0e-9), 1.0);
   EXPECT_DOUBLE_EQ(compute_weight3(true, false, 0.5), 1.0);
   EXPECT_DOUBLE_EQ(compute_weight3(true, false, 1.0), 1.0);
 }
