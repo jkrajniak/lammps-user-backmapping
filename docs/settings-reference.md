@@ -391,11 +391,13 @@ smaller than `timestep` if the hybrid is stiff or dense. The writer also emits
 
 #### `simulation.equilibration_steps`
 
-Optional in-hybrid relaxation with λ frozen (`fix_modify bm active no`): only
-atomistic atoms are thermostatted while CG sites stay fixed. Runs **before** the
-λ ramp, using `timestep_backmapping`. Use `0` when the CG melt was equilibrated
-before building the hybrid and the hybrid starts stable; use a few thousand
-steps for dense melts if you see missing-bond errors early in the ramp.
+Optional in-hybrid relaxation with λ frozen (`fix_modify bm active no`): hybrid
+CG–AT coupling (COM tracking, force distribution) continues; only the λ ramp
+is paused. CG sites are not integrated directly — apply thermostats to AT
+groups as usual. Runs **before** the λ ramp, using `timestep_backmapping`.
+Use `0` when the CG melt was equilibrated before building the hybrid and the
+hybrid starts stable; use a few thousand steps for dense melts if you see
+missing-bond errors early in the ramp.
 
 | | |
 |---|---|

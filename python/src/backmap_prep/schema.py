@@ -309,7 +309,8 @@ class SimulationParams(BaseModel):
         default=0,
         ge=0,
         description=(
-            "In-hybrid CG equilibration steps with λ frozen (fix_modify active no). "
+            "In-hybrid equilibration steps with λ frozen (fix_modify active no; "
+            "CG-AT coupling stays on). "
             "Use 0 when the CG melt was equilibrated before building the hybrid (recommended)."
         ),
     )

@@ -46,13 +46,22 @@
 
 using namespace LAMMPS_NS;
 
-// Inter-bead (intermolecular) AT-AT pair interactions are deferred until
-// lambda_global reaches this value. Prevents LJ singularities from
-// inter-molecular overlaps at early lambda (backmap-prep does not relax
-// fragment placement against other molecules' fragments). Does NOT apply
-// to intra-bead (same CG bead / same-molecule) AT-AT terms, which are
-// always active (see backmap_lambda_weights.h).
-static constexpr double LAMBDA_AT_ONSET = 0.1;
+// Inter-bead (intermolecular) AT-AT pair interactions are lambda-weighted
+// from lambda_global=0 via compute_weight3(), which already gives a smooth
+// onset (w=0 at lambda=0, ramping linearly to w=1). A nonzero hard
+// threshold here would keep this term fully OFF (not just weighted near
+// zero) until lambda_global crosses it, then suddenly evaluate the real,
+// unscaled sub-potential at whatever separation the un-relaxed fragment
+// placement happens to have -- a genuine force discontinuity, not a
+// smoothing device. This caused PET/Dacron to blow up the instant
+// lambda_global crossed a nonzero threshold (T: 300 -> 71,000+ K within a
+// few hundred steps), independent of ramp dt/thermostat tuning -- see
+// notebook 2026-07-13_at-intrabead-always-on-fix.md. This exact regression
+// was already diagnosed and fixed once before, on the unmerged
+// feat/pete-example branch (commit eec9dc9, 2026-07-11): "Smooth
+// compute_weight() onset suffices; ESPResSo++ has no threshold." Keep it
+// at 0.0 -- do not reintroduce a nonzero value without re-deriving why.
+static constexpr double LAMBDA_AT_ONSET = 0.0;
 
 /* ---------------------------------------------------------------------- */
 
@@ -277,8 +286,8 @@ double PairBackmap::init_one(int i, int j) {
    - AT type pairs, same CG bead: always full strength, unconditionally
      (real intra-molecular chemistry, independent of lambda_global)
    - AT type pairs, different CG beads: weight by w_AT = lambda_global,
-     deferred below LAMBDA_AT_ONSET for numerical safety against
-     un-relaxed inter-molecular overlaps
+     smoothly from lambda_global=0 (LAMBDA_AT_ONSET=0.0 -- do not
+     reintroduce a nonzero hard threshold, see comment above)
    - Cross-type or NONE pairs: skip */
 
 void PairBackmap::compute(int eflag, int vflag) {

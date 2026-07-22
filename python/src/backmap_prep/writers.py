@@ -190,6 +190,9 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     has_static_harmonic_dihedrals = any(dt.style == "harmonic" for dt in system.dihedral_types)
     has_static_charmm = any(dt.style == "charmm" for dt in system.dihedral_types)
     has_backmap_rb = any(dt.style == "backmap/ryckaert" for dt in system.dihedral_types)
+    has_backmap_harmonic_dihedrals = any(
+        dt.style == "backmap/harmonic" for dt in system.dihedral_types
+    )
     has_backmap_charmm = any(dt.style == "backmap/charmm" for dt in system.dihedral_types)
     has_backmap_dihedral_table = any(dt.style == "backmap/table" for dt in system.dihedral_types)
 
@@ -202,6 +205,8 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         dihedral_styles.append("charmm")
     if has_backmap_rb:
         dihedral_styles.append("backmap/ryckaert")
+    if has_backmap_harmonic_dihedrals:
+        dihedral_styles.append("backmap/harmonic")
     if has_backmap_charmm:
         dihedral_styles.append("backmap/charmm")
     if has_backmap_dihedral_table:
@@ -277,6 +282,12 @@ def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} harmonic {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
+    if dihtype.style == "backmap/harmonic":
+        k_val, sign_val, n_val = dihtype.params[:3]
+        coeffs = f"{k_val:.6f} {int(sign_val)} {int(n_val)}"
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} backmap/harmonic {dihtype.keyword} {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
     if dihtype.style == "charmm":
         k_val, n_val, delta = dihtype.params[:3]
         shift = int(round(delta))
@@ -305,7 +316,11 @@ def _write_cap_force(f: IO[str], sim: SimulationParams) -> None:
     if sim.cap_force is None or sim.cap_force <= 0:
         return
     fmax = units.force(sim.cap_force)
-    f.write(f"fix cap all backmap/capforce {fmax:.4f}\n\n")
+    if sim.cap_force_ramp is not None and sim.cap_force_ramp != 0.0:
+        ramp = units.force(sim.cap_force_ramp)
+        f.write(f"fix cap all backmap/capforce {fmax:.4f} ramp {ramp:.6f}\n\n")
+    else:
+        f.write(f"fix cap all backmap/capforce {fmax:.4f}\n\n")
 
 
 def _write_integration(f: IO[str], sim: SimulationParams, params: dict[str, Any]) -> None:

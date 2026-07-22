@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from . import units
@@ -11,6 +12,109 @@ if TYPE_CHECKING:
 
     from .builder import System
     from .schema import Settings
+
+logger = logging.getLogger(__name__)
+
+# Soft-core wall for r < table r_min (LAMMPS aborts below inner cutoff; E++ clamps).
+# LAMMPS pair_table requires rlo > 0 ("Invalid pair table lower boundary" if rlo <= 0).
+_PAIR_CORE_POWER = 12.0
+_PAIR_R_FLOOR = 1.0e-4  # Å — smallest allowed table lower bound
+
+
+def extend_pair_table_to_zero(
+    r_vals: list[float],
+    e_vals: list[float],
+    f_vals: list[float],
+    *,
+    power: float = _PAIR_CORE_POWER,
+    r_floor: float = _PAIR_R_FLOOR,
+) -> tuple[list[float], list[float], list[float]]:
+    """Prepend a steep repulsive wall down to a tiny positive r (not literally 0).
+
+    LAMMPS ``pair_style table`` errors if any pair distance is below the table
+    inner cutoff, and also rejects ``rlo <= 0``. ESPResSo++ clamps to the first
+    bin instead. Extending from ``r_floor`` (> 0) to the original ``r_min`` with a
+    continuous wall matching E,F at ``r_min`` avoids the LAMMPS abort while
+    keeping the original IBI table for ``r >= r_min``.
+    """
+    if not r_vals:
+        raise ValueError("empty pair table")
+    if r_floor <= 0.0:
+        raise ValueError("r_floor must be > 0 (LAMMPS rejects rlo <= 0)")
+
+    r_min = r_vals[0]
+    if r_min <= r_floor + 1e-15:
+        # Already covers the floor (or illegal <=0 — bump first point).
+        if r_min > 0.0:
+            return list(r_vals), list(e_vals), list(f_vals)
+        fixed_r = [r_floor, *r_vals[1:]]
+        return fixed_r, list(e_vals), list(f_vals)
+
+    e0 = e_vals[0]
+    # Prefer a positive (repulsive) core; if e0 is tiny/negative, use a floor.
+    e_ref = e0 if e0 > 1.0 else 1.0e6
+
+    delta = r_vals[1] - r_vals[0] if len(r_vals) >= 2 else r_min - r_floor
+    if delta <= 0.0:
+        delta = max(r_min - r_floor, r_floor)
+
+    # r_floor, then r_floor+delta, ... strictly below r_min
+    extra_r = [r_floor]
+    k = 1
+    while True:
+        rk = r_floor + k * delta
+        if rk >= r_min - 1e-15:
+            break
+        extra_r.append(rk)
+        k += 1
+        if k > 1_000_000:
+            raise ValueError("pair table core extension produced too many points")
+
+    def wall_e(r: float) -> float:
+        return float(e_ref * (r_min / r) ** power)
+
+    def wall_f(r: float) -> float:
+        # F = -dE/dr for E = e_ref * (r_min/r)^n  → positive (repulsive)
+        return float(power * e_ref * (r_min**power) / (r ** (power + 1.0)))
+
+    new_r = extra_r + list(r_vals)
+    new_e = [wall_e(r) for r in extra_r] + list(e_vals)
+    new_f = [wall_f(r) for r in extra_r] + list(f_vals)
+    return new_r, new_e, new_f
+
+
+def parse_lammps_pair_table(path: Path) -> tuple[list[float], list[float], list[float]]:
+    """Parse a LAMMPS pair ``.table`` file into r, E, F columns."""
+    r_vals: list[float] = []
+    e_vals: list[float] = []
+    f_vals: list[float] = []
+    for line in path.read_text().splitlines():
+        s = line.strip()
+        if not s or s.startswith(("#", "ENTRY", "N ")):
+            continue
+        if not s[0].isdigit():
+            continue
+        p = s.split()
+        if len(p) < 4:
+            continue
+        r_vals.append(float(p[1]))
+        e_vals.append(float(p[2]))
+        f_vals.append(float(p[3]))
+    if not r_vals:
+        raise ValueError(f"No data found in {path}")
+    return r_vals, e_vals, f_vals
+
+
+def write_lammps_pair_table(
+    dst: Path,
+    r_vals: list[float],
+    e_vals: list[float],
+    f_vals: list[float],
+    *,
+    source: str = "",
+) -> None:
+    """Write a LAMMPS pair ``.table`` file."""
+    _write_table_file(dst, source or dst.name, r_vals, e_vals, f_vals, x_axis="distance")
 
 
 def convert_tables(
@@ -49,10 +153,24 @@ def convert_tables(
             elif kind == "dihedral":
                 _convert_dihedral_xvg(src_path, dst_path)
             else:
-                _convert_xvg(src_path, dst_path, skip_zero=skip_zero)
+                _convert_xvg(src_path, dst_path, skip_zero=skip_zero, extend_core=(kind == "pair"))
             converted.append(dst_path)
         elif suffix == ".table":
-            if src_path != dst_path:
+            if kind == "pair":
+                r_vals, e_vals, f_vals = parse_lammps_pair_table(src_path)
+                if r_vals[0] > _PAIR_R_FLOOR:
+                    logger.warning(
+                        "Pair table %s starts at r_min=%.4f Å. "
+                        "Extending down to r=%.1e Å with a steep repulsive wall "
+                        "so LAMMPS does not abort on 'Pair distance < table "
+                        "inner cutoff' (ESPResSo++ clamps; LAMMPS forbids rlo=0).",
+                        src_path.name,
+                        r_vals[0],
+                        _PAIR_R_FLOOR,
+                    )
+                r_vals, e_vals, f_vals = extend_pair_table_to_zero(r_vals, e_vals, f_vals)
+                write_lammps_pair_table(dst_path, r_vals, e_vals, f_vals, source=src_path.name)
+            elif src_path != dst_path:
                 import shutil
 
                 shutil.copy2(src_path, dst_path)
@@ -61,7 +179,13 @@ def convert_tables(
     return converted
 
 
-def _convert_xvg(src: Path, dst: Path, skip_zero: bool = False) -> None:
+def _convert_xvg(
+    src: Path,
+    dst: Path,
+    skip_zero: bool = False,
+    *,
+    extend_core: bool = False,
+) -> None:
     """Convert a GROMACS .xvg file to LAMMPS table format.
 
     Handles two formats:
@@ -100,6 +224,17 @@ def _convert_xvg(src: Path, dst: Path, skip_zero: bool = False) -> None:
 
     if not r_vals:
         raise ValueError(f"No data found in {src}")
+
+    if extend_core and r_vals[0] > _PAIR_R_FLOOR:
+        logger.warning(
+            "Pair table %s starts at r_min=%.4f Å. Extending down to r=%.1e Å "
+            "with a steep repulsive wall (LAMMPS requires coverage and rlo>0; "
+            "E++ clamps).",
+            src.name,
+            r_vals[0],
+            _PAIR_R_FLOOR,
+        )
+        r_vals, e_vals, f_vals = extend_pair_table_to_zero(r_vals, e_vals, f_vals)
 
     _write_table_file(dst, src.name, r_vals, e_vals, f_vals, x_axis="distance")
 
@@ -183,7 +318,13 @@ def _write_table_file(
 
     with open(dst, "w") as f:
         f.write(f"# Converted from {src_name} by backmap-prep\n")
-        f.write(f"# GROMACS units → LAMMPS real (x={unit_note}, kcal/mol)\n\n")
+        if x_axis == "distance":
+            f.write(
+                "# GROMACS units → LAMMPS real (x=Å, kcal/mol); "
+                "pair core extended to r_floor>0 if needed\n\n"
+            )
+        else:
+            f.write(f"# GROMACS units → LAMMPS real (x={unit_note}, kcal/mol)\n\n")
         f.write(f"{keyword}\n")
         f.write(f"N {n}\n\n")
 

@@ -316,6 +316,16 @@ class TestWriteLammpsInput:
         content = p.read_text()
         assert "fix cap all backmap/capforce 1195.0300" in content
 
+    def test_cap_force_ramp_when_set(self, tmp_path: Path) -> None:
+        system = _make_system()
+        settings = _make_settings()
+        settings.simulation.cap_force = 50000.0
+        settings.simulation.cap_force_ramp = 10.0
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "fix cap all backmap/capforce 1195.0300 ramp 0.239006" in content
+
     def test_langevin_damp_from_thermostat_gamma(self, tmp_path: Path) -> None:
         system = _make_system()
         settings = _make_settings()
@@ -436,6 +446,21 @@ class TestWriteLammpsInput:
         assert "dihedral_style hybrid ryckaert backmap/ryckaert" in content
         assert "dihedral_coeff 1 ryckaert" in content
         assert "dihedral_coeff 2 backmap/ryckaert at" in content
+
+    def test_hybrid_dihedral_backmap_harmonic(self, tmp_path: Path) -> None:
+        system = _make_system()
+        system.dihedral_types = [
+            DihedralTypeInfo(1, "harmonic", "", [10.0, 1.0, 2.0]),
+            DihedralTypeInfo(2, "backmap/harmonic", "at", [20.0, -1.0, 3.0]),
+        ]
+        system.dihedrals = [LammpsDihedral(1, 2, 1, 2, 3, 4)]
+        system.has_cross_dihedrals = True
+        settings = _make_settings()
+        p = tmp_path / "in.test"
+        write_lammps_input(system, settings, p, "test.data")
+        content = p.read_text()
+        assert "dihedral_style hybrid harmonic backmap/harmonic" in content
+        assert "dihedral_coeff 2 backmap/harmonic at" in content
 
 
 class TestRestartGeneration:
