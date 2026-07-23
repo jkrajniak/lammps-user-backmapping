@@ -285,6 +285,24 @@ void FixBackmap::pre_force(int /*vflag*/) {
 
 /* ---------------------------------------------------------------------- */
 
+void FixBackmap::setup_pre_force(int vflag) {
+  // Verlet::setup() calls modify->setup_pre_force() BEFORE the initial
+  // bond/angle/pair force evaluation, but modify->setup() -- where
+  // build_bead_map() historically only ran -- executes AFTER that
+  // evaluation. Without this override, atom2cg is still freshly
+  // constructed (all -1) for the very first force evaluation of every
+  // run, so every same-bead AT bond/angle is misclassified as inter-bead
+  // by BackmapLambda::same_bead() and gets zero-weighted at
+  // lambda_global=0 (compute_weight3 falls through to the
+  // different-bead branch, w=lambda_global). That corrupts the very
+  // first velocity half-kick every AT atom receives. Delegate to
+  // pre_force() so the bead map is ready before any force computation,
+  // matching every subsequent step.
+  pre_force(vflag);
+}
+
+/* ---------------------------------------------------------------------- */
+
 void FixBackmap::post_force(int /*vflag*/) {
   // CG force distribution always runs; lambda weighting is applied by the
   // backmap interaction styles before forces reach this hook.

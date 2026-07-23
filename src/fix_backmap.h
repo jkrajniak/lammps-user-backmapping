@@ -34,6 +34,7 @@ class FixBackmap : public Fix {
   int setmask() override;
   void init() override;
   void setup(int) override;
+  void setup_pre_force(int) override;
   void initial_integrate(int) override;
   void pre_force(int) override;
   void post_force(int) override;
