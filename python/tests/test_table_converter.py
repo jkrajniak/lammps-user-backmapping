@@ -126,7 +126,7 @@ class TestConvertAngleXvg:
         first = lines[0].split()
         assert float(first[1]) == pytest.approx(0.0)
         assert float(first[2]) == pytest.approx(units.energy(10.0))
-        assert float(first[3]) == pytest.approx(units.angular_force(-200.0))
+        assert float(first[3]) == pytest.approx(units.energy(-200.0))
 
     def test_angle_table_via_convert_tables(self, tmp_path: Path) -> None:
         from backmap_prep.builder import System
@@ -164,7 +164,7 @@ class TestConvertDihedralXvg:
         first = lines[0].split()
         assert float(first[1]) == pytest.approx(-180.0)
         assert float(first[2]) == pytest.approx(units.energy(10.0))
-        assert float(first[3]) == pytest.approx(units.angular_force(-200.0))
+        assert float(first[3]) == pytest.approx(units.energy(-200.0))
 
 
 class TestConvertTables:

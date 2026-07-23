@@ -242,9 +242,15 @@ def _convert_xvg(
 def _convert_angle_xvg(src: Path, dst: Path) -> None:
     """Convert GROMACS angle table .xvg to LAMMPS angle table format.
 
-    Column 0: angle in degrees (0–180)
+    Column 0: angle in degrees (0-180)
     Column 1: V(kJ/mol)
-    Column 2: -dV/dθ in kJ/(mol·rad)
+    Column 2: -dV/dtheta in kJ/(mol*deg) -- already a per-degree derivative,
+        matching this file's own degree-based column 0 (confirmed by
+        checking that dV/dtheta computed directly from columns 0-1 matches
+        column 2 only when theta is treated as degrees, not radians; see
+        decisions/2026-07-23-fix-angular-dihedral-table-force-units.md).
+        Needs only the plain energy-unit conversion, no extra angle-unit
+        rescaling.
     """
     theta_vals: list[float] = []
     e_vals: list[float] = []
@@ -259,11 +265,11 @@ def _convert_angle_xvg(src: Path, dst: Path) -> None:
             continue
         theta_deg = float(tokens[0])
         v_kj = float(tokens[1])
-        f_kj_per_rad = float(tokens[2])
+        f_kj_per_deg = float(tokens[2])
 
         theta_vals.append(theta_deg)
         e_vals.append(units.energy(v_kj))
-        f_vals.append(units.angular_force(f_kj_per_rad))
+        f_vals.append(units.energy(f_kj_per_deg))
 
     if not theta_vals:
         raise ValueError(f"No data found in {src}")
@@ -276,7 +282,10 @@ def _convert_dihedral_xvg(src: Path, dst: Path) -> None:
 
     Column 0: dihedral angle in degrees (-180..180)
     Column 1: V(kJ/mol)
-    Column 2: -dV/dφ in kJ/(mol·rad)
+    Column 2: -dV/dphi in kJ/(mol*deg) -- already a per-degree derivative,
+        matching this file's own degree-based column 0. Needs only the
+        plain energy-unit conversion, no extra angle-unit rescaling (see
+        decisions/2026-07-23-fix-angular-dihedral-table-force-units.md).
     """
     phi_vals: list[float] = []
     e_vals: list[float] = []
@@ -291,11 +300,11 @@ def _convert_dihedral_xvg(src: Path, dst: Path) -> None:
             continue
         phi_deg = float(tokens[0])
         v_kj = float(tokens[1])
-        f_kj_per_rad = float(tokens[2])
+        f_kj_per_deg = float(tokens[2])
 
         phi_vals.append(phi_deg)
         e_vals.append(units.energy(v_kj))
-        f_vals.append(units.angular_force(f_kj_per_rad))
+        f_vals.append(units.energy(f_kj_per_deg))
 
     if not phi_vals:
         raise ValueError(f"No data found in {src}")

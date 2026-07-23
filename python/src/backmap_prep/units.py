@@ -66,13 +66,6 @@ def lj_pair_params(
     return distance(sigma), energy(epsilon)
 
 
-def angular_force(val: float) -> float:
-    """kJ/(mol·rad) → kcal/(mol·deg) for tabulated angle/dihedral tables."""
-    import math
-
-    return val * ENERGY * (math.pi / 180.0)
-
-
 def gromacs_rb_to_lammps(coeffs: list[float]) -> list[float]:
     """Convert GROMACS func-3 RB coefficients to LAMMPS ryckaert C0..C5."""
     return [((-1.0) ** index) * energy(value) for index, value in enumerate(coeffs[:6])]
