@@ -214,39 +214,65 @@ def _preprocess(
     path: Path,
     include_dirs: list[Path],
     forcefield_dirs: list[Path],
+    defines: dict[str, str] | None = None,
 ) -> list[str]:
-    """Read file and resolve #include directives, skip #ifdef blocks."""
+    """Read file and resolve #include directives, evaluating #ifdef/#ifndef/#else
+    blocks against `defines` (shared across the whole recursive parse, so a
+    #define earlier in this file or an included one is visible everywhere
+    after it -- matching the C-preprocessor-like semantics GROMACS .itp files
+    rely on).
+
+    Each stack entry is (branch_condition_met, else_branch_active): #else
+    flips which branch is active without losing the original condition (a
+    naive skip-depth counter previously skipped BOTH branches of every
+    #ifdef/#else/#endif unconditionally -- e.g. oplsaa.ff/ffnonbonded.itp's
+    #ifdef HEAVY_H / #else / #endif around opls_116/opls_117 (water O/H)
+    caused their LJ parameters to silently resolve to 0.0/0.0 regardless of
+    HEAVY_H, see experiments/20260724_pet-pairwise-diagnostic-cgcg-collapse.md).
+    """
     result: list[str] = []
-    defines: dict[str, str] = {}
-    skip_depth = 0
+    if defines is None:
+        defines = {}
+    # stack of (condition_met_for_this_branch, is_negated_ifndef)
+    cond_stack: list[bool] = []
+
+    def active() -> bool:
+        return all(cond_stack)
 
     for raw_line in path.read_text().splitlines():
         stripped = raw_line.strip()
 
-        if stripped.startswith(("#ifdef", "#ifndef")):
-            skip_depth += 1
+        if stripped.startswith("#ifdef"):
+            macro = stripped.split(None, 1)[1].strip() if len(stripped.split()) > 1 else ""
+            cond_stack.append(macro in defines)
+            continue
+        if stripped.startswith("#ifndef"):
+            macro = stripped.split(None, 1)[1].strip() if len(stripped.split()) > 1 else ""
+            cond_stack.append(macro not in defines)
             continue
         if stripped.startswith("#else"):
+            if cond_stack:
+                cond_stack[-1] = not cond_stack[-1]
             continue
         if stripped.startswith("#endif"):
-            if skip_depth > 0:
-                skip_depth -= 1
+            if cond_stack:
+                cond_stack.pop()
             continue
 
-        if skip_depth > 0:
+        if not active():
             continue
 
         if stripped.startswith("#define"):
             parts = stripped.split(None, 2)
-            if len(parts) >= 3:
-                defines[parts[1]] = parts[2]
+            if len(parts) >= 2:
+                defines[parts[1]] = parts[2] if len(parts) >= 3 else ""
             continue
 
         if stripped.startswith("#include"):
             inc_file = stripped.split('"')[1] if '"' in stripped else stripped.split()[1]
             inc_path = _resolve_include(inc_file, path.parent, include_dirs, forcefield_dirs)
             if inc_path:
-                result.extend(_preprocess(inc_path, include_dirs, forcefield_dirs))
+                result.extend(_preprocess(inc_path, include_dirs, forcefield_dirs, defines))
             continue
 
         result.append(raw_line)

@@ -151,6 +151,38 @@ class TestPreprocessor:
         assert "SHOULD_NOT_APPEAR" not in top.atom_types
         assert "R1" in top.atom_types
 
+    def test_ifdef_else_uses_correct_branch(self, tmp_path: Path) -> None:
+        """Regression test: #ifdef/#else/#endif must pick exactly one
+        branch based on whether the macro is defined, not skip both.
+        Previously a naive skip-depth counter treated the #else branch as
+        still "inside" the #ifdef and dropped it too -- this silently
+        zeroed out water's O-O Lennard-Jones parameters (opls_116) in
+        oplsaa.ff/ffnonbonded.itp, which gates several atom types behind
+        #ifdef HEAVY_H / #else / #endif with no unconditional definition.
+        See experiments/20260724_pet-pairwise-diagnostic-cgcg-collapse.md.
+        """
+        content = dedent("""\
+            [ atomtypes ]
+            #ifdef HEAVY_H
+            OW  8.0  0.0  A  0.30  0.6
+            #else
+            OW  16.0  0.0  A  0.30  0.6
+            #endif
+            [ moleculetype ]
+            MX 3
+            [ atoms ]
+            1  OW  1  MX  A1  1  0.0  16.0
+            [ molecules ]
+            MX 1
+        """)
+        p = tmp_path / "test.top"
+        p.write_text(content)
+        top = parse_top(p)
+        assert "OW" in top.atom_types, "the #else branch must not be dropped"
+        assert top.atom_types["OW"].mass == 16.0
+        assert top.atom_types["OW"].sigma == 0.30
+        assert top.atom_types["OW"].epsilon == 0.6
+
     def test_inline_comments_stripped(self, tmp_path: Path) -> None:
         content = dedent("""\
             [ atomtypes ]
