@@ -935,6 +935,22 @@ def build_system_from_hybrid(
         dihedral_type.keyword == "at" for dihedral_type in system.dihedral_types
     )
     prepare_network_coordinates(system)
+    if (
+        system.has_cross_bonds
+        or system.has_cross_angles
+        or system.has_cross_dihedrals
+        or system.has_cross_pairs
+    ):
+        # Crosslinked networks (rim135, PET/Dacron): prepare_network_coordinates()
+        # already assigned per-atom image flags above; this tells writers.py to
+        # (a) emit them in the data file and (b) widen comm_modify cutoff to
+        # cover the folded Cartesian extent of box-spanning crosslink bonds
+        # (writers.py::_compute_params), not just the LJ/CG interaction cutoff.
+        # Without it, comm_modify cutoff silently under-covers bonded network
+        # extent for any consumer of build_network_lammps() (e.g. the CLI
+        # `build` command), unlike the `rebuild`/`finalize-cg` paths which
+        # already set this.
+        system.write_image_flags = True
     lj_cut = units.distance(settings.simulation.lj_cutoff)
     cg_cut = units.distance(settings.simulation.cg_cutoff)
     validate_bond_geometry(system, max(lj_cut, cg_cut))
