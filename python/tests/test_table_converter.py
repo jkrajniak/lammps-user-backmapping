@@ -60,7 +60,7 @@ class TestExtendPairTableToZero:
     def test_roundtrip_parse_write(self, tmp_path: Path) -> None:
         path = tmp_path / "t.table"
         write_lammps_pair_table(path, [1.0e-4, 0.1], [1e6, 10.0], [1e7, 5.0], source="test")
-        r, e, f = parse_lammps_pair_table(path)
+        r, e, _f = parse_lammps_pair_table(path)
         assert r[0] == pytest.approx(1.0e-4)
         assert e[1] == pytest.approx(10.0)
 

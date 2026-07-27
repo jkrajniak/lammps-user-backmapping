@@ -290,14 +290,14 @@ def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
     if dihtype.style == "charmm":
         k_val, n_val, delta = dihtype.params[:3]
-        shift = int(round(delta))
+        shift = round(delta)
         coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} charmm {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
     if dihtype.style == "backmap/charmm":
         k_val, n_val, delta = dihtype.params[:3]
-        shift = int(round(delta))
+        shift = round(delta)
         coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/charmm {dihtype.keyword} {coeffs}\n"
