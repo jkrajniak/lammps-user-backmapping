@@ -251,6 +251,19 @@ double AngleBackmapHarmonic::single(int atype, int i1, int i2, int i3) {
   return w * k[atype] * dtheta * dtheta;
 }
 
+/* ----------------------------------------------------------------------
+   return ptr to internal members upon request, so fix adapt can soft-start
+   ramp the force constant (e.g. `fix adapt N angle backmap/harmonic k *
+v_ramp`) during the initial AT-fragment relaxation phase.
+------------------------------------------------------------------------- */
+
+void *AngleBackmapHarmonic::extract(const char *str, int &dim) {
+  dim = 1;
+  if (strcmp(str, "k") == 0) return (void *)k;
+  if (strcmp(str, "theta0") == 0) return (void *)theta0;
+  return nullptr;
+}
+
 /* ---------------------------------------------------------------------- */
 
 void AngleBackmapHarmonic::write_restart(FILE *fp) {

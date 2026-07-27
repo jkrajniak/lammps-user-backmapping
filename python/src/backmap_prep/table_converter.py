@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING
 
 from . import units
@@ -179,6 +180,37 @@ def convert_tables(
     return converted
 
 
+def _numerical_gradient(x_vals: list[float], y_vals: list[float]) -> list[float]:
+    """Central-difference dy/dx (forward/backward at the endpoints)."""
+    n = len(x_vals)
+    grad = [0.0] * n
+    if n < 2:
+        return grad
+    grad[0] = (y_vals[1] - y_vals[0]) / (x_vals[1] - x_vals[0])
+    grad[-1] = (y_vals[-1] - y_vals[-2]) / (x_vals[-1] - x_vals[-2])
+    for i in range(1, n - 1):
+        grad[i] = (y_vals[i + 1] - y_vals[i - 1]) / (x_vals[i + 1] - x_vals[i - 1])
+    return grad
+
+
+def _is_force_column_degenerate(f_vals: list[float], e_vals: list[float]) -> bool:
+    """True when the force column is (near-)zero while energy clearly varies.
+
+    Some legacy ESPResSo++ -> GROMACS .xvg exports (dated 2017-04, found in
+    the PET/Dacron table set) never populated the derivative/force column,
+    leaving it all zeros while the energy column is a real, varying
+    potential. GROMACS's own mdrun re-splines forces from the energy column
+    internally, masking the bug; a LAMMPS `pair_style table` reads the force
+    column literally, so a degenerate column silently produces zero
+    nonbonded force everywhere.
+    """
+    max_f = max((abs(v) for v in f_vals), default=0.0)
+    max_e = max((abs(v) for v in e_vals), default=0.0)
+    if max_e < 1.0e-8:
+        return False  # nothing to differentiate against; leave as-is
+    return max_f < 1.0e-6 * max_e
+
+
 def _convert_xvg(
     src: Path,
     dst: Path,
@@ -224,6 +256,10 @@ def _convert_xvg(
 
     if not r_vals:
         raise ValueError(f"No data found in {src}")
+
+    if _is_force_column_degenerate(f_vals, e_vals):
+        # F(r) = -dV/dr; energies/positions are already in LAMMPS units.
+        f_vals = [-g for g in _numerical_gradient(r_vals, e_vals)]
 
     if extend_core and r_vals[0] > _PAIR_R_FLOOR:
         logger.warning(
@@ -274,6 +310,10 @@ def _convert_angle_xvg(src: Path, dst: Path) -> None:
     if not theta_vals:
         raise ValueError(f"No data found in {src}")
 
+    if _is_force_column_degenerate(f_vals, e_vals):
+        theta_rad = [math.radians(t) for t in theta_vals]
+        f_vals = [-g for g in _numerical_gradient(theta_rad, e_vals)]
+
     _write_table_file(dst, src.name, theta_vals, e_vals, f_vals, x_axis="angle")
 
 
@@ -308,6 +348,10 @@ def _convert_dihedral_xvg(src: Path, dst: Path) -> None:
 
     if not phi_vals:
         raise ValueError(f"No data found in {src}")
+
+    if _is_force_column_degenerate(f_vals, e_vals):
+        phi_rad = [math.radians(p) for p in phi_vals]
+        f_vals = [-g for g in _numerical_gradient(phi_rad, e_vals)]
 
     _write_table_file(dst, src.name, phi_vals, e_vals, f_vals, x_axis="dihedral")
 
