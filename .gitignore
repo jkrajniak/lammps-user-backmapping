@@ -72,16 +72,6 @@ dump.*
 *.mp4
 frames/
 
-# --- Large generated example inputs (regenerate via backmap-prep, see
-#     each example's README for the exact command) ---
-examples/pet/large/pet.data
-examples/pet/large/table_a0.table
-examples/pet/large/table_a1.table
-examples/pet/large/table_a2.table
-examples/pet/large/table_a3.table
-examples/pet/large/table_d0.table
-examples/pet/large/table_d1.table
-
 # --- OS ---
 .DS_Store
 Thumbs.db

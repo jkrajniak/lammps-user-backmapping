@@ -23,9 +23,9 @@ archive, `paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping/
 | `report_dacron_ref_peaks.py` | yes | Tier C reference peak extractor (published RDFs) |
 | `in.pet` | yes | LAMMPS input, robust 3-phase protocol (minimize -> nve/limit -> lambda ramp with `capforce` -> NVT), **hand-patched**: `comm_modify cutoff 75`, `reset_atoms image all` (see Known Issues; the previously-applied 2602-bond exclusion-list workaround was removed 2026-07-13 — see notebook `2026-07-13_pet-exclusion-list-verification.md`) |
 | `table_A_*.table` ... `table_W_W.table` (21 pair tables) | yes | small (<40 KB each), converted IBI pair potentials |
-| `pairs.dat` | yes (483 KB, under 500 KB pre-commit limit) | 1-4 pair list for `fix backmap/pairs` |
-| `pet.data` | **no** (4.8 MB) | generated LAMMPS data file — regenerate via `backmap-prep build` (see below) |
-| `table_a0.table`..`table_a3.table`, `table_d0.table`, `table_d1.table` | **no** (1.8-3.7 MB each) | large angle/dihedral tables — regenerate the same way |
+| `pairs.dat` | yes (483 KB) | 1-4 pair list for `fix backmap/pairs` |
+| `pet.data` | yes (4.8 MB) | LAMMPS data file (system topology + coordinates); regenerate via `backmap-prep build` if it ever needs refreshing (see below) |
+| `table_a0.table`..`table_a3.table`, `table_d0.table`, `table_d1.table` | yes (1.8-3.7 MB each) | large angle/dihedral tables — regenerate the same way |
 | `log.pet_*.lammps`, `pet_tierb.out` | no | VM run logs; regenerate on demand, don't keep stale ones around (gitignored) |
 
 ## How to regenerate the large files
