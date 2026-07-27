@@ -22,8 +22,8 @@ Validation of the VM backmap run against GROMACS reference RDFs from
 Re-fetch from VM:
 
 ```bash
-scp -i ~/.ssh/ai_vm_key \
-  azureuser@10.110.0.4:/home/azureuser/sc/rim135/{dump.backmap,rim135_final.data} \
+scp -i ~/.ssh/<vm_key> \
+  <vm_user>@<vm_host>:/home/<vm_user>/sc/rim135/{dump.backmap,rim135_final.data} \
   .
 ```
 

@@ -68,7 +68,7 @@ No two-stage hybrid→LAMMPS bridge. No runtime dependency on bakery XML for aut
 
 ### P2 — Tier B (LAMMPS MD smoke)
 
-- [ ] Deploy LAMMPS repo on VM `10.110.0.4` (`/home/azureuser/sc`)
+- [ ] Deploy LAMMPS repo on the validation VM (`/home/<vm_user>/sc`)
 - [ ] Short backmapping run on rim135 hybrid; confirm no immediate blowup
 - [x] Document in research notebook (LAMMPS-only; no ESPResSo++) — `research/notebook/2026-06-22_rim135-tier-b-lammps-smoke.md`
 
