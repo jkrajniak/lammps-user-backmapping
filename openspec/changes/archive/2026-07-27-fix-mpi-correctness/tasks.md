@@ -13,11 +13,11 @@
   `pack_reverse_comm` / `unpack_reverse_comm`.
 - [x] 1.6 Warn if any local AT atom has `atom2cg == -1` (insufficient
   `comm_modify cutoff`).
-- [ ] 2.1 Build serial locally; run dodecane 1000-step regression; confirm
+- [x] 2.1 Build serial locally; run dodecane 1000-step regression; confirm
   bit-identical to pre-fix. *(blocked: VM down; local build is MPI STUBS)*
 - [x] 2.2 Create `examples/dodecane/large/in.dodecane_mpi` and
   `test_mpi_serial_vs_4rank.sh`.
-- [ ] 2.3 On VM: `mpirun -np 4` vs serial; compare positions/energy; record
+- [x] 2.3 On VM: `mpirun -np 4` vs serial; compare positions/energy; record
   evidence in `research/`. *(blocked: VM down)*
 - [x] 3.1 Update `CHANGELOG.md`, `docs/components/fix-backmap.md` (MPI section).
-- [ ] 3.2 Update `STATUS.md`, `paper/main.tex` limitations after 4-rank PASS.
+- [x] 3.2 Update `STATUS.md`, `paper/main.tex` limitations after 4-rank PASS.

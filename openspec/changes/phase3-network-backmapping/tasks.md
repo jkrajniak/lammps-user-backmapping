@@ -18,8 +18,8 @@ Settings v2 plan: [settings-v2-rim135-plan.md](./settings-v2-rim135-plan.md)
 - [x] 2.0 Implement Settings v2 loader (`mapping.base` / `add` / `remove` resolution) — `network/v2_loader.py`
 - [x] 2.0b Schema extensions — delta mapping, unified `source`, `angles_file`, `data_dir`
 - [x] 2.0c Wire CLI + `build_hybrid_gromacs(Settings)` + `BackmapperSettings2(Element)`
-- [ ] 2.1 Implement `atoms_by_degree` parsing in builder (v2 uses `mapping` list; legacy alias optional)
-- [ ] 2.2 Support multiple molecule entries in one `settings.yaml` run (rim135 already multi-species in one hybrid)
+- [x] 2.1 Implement `atoms_by_degree` parsing in builder (v2 uses `mapping` list; legacy alias optional) — `network/v2_loader.py` (`bead.atoms_by_degree`, `entry.molecule_degree`)
+- [x] 2.2 Support multiple molecule entries in one `settings.yaml` run (rim135 already multi-species in one hybrid) — PET/Dacron proves it further: 3 species (H2O, DIO, TER) in one `settings.v2.yaml`, Tier B+C validated
 - [x] 2.3 Active site placement — via v2 loader + `predefined_active_sites.txt` (Tier A parity)
 - [ ] 2.4 Implement charge transfer rules with conservation check
 - [x] 2.5 Unit tests — `test_v2_loader.py`; integration `test_rim135_build_hybrid_v2_parity`
@@ -42,21 +42,23 @@ Settings v2 plan: [settings-v2-rim135-plan.md](./settings-v2-rim135-plan.md)
 
 ## 5. Settings v2 — next steps
 
-- [ ] 5.0 Wire `backmap-prep build` for network + v2 (LAMMPS `.data` / `in.*`)
+- [x] 5.0 Wire `backmap-prep build` for network + v2 (LAMMPS `.data` / `in.*`) — `network/lammps_builder.py::build_system_from_hybrid` + `network/api.py::build_network_lammps`; used by rim135 and PET/Dacron
 - [ ] 5.1 Optional `migrate-settings` XML → YAML tool
 - [ ] 5.2 Deprecate v1 `prep.bakery_xml` bridge in docs (keep compatibility)
 
 ## 6. Follow-on (separate changes)
 
 - [ ] 6.1 MF polymerized network (`network_backmapping/mf/`)
-- [ ] 6.2 PET (`network_backmapping/pete/`)
+- [x] 6.2 PET (`network_backmapping/pete/`) — `examples/pet/large/`, Tier B pass (full λ=0→ramp→production), Tier C 7/10 RDF metrics. See `research/STATUS.md` PET/Dacron section and `research/experiments/20260726_pet-rdf-tier-c-validation.md`.
 - [ ] 6.3 Hyperbranched AB2/ABx
 
 ---
 
-## Blockers from research Phase 1
+## Blockers from research Phase 1 (both resolved, kept for history)
 
-PE linear Tier B still **FAIL** (2026-06-22) — unrelated to Phase 3 scope but
-may share force-weighting fixes. See `research/notebook/2026-06-22_pe-tier-b-smoke.md`.
+~~PE linear Tier B still **FAIL** (2026-06-22)~~ — resolved 2026-07-09 (robust
+multi-phase protocol); PE Tier B/C are both PASS/partial as of the CPC
+validation suite. See `research/notebook/2026-06-22_pe-tier-b-smoke.md`.
 
-Rim135 Tier B blocked on LAMMPS repo deploy to the validation VM.
+~~Rim135 Tier B blocked on LAMMPS repo deploy to the validation VM.~~ — resolved;
+rim135 Tier A/B/C are all PASS.
