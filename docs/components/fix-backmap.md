@@ -28,7 +28,9 @@ fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/n
 3. **COM tracking** -- after each timestep, updates CG bead positions to the
    center-of-mass of their AT atoms (using PBC-aware displacement)
 4. **CG force distribution** -- redistributes forces on CG beads to AT atoms
-   proportional to their mass fraction
+   proportional to each AT atom's mass fraction; the denominator is the
+   per-bead sum of mapped AT masses (not the CG LAMMPS type mass), so
+   Σ F_AT = F_CG even when tabulated CG mass has small drift
 5. **CG velocity zeroing** -- sets CG bead velocities to zero each step
 
 The per-atom lambda value is stored as a per-atom vector and accessible via
@@ -95,15 +97,20 @@ When `apb` is absent, the fix divides AT atoms uniformly:
 
 ### `active`
 
-Activate or deactivate the lambda ramp:
+Activate or deactivate the **lambda ramp only**:
 
 ```
-fix_modify bm active no    # freeze lambda (CG equilibration)
+fix_modify bm active no    # freeze lambda (hybrid equilibration at fixed λ)
 fix_modify bm active yes   # resume ramp (backmapping phase)
 ```
 
-When `active no`, lambda values remain frozen at their current values. CG
-force distribution and COM tracking continue operating.
+When `active no`, per-atom λ values remain frozen. **CG–AT coupling is
+always on:** COM tracking in `initial_integrate()` and CG force distribution
+in `post_force()` run regardless of `active`. This matches ESPResSo++
+(`DynamicResolution.active` gates only λ increments; `VelocityVerletHybrid`
+always updates virtual sites and distributes forces) and AdResS virtual-site
+semantics — CG beads are computational anchors, not independent particles that
+can be decoupled from their atomistic fragments.
 
 ## Per-Atom Data
 
@@ -194,7 +201,7 @@ by more than 10<sup>-4</sup>.
 `fix backmap` is MPI-correct under spatial domain decomposition: the COM
 update uses a reverse communication of per-CG-bead mass-weighted displacement
 accumulators, and the CG force distribution uses a forward communication of
-CG bead force/mass to ghost atoms. Each AT atom contributes on the rank that
+CG bead force and per-bead AT mass sum to ghost atoms. Each AT atom contributes on the rank that
 owns it, so results are independent of how molecules are split across ranks.
 
 **Requirement:** every AT atom must be able to see its mapped CG bead in the

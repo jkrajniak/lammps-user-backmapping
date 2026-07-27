@@ -9,6 +9,7 @@ from backmap_prep.schema import (
     BeadMappingEntry,
     CrossAngle,
     CrossBond,
+    CrossDihedral,
     DegreeSourceFile,
     MoleculeDef,
     Settings,
@@ -78,6 +79,45 @@ def _format_beads_text(atoms: list[str]) -> str:
     return "\n                ".join(lines)
 
 
+def _format_value_list(values: list[str | float]) -> str:
+    """Space-separated text for charge_map / type_map (preserve '*' and numbers)."""
+    return " ".join(str(v) for v in values)
+
+
+def _emit_bead_extras(
+    beads_elem: etree.Element,
+    *,
+    charge_map: list[str | float] | None,
+    type_map: list[str] | None,
+    remove: list[dict[str, str | list[str]]] | None,
+    active_site_attr: str | None,
+) -> None:
+    """Emit <charge_map>, <type_map>, <remove> children of a <beads> element.
+
+    bakery reads these as children of <beads> (structures.py:450-478). <remove>
+    is emitted only when its active_site matches the <beads> active_site.
+    """
+    if charge_map is not None:
+        _sub(beads_elem, "charge_map", _format_value_list(charge_map))
+    if type_map is not None:
+        _sub(beads_elem, "type_map", _format_value_list(type_map))
+    if remove and active_site_attr:
+        active_tokens = {
+            tok.split(":")[0] + ":" + tok.split(":")[1] for tok in active_site_attr.split()
+        }
+        for entry in remove:
+            as_name = str(entry.get("active_site", ""))
+            if as_name not in active_tokens:
+                continue
+            atoms = entry.get("atoms", [])
+            if isinstance(atoms, str):
+                atoms_list = [atoms]
+            else:
+                atoms_list = list(atoms)
+            rem_elem = etree.SubElement(beads_elem, "remove", attrib={"active_site": as_name})
+            rem_elem.text = " ".join(atoms_list)
+
+
 def _append_source_files(
     parent: etree.Element,
     tag: str,
@@ -113,6 +153,13 @@ def _emit_cg_bead(parent: etree.Element, bead: BeadDef, ident: str) -> None:
                 attrs["active_site"] = active_site
             beads_elem = etree.SubElement(cg_bead, "beads", attrib=attrs)
             beads_elem.text = f"\n                {_format_beads_text(atoms)}\n            "
+            _emit_bead_extras(
+                beads_elem,
+                charge_map=entry.charge_map,
+                type_map=entry.type_map,
+                remove=bead.remove,
+                active_site_attr=active_site,
+            )
         return
 
     if bead.atoms:
@@ -128,11 +175,21 @@ def _emit_cg_bead(parent: etree.Element, bead: BeadDef, ident: str) -> None:
                 attrs["active_site"] = abd.active_site
             beads_elem = etree.SubElement(cg_bead, "beads", attrib=attrs)
             beads_elem.text = " ".join(abd.atoms)
+            _emit_bead_extras(
+                beads_elem,
+                charge_map=abd.charge_map,
+                type_map=abd.type_map,
+                remove=bead.remove,
+                active_site_attr=abd.active_site,
+            )
 
 
 def _emit_cg_molecule(parent: etree.Element, mol: MoleculeDef) -> None:
     ident = mol.ident or mol.name
-    cg_mol = _sub(parent, "cg_molecule")
+    attrs: dict[str, str] = {}
+    if mol.charge_management and mol.charge_management.equilibrate:
+        attrs["equilibrate_charges"] = "1"
+    cg_mol = etree.SubElement(parent, "cg_molecule", attrib=attrs)
     _sub(cg_mol, "name", mol.name)
     _sub(cg_mol, "ident", ident)
     _append_source_files(cg_mol, "source_coordinate", mol.source.coordinates)
@@ -153,6 +210,14 @@ def _emit_cross_angles(parent: etree.Element, angles: list[CrossAngle]) -> None:
         angles_elem = etree.SubElement(parent, "angles", attrib={"params": angle.params})
         lines = [f"{triple[0]} {triple[1]} {triple[2]}" for triple in angle.triples]
         angles_elem.text = "\n" + "\n".join(lines) + "\n        "
+
+
+def _emit_cross_dihedrals(parent: etree.Element, dihedrals: list[CrossDihedral]) -> None:
+    for dihedral in dihedrals:
+        attrs = {"params": dihedral.params}
+        dih_elem = etree.SubElement(parent, "dihedrals", attrib=attrs)
+        lines = [f"{q[0]} {q[1]} {q[2]} {q[3]}" for q in dihedral.quadruples]
+        dih_elem.text = "\n" + "\n".join(lines) + "\n        "
 
 
 def settings_to_xml_root(settings: Settings) -> etree.Element:
@@ -180,6 +245,7 @@ def settings_to_xml_root(settings: Settings) -> etree.Element:
     _sub(hyb_top, "file", settings.hybrid.topology)
     _emit_cross_bonds(hyb_top, settings.cross_interactions.bonds)
     _emit_cross_angles(hyb_top, settings.cross_interactions.angles)
+    _emit_cross_dihedrals(hyb_top, settings.cross_interactions.dihedrals)
 
     mol_type = _sub(hyb_top, "molecule_type")
     _sub(mol_type, "name", settings.hybrid.molecule_type_name)

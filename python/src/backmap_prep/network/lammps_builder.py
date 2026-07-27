@@ -177,6 +177,8 @@ def _plain_cg_style(style: str) -> str:
         return "ryckaert"
     if style == "backmap/charmm":
         return "charmm"
+    if style == "backmap/harmonic":
+        return "harmonic"
     return style
 
 
@@ -369,7 +371,10 @@ def _is_intra_bead_dihedral(
     k: int,
     l: int,
 ) -> bool:
-    mol_ids = {atoms_by_id[idx].mol_id for idx in (i, j, k, l) if idx in atoms_by_id}
+    indices = (i, j, k, l)
+    if any(idx not in atoms_by_id for idx in indices):
+        return False
+    mol_ids = {atoms_by_id[idx].mol_id for idx in indices}
     return len(mol_ids) == 1
 
 
@@ -383,7 +388,7 @@ def _add_dihedral_type(
     table_file: str | None = None,
 ) -> int:
     coeff_key = tuple(round(value, 8) for value in params[:6])
-    if style == "charmm" or style == "backmap/charmm" or style == "harmonic":
+    if style in {"charmm", "backmap/charmm", "harmonic", "backmap/harmonic"}:
         coeff_key = tuple(round(value, 8) for value in params[:3])
     key = (style, keyword, table_file or "", coeff_key)
     type_id = dihedral_type_map.get(key)
@@ -501,8 +506,8 @@ def _dihedral_terms(
                 style = "harmonic"
                 keyword = ""
             else:
-                style = "harmonic"
-                keyword = ""
+                style = "backmap/harmonic"
+                keyword = "at"
         elif func == 0:
             default = dihedral_defaults.get(quad)
             if default:
@@ -930,6 +935,22 @@ def build_system_from_hybrid(
         dihedral_type.keyword == "at" for dihedral_type in system.dihedral_types
     )
     prepare_network_coordinates(system)
+    if (
+        system.has_cross_bonds
+        or system.has_cross_angles
+        or system.has_cross_dihedrals
+        or system.has_cross_pairs
+    ):
+        # Crosslinked networks (rim135, PET/Dacron): prepare_network_coordinates()
+        # already assigned per-atom image flags above; this tells writers.py to
+        # (a) emit them in the data file and (b) widen comm_modify cutoff to
+        # cover the folded Cartesian extent of box-spanning crosslink bonds
+        # (writers.py::_compute_params), not just the LJ/CG interaction cutoff.
+        # Without it, comm_modify cutoff silently under-covers bonded network
+        # extent for any consumer of build_network_lammps() (e.g. the CLI
+        # `build` command), unlike the `rebuild`/`finalize-cg` paths which
+        # already set this.
+        system.write_image_flags = True
     lj_cut = units.distance(settings.simulation.lj_cutoff)
     cg_cut = units.distance(settings.simulation.cg_cutoff)
     validate_bond_geometry(system, max(lj_cut, cg_cut))

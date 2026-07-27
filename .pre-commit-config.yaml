@@ -35,3 +35,11 @@ repos:
       - id: clang-format
         types_or: [c, c++]
         args: [--style=file, --fallback-style=Google]
+
+  - repo: local
+    hooks:
+      - id: no-ip-addresses
+        name: reject literal IP addresses
+        entry: python3 scripts/check_no_ip_addresses.py
+        language: system
+        types: [text]

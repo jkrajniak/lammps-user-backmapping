@@ -19,6 +19,7 @@ Reference: Krajniak et al., "Generic Adaptive Resolution Method for Reverse Mapp
 #### Scenario: Lambda ramp deactivated
 - **WHEN** the user issues `fix_modify backmap active no` at λ = 0.5
 - **THEN** λ SHALL remain at 0.5 for all atoms until reactivated
+- **AND** CG COM tracking and CG→AT force distribution SHALL continue on every timestep (only the λ increment in `end_of_step()` is frozen)
 
 #### Scenario: Non-uniform initial lambda
 - **WHEN** the fix is configured with `nonuniform yes`
@@ -86,16 +87,18 @@ for each bead mapping:
 
 ### Requirement: CG force distribution to AT atoms
 
-In `post_force()`, the fix SHALL distribute each CG bead's forces to only its own mapped AT atoms, proportional to their mass ratio. This replicates ESPResSo++ `VelocityVerletHybrid::distributeVSforces()`. The mass ratio uses the CG bead's type mass as the denominator:
+In `post_force()`, the fix SHALL distribute each CG bead's forces to only its own mapped AT atoms, proportional to their mass ratio. This replicates ESPResSo++ `VelocityVerletHybrid::distributeVSforces()`. The denominator SHALL be the per-bead sum of mapped AT type masses (`at_mass_sum`), not the CG bead's LAMMPS type mass, so that the distributed forces sum exactly to the CG force even when tabulated CG mass differs slightly from the atomistic fragment.
 
 The CG forces arriving at `post_force()` are already lambda-weighted by the interaction styles (`pair_style backmap`, `bond_style backmap/*`, etc.). The fix distributes these pre-weighted forces without additional scaling:
 
 ```
 for each bead mapping:
     for each AT atom i mapped to this CG bead:
-        f[AT_i] += (m_i / m_CG_bead) * f[CG_bead]
+        f[AT_i] += (m_i / at_mass_sum_bead) * f[CG_bead]
     f[CG_bead] = (0, 0, 0)
 ```
+
+`at_mass_sum_bead` is computed at bead-map build time and communicated to ghost CG replicas via forward comm (same payload slot previously used for CG type mass).
 
 After distribution, the CG bead's forces SHALL be zeroed (CG atoms are not integrated).
 

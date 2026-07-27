@@ -59,4 +59,4 @@ Settings v2 plan: [settings-v2-rim135-plan.md](./settings-v2-rim135-plan.md)
 PE linear Tier B still **FAIL** (2026-06-22) — unrelated to Phase 3 scope but
 may share force-weighting fixes. See `research/notebook/2026-06-22_pe-tier-b-smoke.md`.
 
-Rim135 Tier B blocked on LAMMPS repo deploy to VM `10.110.0.4`.
+Rim135 Tier B blocked on LAMMPS repo deploy to the validation VM.

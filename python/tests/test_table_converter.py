@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
@@ -16,7 +17,52 @@ from backmap_prep.table_converter import (
     _convert_dihedral_xvg,
     _convert_xvg,
     convert_tables,
+    extend_pair_table_to_zero,
+    parse_lammps_pair_table,
+    write_lammps_pair_table,
 )
+
+
+class TestExtendPairTableToZero:
+    def test_already_at_floor_unchanged(self) -> None:
+        r = [1.0e-4, 0.1, 0.2]
+        e = [1e6, 100.0, 10.0]
+        f = [1e7, 1000.0, 50.0]
+        r2, e2, f2 = extend_pair_table_to_zero(r, e, f)
+        assert r2 == r
+        assert e2 == e
+        assert f2 == f
+
+    def test_bumps_illegal_zero_lower_bound(self) -> None:
+        r = [0.0, 0.1, 0.2]
+        e = [1e6, 100.0, 10.0]
+        f = [1e7, 1000.0, 50.0]
+        r2, e2, f2 = extend_pair_table_to_zero(r, e, f)
+        assert r2[0] == pytest.approx(1.0e-4)
+        assert e2 == e
+        assert f2 == f
+
+    def test_extends_below_rmin_with_steep_wall(self) -> None:
+        r = [0.20, 0.40, 0.60]
+        e = [1000.0, 100.0, 10.0]
+        f = [5000.0, 400.0, 20.0]
+        r2, e2, f2 = extend_pair_table_to_zero(r, e, f)
+        assert r2[0] == pytest.approx(1.0e-4)
+        assert r2[0] > 0.0
+        assert r2[-3:] == r
+        assert e2[0] > e[0]
+        assert f2[0] > 0.0
+        # Continuity at original r_min
+        idx = r2.index(0.20)
+        assert e2[idx] == pytest.approx(1000.0)
+        assert f2[idx] == pytest.approx(5000.0)
+
+    def test_roundtrip_parse_write(self, tmp_path: Path) -> None:
+        path = tmp_path / "t.table"
+        write_lammps_pair_table(path, [1.0e-4, 0.1], [1e6, 10.0], [1e7, 5.0], source="test")
+        r, e, f = parse_lammps_pair_table(path)
+        assert r[0] == pytest.approx(1.0e-4)
+        assert e[1] == pytest.approx(10.0)
 
 
 class TestConvertXvg:
@@ -34,14 +80,57 @@ class TestConvertXvg:
 
     def test_unit_conversion_applied(self, xvg_file: Path, tmp_path: Path) -> None:
         dst = tmp_path / "output.table"
-        _convert_xvg(xvg_file, dst)
+        _convert_xvg(xvg_file, dst, extend_core=True)
         lines = dst.read_text().splitlines()
 
         data_lines = [line for line in lines if line and not line.startswith(("#", "E", "N"))]
+        # Pair tables are extended to r=0; find the original first XVG point (0.10 nm → 1 Å)
+        match = None
+        for line in data_lines:
+            parts = line.split()
+            if abs(float(parts[1]) - units.distance(0.10)) < 1e-9:
+                match = parts
+                break
+        assert match is not None
+        assert float(match[2]) == pytest.approx(units.energy(10.0))
+        assert float(match[3]) == pytest.approx(units.force(-200.0))
+        assert float(data_lines[0].split()[1]) == pytest.approx(1.0e-4)
+
+    def test_degenerate_force_column_falls_back_to_numerical_gradient(self, tmp_path: Path) -> None:
+        """Regression test for the PET/Dacron 2017 ESPResSo++ export bug:
+        7-column tables where the force column is all zero but the energy
+        column clearly varies (e.g. a decaying repulsive wall)."""
+        src = tmp_path / "broken.xvg"
+        # r(nm), f, -f', g, -g', h(V, kJ/mol), -h'(F, always 0 -- the bug)
+        rows = []
+        for i in range(20):
+            r_nm = 0.02 + i * 0.02
+            v_kj = 1.0e5 * math.exp(-r_nm / 0.05)
+            rows.append(f"{r_nm:.6f} 0 0 0 0 {v_kj:.6f} 0")
+        src.write_text("\n".join(rows) + "\n")
+
+        dst = tmp_path / "broken.table"
+        _convert_xvg(src, dst)
+        lines = [
+            line
+            for line in dst.read_text().splitlines()
+            if line and not line.startswith(("#", "E", "N"))
+        ]
+        forces = [float(line.split()[3]) for line in lines]
+        # The wall is repulsive and decaying: F = -dV/dr must be positive
+        # (pushes atoms apart) and largest near the steep short-range part.
+        assert any(abs(f) > 1.0e-6 for f in forces)
+        assert forces[0] > 0.0
+        assert forces[0] > forces[-1]
+
+    def test_healthy_force_column_is_not_overwritten(self, xvg_file: Path, tmp_path: Path) -> None:
+        """A table with a real, populated force column must be passed
+        through unchanged (no accidental re-derivation)."""
+        dst = tmp_path / "output.table"
+        _convert_xvg(xvg_file, dst)
+        lines = dst.read_text().splitlines()
+        data_lines = [line for line in lines if line and not line.startswith(("#", "E", "N"))]
         first_data = data_lines[0].split()
-        assert first_data[0] == "1"
-        assert float(first_data[1]) == pytest.approx(units.distance(0.10))
-        assert float(first_data[2]) == pytest.approx(units.energy(10.0))
         assert float(first_data[3]) == pytest.approx(units.force(-200.0))
 
     def test_comments_skipped(self, tmp_path: Path) -> None:
@@ -75,7 +164,7 @@ class TestConvertAngleXvg:
         first = lines[0].split()
         assert float(first[1]) == pytest.approx(0.0)
         assert float(first[2]) == pytest.approx(units.energy(10.0))
-        assert float(first[3]) == pytest.approx(units.angular_force(-200.0))
+        assert float(first[3]) == pytest.approx(units.energy(-200.0))
 
     def test_angle_table_via_convert_tables(self, tmp_path: Path) -> None:
         from backmap_prep.builder import System
@@ -113,7 +202,7 @@ class TestConvertDihedralXvg:
         first = lines[0].split()
         assert float(first[1]) == pytest.approx(-180.0)
         assert float(first[2]) == pytest.approx(units.energy(10.0))
-        assert float(first[3]) == pytest.approx(units.angular_force(-200.0))
+        assert float(first[3]) == pytest.approx(units.energy(-200.0))
 
 
 class TestConvertTables:

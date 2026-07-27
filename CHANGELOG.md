@@ -9,6 +9,24 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`build_network_lammps` under-sized `comm_modify cutoff` for crosslinked
+  networks**: `build_system_from_hybrid` (the code path behind `backmap-prep
+  build` for `engine: network` systems) already computed correct per-atom
+  image flags via `prepare_network_coordinates()`, but never set
+  `system.write_image_flags = True` -- the flag `writers.py::_compute_params`
+  gates its network-aware `comm_modify cutoff` widening on. Every crosslinked
+  network built via `build` (not `rebuild`/`finalize-cg`, which already set
+  the flag) silently got a `comm_modify cutoff` sized only for the LJ/CG
+  interaction cutoff (15 Å default) instead of the folded Cartesian extent of
+  box-spanning crosslink bonds (82 Å for rim135), which is why every rim135
+  and PET/Dacron production script in this repo has had to override
+  `comm_modify cutoff` by hand. Fixed in `network/lammps_builder.py`
+  (`build_system_from_hybrid`); regenerating `examples/epoxy/large/in.rim135`
+  now writes `comm_modify cutoff 82.23` automatically, matching the
+  hand-tuned value already documented in the manuscript's MPI section.
+  `test_rim135_build_v2_lammps_smoke` (previously the suite's one failing
+  test) now passes; full suite 207/207.
+
 - **AT intra-bead lambda weighting**: `compute_weight3` incorrectly gated
   AT intra-bead (same-CG-bead) terms to `w = 0` at `lambda_global = 0`
   instead of always `w = 1`. Intra-molecular AT chemistry (bonds, angles,

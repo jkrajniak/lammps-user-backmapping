@@ -34,6 +34,7 @@ class FixBackmap : public Fix {
   int setmask() override;
   void init() override;
   void setup(int) override;
+  void setup_pre_force(int) override;
   void initial_integrate(int) override;
   void pre_force(int) override;
   void post_force(int) override;
@@ -83,8 +84,8 @@ class FixBackmap : public Fix {
   int *atom2cg;  // per atom: local-or-ghost index of mapped CG bead, -1 if none
   double
       *com_buf;  // per CG atom (4): mass, mdx, mdy, mdz (reverse-comm scratch)
-  double *cg_fwd;  // per CG atom (4): fx, fy, fz, mass (forward-comm scratch
-                   // for ghosts)
+  double *cg_denom;  // per atom: AT mass sum for force distribution (local CG)
+  double *cg_fwd;    // per atom (4): fx, fy, fz, at_mass_sum (forward-comm)
 
   std::vector<BeadMap>
       bead_map;  // used for setup logging + validate_masses only

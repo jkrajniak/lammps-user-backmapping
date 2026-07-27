@@ -12,8 +12,13 @@
 
 /* bond_style backmap/harmonic — lambda-weighted harmonic bond for backmapping.
 
-   F = -w × k × (r - r0)
-   E = w × 0.5 × k × (r - r0)²
+   LAMMPS convention (same as bond_style harmonic):
+     E = w × K × (r - r0)²
+     F = -w × 2K × (r - r0)   (implemented as fbond = -2·w·K·dr / r)
+
+   GROMACS topologies use E = ½·kb·(r-r0)². Espresso++ bakery therefore
+   passes K = kb/2 into Harmonic(E=K·dr²). For E++ parity, feed
+   bond_coeff K = kb_gromacs/2 (see research ADR 2026-07-21-at-harmonic-k-half).
 
    where w comes from a single global lambda scalar and CG-bead
    co-membership: 1-lambda_global (cg), 1 always (at, same bead), or
