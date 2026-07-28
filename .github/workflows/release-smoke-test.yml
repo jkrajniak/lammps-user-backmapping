@@ -1,0 +1,212 @@
+name: Release Smoke Test (PET/Dacron)
+
+# Runs a short end-to-end LAMMPS simulation of the PET/Dacron network --
+# the most structurally complex validated example (crosslinked, explicit
+# water, non-uniform bonded terms) -- to catch protocol/build regressions
+# before a release, not on every push. Deliberately NOT run on every PR:
+# it builds LAMMPS from source and runs real dynamics, which is too slow
+# and too expensive to run on every merge.
+#
+# This exists because a build regression (missing MOLECULE/RIGID LAMMPS
+# packages -- see cpp-ci.yml's build job, which has the same gap: it only
+# checks `lmp -h` for backmap style registration, never runs an actual
+# example) and a protocol regression (CG particles given their own
+# integrator, fighting fix backmap's own centre-of-mass tracking) both
+# went undetected through normal CI in 2026-07, costing a full night of
+# manual debugging. See research/checkpoints.md and
+# research/experiments/20260728_pet-regen-cg-integration-root-cause.md.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      eq_steps:
+        description: "Stage 1 (lambda=0 eq) steps"
+        default: "500"
+      ramp_steps:
+        description: "Stage 2 (lambda ramp) steps"
+        default: "500"
+      prod_steps:
+        description: "Stage 3 (lambda=1 production) steps"
+        default: "200"
+
+env:
+  LAMMPS_VERSION: stable_22Jul2025_update2
+
+jobs:
+  pet-dacron-smoke:
+    name: PET/Dacron bakery-faithful protocol smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libopenmpi-dev
+
+      - name: Cache LAMMPS source
+        uses: actions/cache@v4
+        id: cache-lammps
+        with:
+          path: lammps
+          key: lammps-${{ env.LAMMPS_VERSION }}-smoke-ubuntu
+
+      - name: Download LAMMPS
+        if: steps.cache-lammps.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ env.LAMMPS_VERSION }} \
+            https://github.com/lammps/lammps.git
+
+      - name: Clean stale artifacts from cached LAMMPS tree
+        run: |
+          cd lammps/src
+          rm -f *_backmap*.cpp *_backmap*.h fix_backmap.* pair_backmap.* backmap_lambda.h
+          rm -rf BACKMAP
+          make no-all purge 2>/dev/null || true
+          cd ../..
+          rm -rf lammps/build
+
+      - name: Install package into LAMMPS
+        run: ./install.sh lammps
+
+      # PET/Dacron needs MOLECULE (atom_style full) and RIGID (fix shake)
+      # in addition to BACKMAP. cpp-ci.yml's build job only enables
+      # BACKMAP -- deliberately not "fixed" here to keep this workflow's
+      # build step independent and catch the same class of regression on
+      # its own, rather than depending on that job's config being right.
+      - name: Build LAMMPS with backmap + molecule + rigid packages
+        run: |
+          cd lammps
+          mkdir -p build && cd build
+          cmake ../cmake \
+            -D PKG_BACKMAP=yes \
+            -D PKG_MOLECULE=yes \
+            -D PKG_RIGID=yes \
+            -D BUILD_MPI=on \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D BUILD_SHARED_LIBS=off
+          cmake --build . -j "$(nproc)"
+
+      - name: Verify required styles are registered
+        run: |
+          lammps/build/lmp -h > lmp_help.txt
+          # "Installed packages:" is one space-separated line, not one
+          # name per line (cpp-ci.yml's "^BACKMAP" check only works
+          # because BACKMAP happens to be listed first -- word-boundary
+          # match here so position in the line doesn't matter).
+          grep -qw BACKMAP lmp_help.txt
+          grep -qw MOLECULE lmp_help.txt
+          grep -qw RIGID lmp_help.txt
+          grep -q "backmap/harmonic" lmp_help.txt
+          grep -qw shake lmp_help.txt
+
+      - name: Run PET/Dacron smoke test
+        working-directory: examples/pet/large
+        run: |
+          EQ="${{ github.event.inputs.eq_steps || '500' }}"
+          RAMP="${{ github.event.inputs.ramp_steps || '500' }}"
+          PROD="${{ github.event.inputs.prod_steps || '200' }}"
+          echo "Steps: eq=$EQ ramp=$RAMP prod=$PROD"
+          # This network's large comm_modify cutoff (spans most of the box)
+          # scales poorly with rank count -- see Section "Parallel
+          # performance" in the paper. 2 ranks keeps this fast without
+          # hitting that regression; this is a correctness smoke test, not
+          # a performance benchmark.
+          mpirun -np 2 --oversubscribe \
+            "${GITHUB_WORKSPACE}/lammps/build/lmp" \
+            -in in.pet -log smoke.log \
+            -var eq_steps "$EQ" -var ramp_steps "$RAMP" -var prod_steps "$PROD" \
+            2>&1 | tee smoke.out
+
+      - name: Check for hard failures
+        working-directory: examples/pet/large
+        run: |
+          if grep -qi "^ERROR" smoke.out; then
+            echo "::error::LAMMPS reported an ERROR"
+            exit 1
+          fi
+          if grep -qiE "\bnan\b|\binf\b" smoke.out; then
+            echo "::error::NaN/Inf detected in output"
+            grep -inE "\bnan\b|\binf\b" smoke.out | head -5
+            exit 1
+          fi
+          for marker in "EQ done" "RAMP done" "PRODUCTION done"; do
+            if ! grep -q "$marker" smoke.out; then
+              echo "::error::Missing expected marker: $marker (run did not complete all stages)"
+              exit 1
+            fi
+          done
+
+      - name: Sanity-check thermo values stayed bounded
+        working-directory: examples/pet/large
+        run: |
+          python3 - <<'PY'
+          import re, sys
+
+          # Same rough scale check used to distinguish "genuinely equilibrating"
+          # from "detonating" in the 2026-07-27/28 debugging session: a
+          # healthy PET/dacron run keeps E_bond/E_angle in the thousands,
+          # not the hundreds-of-thousands-to-millions range. The protocol
+          # deliberately skips a Phase 0 minimize, so E_angle legitimately
+          # starts around 3.8e6 and relaxes over a roughly fixed number of
+          # steps (observed ~200-1500 in full-length runs) that does NOT
+          # scale down with a short smoke-test eq_steps -- so Stage 1 (eq)
+          # is excluded entirely rather than fraction-scaled. The bound
+          # applies from Stage 2 (ramp) onward, where the real failure
+          # signature (uncontrolled escalation once fix backmap activates)
+          # would actually show up.
+          MAX_ENERGY = 5e5
+          WARMUP_STEPS = int(${{ github.event.inputs.eq_steps || '500' }})
+
+          rows = []
+          with open("smoke.log") as f:
+              in_thermo = False
+              cols = []
+              for line in f:
+                  s = line.strip()
+                  if s.startswith("Step") and "Temp" in s:
+                      cols = s.split()
+                      in_thermo = True
+                      continue
+                  if in_thermo:
+                      parts = s.split()
+                      if len(parts) != len(cols) or not parts or not re.match(r"^-?\d", parts[0]):
+                          in_thermo = False
+                          continue
+                      rows.append(dict(zip(cols, parts)))
+
+          bad = []
+          for row in rows:
+              step = int(float(row.get("Step", 0)))
+              if step < WARMUP_STEPS:
+                  continue
+              for key in ("PotEng", "E_bond", "E_angle"):
+                  if key in row:
+                      try:
+                          val = abs(float(row[key]))
+                      except ValueError:
+                          continue
+                      if val > MAX_ENERGY:
+                          bad.append((step, key, row[key]))
+
+          print(f"parsed {len(rows)} thermo rows, checked {sum(1 for r in rows if int(float(r.get('Step', 0))) >= WARMUP_STEPS)} past the {WARMUP_STEPS}-step warmup window")
+          if bad:
+              print(f"::error::{len(bad)} thermo rows exceeded the {MAX_ENERGY:.0e} sanity bound after warmup")
+              for step, key, val in bad[:20]:
+                  print(f"  step={step} {key}={val}")
+              sys.exit(1)
+          print("Thermo values stayed within sane bounds after the expected startup transient.")
+          PY
+
+      - name: Upload smoke test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pet-dacron-smoke-logs
+          path: |
+            examples/pet/large/smoke.out
+            examples/pet/large/smoke.log
+          retention-days: 30
