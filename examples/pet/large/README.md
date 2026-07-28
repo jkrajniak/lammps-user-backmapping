@@ -21,12 +21,43 @@ archive, `paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping/
 | `settings.v2.yaml` | yes | backmap-prep v2 settings; `data_dir`/`tables_dir` point to the JCC 2018 paper-data archive |
 | `cross_angles_pete.yaml`, `cross_dihedrals_pete.yaml` | yes | placeholders (`[]`) for the 54 ester-spanning cross-bonded terms bakery could not auto-derive (see `missing_definitions.txt` in the paper-data archive) |
 | `report_dacron_ref_peaks.py` | yes | Tier C reference peak extractor (published RDFs) |
-| `in.pet` | yes | LAMMPS input, robust 3-phase protocol (minimize -> nve/limit -> lambda ramp with `capforce` -> NVT), **hand-patched**: `comm_modify cutoff 75`, `reset_atoms image all` (see Known Issues; the previously-applied 2602-bond exclusion-list workaround was removed 2026-07-13 — see notebook `2026-07-13_pet-exclusion-list-verification.md`) |
-| `table_A_*.table` ... `table_W_W.table` (21 pair tables) | yes | small (<40 KB each), converted IBI pair potentials |
+| `in.pet` | yes | LAMMPS input, validated bakery-faithful 3-stage protocol (λ=0 eq → λ ramp → λ=1 production, no minimize phase). See "Protocol" below and `research/checkpoints.md` for what makes this specific structure work. |
+| `pet_bakery_velocities.py` | yes | generates `pet_vel.bakery.dump` from `pet.data`: one Maxwell-Boltzmann draw per CG bead, shared by every atom (CG + AT) in that bead's fragment — required initial-velocity scheme, not optional |
+| `pet_vel.bakery.dump` | yes (~2 MB) | pre-generated bakery velocities for the committed `pet.data`; regenerate with `python3 pet_bakery_velocities.py pet.data pet_vel.bakery.dump` if `pet.data` ever changes |
+| `table_A_*.table` ... `table_W_W.table` (21 CG-CG pair tables) | yes | small (<40 KB each), converted IBI pair potentials |
 | `pairs.dat` | yes (483 KB) | 1-4 pair list for `fix backmap/pairs` |
-| `pet.data` | yes (4.8 MB) | LAMMPS data file (system topology + coordinates); regenerate via `backmap-prep build` if it ever needs refreshing (see below) |
+| `pet.data` | yes (4.8 MB) | LAMMPS data file (system topology + coordinates). **Regenerated 2026-07-28** via a real `backmap-prep build` run (not a hand patch) — water O-O LJ and DIO/TER charge equilibration both verified correct against source `.itp` files; replaces an earlier committed version whose charges were never equilibrated. Regenerate via `backmap-prep build` if it ever needs refreshing (see below); if you do, also regenerate `pet_vel.bakery.dump` and re-verify the 21 CG-CG tables, since those are tied to the same pipeline run and were found to silently drift between regenerations. |
 | `table_a0.table`..`table_a3.table`, `table_d0.table`, `table_d1.table` | yes (1.8-3.7 MB each) | large angle/dihedral tables — regenerate the same way |
 | `log.pet_*.lammps`, `pet_tierb.out` | no | VM run logs; regenerate on demand, don't keep stale ones around (gitignored) |
+
+## Protocol
+
+`in.pet` runs three stages, no minimize phase (matches
+`decisions/2026-07-19-prefer-bakery-protocol-no-frozen-cg.md` and the
+original ESPResSo++ `start_backmapping.py` driver):
+
+1. **λ=0 equilibration** — CG+AT thermalized dynamics. AT intra-bead terms
+   are always fully active regardless of λ; CG-CG is at full strength.
+2. **λ ramp** — `fix backmap` activates and drives each CG bead toward its
+   AT fragment's center of mass via COM-tracking.
+3. **λ=1 production** — `fix backmap` stays active, pinned at λ=1.
+
+Two non-obvious requirements, both found the hard way (see
+`research/experiments/20260728_pet-regen-cg-integration-root-cause.md`):
+
+- **CG beads have no independent integrator or thermostat.** Only
+  `fix integrate_at at_atoms nve` exists; CG motion comes entirely from
+  `fix backmap`'s own COM-tracking. Adding `nve/limit`, `langevin`, or
+  `nvt` on `cg_atoms` makes them fight `fix backmap`'s COM-restraint the
+  moment it activates — this was the actual cause of every "SHAKE
+  crashes at ramp onset" symptom chased on 2026-07-27/28, not SHAKE
+  itself.
+- **Initial velocities must be the bakery per-bead-shared scheme**
+  (`pet_vel.bakery.dump`, see above), not independent per-atom
+  `velocity create`.
+
+Before debugging any variant of this protocol, check `research/checkpoints.md`
+for the current validated reference artifact.
 
 ## How to regenerate the large files
 
@@ -55,15 +86,23 @@ archive, `paper-reverse-mapping-polymer-networks/preparation/dacron/backmapping/
      18,392 incorrect over-exclusions. See
      `research/notebook/2026-07-13_pet-exclusion-list-verification.md`.
 
-## Tier status (2026-07-11/12)
+## Tier status
 
 | Tier | Status |
 |------|--------|
 | A (generator parity) | **PASS** — `hyb_conf.gro` byte-identical to bakery, `[ bonds ]` line-identical |
-| B (LAMMPS dynamics) | **blocked** — see Known Issues |
-| C (RDF vs published) | not started (blocked on B) |
+| B (LAMMPS dynamics) | **PASS** (2026-07-28) — bakery-faithful protocol runs eq → ramp → production without the blowups described in "Known issues" below (those were fixed via the CG-integration/velocity-init corrections, not further ramp/thermostat tuning) |
+| C (RDF vs published) | in progress — see `research/checkpoints.md` for current run status |
 
-## Known issues (2026-07-11/12 debugging)
+## Known issues (historical, 2026-07-11/12 debugging — resolved)
+
+The overlap/instability problems below were the *original* Tier B blocker,
+diagnosed and described in real time during early debugging. They are kept
+for historical record. They turned out not to be the final blocker — Tier B
+was eventually unblocked by fixing water-O LJ, DIO/TER charge equilibration,
+and (most recently) the CG-particle-integration and initial-velocity bugs
+described above and in `research/checkpoints.md`. Read this section as "how
+the investigation started," not as the current state.
 
 1. **AT fragment overlap across CG-bead boundaries.** Shift-and-lift places
    each bead's AT fragment independently, centered on its own CG bead
