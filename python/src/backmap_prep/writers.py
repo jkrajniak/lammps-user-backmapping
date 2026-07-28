@@ -251,6 +251,7 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         "bond_styles": bond_styles,
         "angle_styles": angle_styles,
         "dihedral_styles": dihedral_styles,
+        "apb_by_cg_type": system.apb_by_cg_type,
     }
 
 
@@ -501,11 +502,16 @@ def _write_setup(
     # Fix backmap
     nonuniform = "yes" if sim.nonuniform_lambda else "no"
     cg_type_fix_str = " ".join(str(t) for t in params["cg_type_ids"])
-    f.write(
+    fix_line = (
         f"fix bm all backmap cg_type {cg_type_fix_str} "
         f"alpha {sim.alpha} lambda0 {sim.initial_resolution} "
-        f"nonuniform {nonuniform}\n\n"
+        f"nonuniform {nonuniform}"
     )
+    apb = params.get("apb_by_cg_type", {})
+    if apb and len(set(apb.values())) > 1:
+        apb_str = " ".join(f"{t}:{n}" for t, n in sorted(apb.items()))
+        fix_line += f" apb {apb_str}"
+    f.write(fix_line + "\n\n")
 
     if system.has_cross_pairs:
         f.write(

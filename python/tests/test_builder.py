@@ -250,6 +250,38 @@ class TestBuildSystem:
         assert "atomistic" in kinds
         assert "none" in kinds
 
+    def test_apb_by_cg_type_uniform(self, tmp_path: Path) -> None:
+        """All beads have 2 atoms each — both CG types should have apb=2."""
+        _write_cg_files(tmp_path)
+        _write_at_files(tmp_path)
+        settings = _make_settings(tmp_path)
+        system = build_system(settings, tmp_path)
+
+        # CGA has type_id=1, CGB has type_id=2; both beads have 2 atoms
+        assert system.apb_by_cg_type == {1: 2, 2: 2}
+
+    def test_apb_by_cg_type_nonuniform(self, tmp_path: Path) -> None:
+        """Beads with different atom counts per CG type."""
+        _write_cg_files(tmp_path)
+        _write_at_files(tmp_path)
+        # Override settings: B1 has 3 atoms, B2 has 2 atoms
+        settings = Settings(
+            molecules=[
+                {
+                    "name": "TestMol",
+                    "source": {"coordinates": "at.gro", "topology": "at.top"},
+                    "beads": [
+                        {"name": "B1", "type": "CGA", "atoms": ["C1", "C2", "C3"]},
+                        {"name": "B2", "type": "CGB", "atoms": ["C4"]},
+                    ],
+                }
+            ],
+            cg_system={"coordinates": "cg.gro", "topology": "cg.top"},
+        )
+        system = build_system(settings, tmp_path)
+
+        assert system.apb_by_cg_type == {1: 3, 2: 1}
+
     def test_missing_cg_molecule_raises(self, tmp_path: Path) -> None:
         gro = "Empty\n    0\n   5.00000   5.00000   5.00000\n"
         (tmp_path / "cg.gro").write_text(gro)
