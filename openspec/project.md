@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements time-dependent backmapping (reverse mapping) from
+This project implements adaptive-resolution backmapping (reverse mapping) from
 coarse-grained to atomistic resolution as a LAMMPS user package. It consists of:
 
 - **C++ LAMMPS styles** (`src/`): fix, pair, bond, and angle styles that drive

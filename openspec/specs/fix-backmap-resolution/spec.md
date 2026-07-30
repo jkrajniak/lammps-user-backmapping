@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: Time-dependent lambda ramp
+### Requirement: Adaptive-resolution lambda ramp
 
 The fix SHALL increment the per-atom resolution parameter λ by a configurable rate each timestep: `λ(t+dt) = min(1.0, λ(t) + rate)`. The rate is specified as `alpha` in the fix command. All atoms within a molecule (CG + AT) SHALL receive the same λ value.
 

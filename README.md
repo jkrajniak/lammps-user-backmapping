@@ -1,7 +1,7 @@
 # LAMMPS Backmapping Package
 
-Time-dependent backmapping (reverse mapping) from coarse-grained to atomistic
-resolution, implemented as a LAMMPS user package.
+Adaptive-resolution backmapping (reverse mapping) from coarse-grained to
+atomistic resolution, implemented as a LAMMPS user package.
 
 The method ramps a per-atom resolution parameter **lambda** from 0 (pure CG) to
 1 (pure AT) uniformly across the simulation box, gradually restoring atomistic

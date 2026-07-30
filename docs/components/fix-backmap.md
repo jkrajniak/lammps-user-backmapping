@@ -18,7 +18,7 @@ fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/n
 
 ## Description
 
-`fix backmap` drives the time-dependent backmapping simulation. It manages:
+`fix backmap` drives the adaptive-resolution backmapping simulation. It manages:
 
 1. **Lambda ramp** -- per-atom resolution parameter that increases by `alpha`
    each timestep, clamped to \[0, 1\]

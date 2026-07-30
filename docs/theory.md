@@ -21,8 +21,8 @@ This page explains the backmapping method implemented in the package.
 ## Overview
 
 Backmapping (reverse mapping) is the process of reintroducing atomistic detail
-into a coarse-grained simulation. The method implemented here uses a
-time-dependent, smooth transition controlled by a resolution parameter
+into a coarse-grained simulation. The method implemented here uses an
+adaptive-resolution, smooth transition controlled by a resolution parameter
 **&lambda;** that is ramped from 0 (fully CG) to 1 (fully AT) during the
 simulation.
 

@@ -10,7 +10,7 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-/* fix backmap — time-dependent backmapping from CG to AT resolution.
+/* fix backmap: adaptive-resolution backmapping from CG to AT resolution.
 
    Manages: lambda ramp, CG-AT bead mapping, COM position tracking,
    CG force distribution to AT atoms.

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Time-dependent backmapping from coarse-grained to atomistic resolution,
+Adaptive-resolution backmapping from coarse-grained to atomistic resolution,
 implemented as a LAMMPS user package. Two main components:
 
 - **C++ LAMMPS styles** (`src/`) — `fix backmap`, `pair_style backmap`,
