@@ -2,7 +2,7 @@
 # PE Tier C: extract AT, build reference, run RDF production, compare.
 set -euo pipefail
 
-LMP="${LMP:-/Users/jakubkrajniak/Work/Science/lammps/build/lmp}"
+LMP="${LMP:-/path/to/lammps/build/lmp}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 

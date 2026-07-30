@@ -16,8 +16,8 @@ Validation of the VM backmap run against GROMACS reference RDFs from
 
 | File | Source |
 |------|--------|
-| `dump.backmap` | VM `/home/azureuser/sc/rim135/dump.backmap` |
-| `rim135_final.data` | VM `/home/azureuser/sc/rim135/rim135_final.data` |
+| `dump.backmap` | VM `/home/<vm_user>/sc/rim135/dump.backmap` |
+| `rim135_final.data` | VM `/home/<vm_user>/sc/rim135/rim135_final.data` |
 
 Re-fetch from VM:
 

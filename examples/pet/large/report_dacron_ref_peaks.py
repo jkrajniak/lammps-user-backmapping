@@ -80,8 +80,7 @@ if __name__ == "__main__":
     rdf_dir = (
         Path(sys.argv[1])
         if len(sys.argv) > 1
-        else Path(
-            "/Users/jakubkrajniak/Work/Science/user-backmapping/paper-reverse-mapping-polymer-networks/paper/dacron/rdf"
-        )
+        else Path(__file__).resolve().parents[4]
+        / "paper-reverse-mapping-polymer-networks/paper/dacron/rdf"
     )
     sys.exit(main(rdf_dir))

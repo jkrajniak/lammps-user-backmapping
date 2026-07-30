@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 # Serial build/lmp for backmap correctness; use build-omp for faster AT-only prod later.
-LMP="${LMP:-/home/azureuser/sc/lammps/build-omp/lmp}"
+LMP="${LMP:-/path/to/lammps/build-omp/lmp}"
 LMP_SUFFIX_OMP="${LMP_SUFFIX_OMP:--sf omp -pk omp ${OMP_NUM_THREADS:-8}}"
 OMP_NUM_THREADS="${OMP_NUM_THREADS:-8}"
 export OMP_NUM_THREADS

@@ -3,8 +3,8 @@
 # Records wall time of the timed ramp block; writes speedup.csv.
 set -euo pipefail
 
-LMP=/home/azureuser/sc/lammps/build-mpi/lmp
-OUT=/home/azureuser/sc/mpi-speedup
+LMP="${LMP:-/path/to/lammps/build-mpi/lmp}"
+OUT="${OUT:-./mpi-speedup}"
 mkdir -p "$OUT"
 CSV="$OUT/speedup.csv"
 echo "system,ranks,wall_s,atoms" > "$CSV"
@@ -23,8 +23,8 @@ run_one() {
   echo "$sys,$np,$t,$atoms" | tee -a "$CSV"
 }
 
-DOD_DIR=/home/azureuser/sc/pe-mpi-test
-RIM_DIR=/home/azureuser/sc/rim135
+DOD_DIR="${DOD_DIR:-/path/to/pe-mpi-test}"
+RIM_DIR="${RIM_DIR:-/path/to/rim135}"
 
 for np in 1 2 4 8; do
   echo "--- dodecane np=$np ---"

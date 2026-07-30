@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Full Tier B protocol in MPI for all three systems.
 # Records: completion status, wall time, final thermo, any ERROR.
-# Outputs to /home/azureuser/sc/mpi-full/.
+# Set LMP, OUT, and the per-system *_DIR vars below to your local paths.
 set -u
 
-LMP=/home/azureuser/sc/lammps/build-mpi/lmp
-OUT=/home/azureuser/sc/mpi-full
+LMP="${LMP:-/path/to/lammps/build-mpi/lmp}"
+OUT="${OUT:-./mpi-full}"
 mkdir -p "$OUT"
 SUMMARY="$OUT/full_mpi_summary.txt"
 : > "$SUMMARY"
@@ -28,17 +28,21 @@ run_case() {
   echo "  rc=$rc wall=[$wall] errors=$errors final_temp=$final_t final_etotal=$final_e" | tee -a "$SUMMARY"
 }
 
+DOD_DIR="${DOD_DIR:-/path/to/pe-mpi-test}"
+PE_DIR="${PE_DIR:-/path/to/pe-mpi}"
+RIM_DIR="${RIM_DIR:-/path/to/rim135}"
+
 # Dodecane full Tier B (in.dodecane): 1, 4, 8 ranks
-run_case dodecane /home/azureuser/sc/pe-mpi-test in.dodecane 1 serial
-run_case dodecane /home/azureuser/sc/pe-mpi-test in.dodecane 4 np4
-run_case dodecane /home/azureuser/sc/pe-mpi-test in.dodecane 8 np8
+run_case dodecane "$DOD_DIR" in.dodecane 1 serial
+run_case dodecane "$DOD_DIR" in.dodecane 4 np4
+run_case dodecane "$DOD_DIR" in.dodecane 8 np8
 
 # PE full Tier B (in.pe_robust): 1, 4 ranks
-run_case pe /home/azureuser/sc/pe-mpi in.pe_robust 1 serial
-run_case pe /home/azureuser/sc/pe-mpi in.pe_robust 4 np4
+run_case pe "$PE_DIR" in.pe_robust 1 serial
+run_case pe "$PE_DIR" in.pe_robust 4 np4
 
 # rim135 full Tier B (in.rim135): 1, 4 ranks
-run_case rim135 /home/azureuser/sc/rim135 in.rim135 1 serial
-run_case rim135 /home/azureuser/sc/rim135 in.rim135 4 np4
+run_case rim135 "$RIM_DIR" in.rim135 1 serial
+run_case rim135 "$RIM_DIR" in.rim135 4 np4
 
 echo "=== ALL DONE $(date +%T) ===" | tee -a "$SUMMARY"

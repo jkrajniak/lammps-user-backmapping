@@ -6,7 +6,7 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
-LMP="${LMP:-/home/azureuser/sc/lammps/build-omp/lmp}"
+LMP="${LMP:-/path/to/lammps/build-omp/lmp}"
 OMP_NUM_THREADS="${OMP_NUM_THREADS:-8}"
 export OMP_NUM_THREADS
 LMP_OMP=(-sf omp -pk omp "$OMP_NUM_THREADS")
