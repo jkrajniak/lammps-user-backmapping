@@ -6,13 +6,9 @@ units real
 atom_style full
 boundary p p p
 
-# Network system: CG bead <-> AT-atom pairs can span farther than the pair
-# cutoff once cross-links are present, so widen the ghost-atom halo (see
-# rim135/in.rim135 for the same fix). Without this, build_bead_map() sees a
-# truncated AT-atom set per molecule on some MPI ranks and errors out.
-comm_modify cutoff 30.00
-
 read_data melamine.data
+
+comm_modify cutoff 15.00
 
 pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
 pair_coeff 1 1 cg table_A_A.table ENTRY
@@ -62,61 +58,73 @@ pair_coeff 8 9 atomistic 0.000000 0.000000
 pair_coeff 9 9 atomistic 0.000000 0.000000
 
 bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
-bond_coeff 1 harmonic 962.001062 1.350000
-bond_coeff 2 harmonic 962.001062 1.370000
-bond_coeff 3 harmonic 764.000843 1.470000
-bond_coeff 4 harmonic 868.000958 1.010000
-bond_coeff 5 harmonic 640.000707 1.430000
-bond_coeff 6 harmonic 680.000751 1.100000
-bond_coeff 7 harmonic 1106.001221 0.980000
-bond_coeff 8 harmonic 1106.001221 0.970000
+bond_coeff 1 harmonic 481.000531 1.350000
+bond_coeff 2 harmonic 481.000531 1.370000
+bond_coeff 3 harmonic 382.000422 1.470000
+bond_coeff 4 harmonic 434.000479 1.010000
+bond_coeff 5 harmonic 320.000353 1.430000
+bond_coeff 6 harmonic 340.000375 1.100000
+bond_coeff 7 harmonic 553.000611 0.980000
+bond_coeff 8 harmonic 553.000611 0.970000
 bond_coeff 9 backmap/table cg table_b1.table ENTRY
-bond_coeff 10 backmap/harmonic at 962.001062 1.350000
-bond_coeff 11 backmap/harmonic at 962.001062 1.360000
+bond_coeff 10 backmap/harmonic at 481.000531 1.350000
+bond_coeff 11 backmap/harmonic at 481.000531 1.360000
 
 angle_style hybrid harmonic backmap/harmonic
-angle_coeff 1 harmonic 160.000177 115.9740
-angle_coeff 2 harmonic 100.000110 122.7480
-angle_coeff 3 harmonic 70.000077 117.1410
-angle_coeff 4 harmonic 160.000177 112.2030
-angle_coeff 5 harmonic 70.000077 109.7990
-angle_coeff 6 harmonic 70.000077 110.3940
-angle_coeff 7 harmonic 160.000177 116.1820
-angle_coeff 8 harmonic 100.000110 123.0140
-angle_coeff 9 harmonic 70.000077 117.6650
-angle_coeff 10 harmonic 160.000177 112.1460
-angle_coeff 11 harmonic 70.000077 110.3040
-angle_coeff 12 harmonic 70.000077 109.9090
-angle_coeff 13 harmonic 160.000177 118.7940
-angle_coeff 14 harmonic 100.000110 123.0660
-angle_coeff 15 harmonic 70.000077 117.2970
-angle_coeff 16 harmonic 160.000177 112.5740
-angle_coeff 17 harmonic 70.000077 109.7450
-angle_coeff 18 harmonic 70.000077 110.2540
-angle_coeff 19 harmonic 70.000077 116.4310
-angle_coeff 20 harmonic 110.000121 107.8310
-angle_coeff 21 harmonic 70.000077 107.8120
-angle_coeff 22 harmonic 70.000077 108.1410
-angle_coeff 23 harmonic 66.000073 108.3770
-angle_coeff 24 harmonic 70.000077 116.7990
-angle_coeff 25 harmonic 110.000121 108.8060
-angle_coeff 26 harmonic 70.000077 107.8650
-angle_coeff 27 harmonic 70.000077 107.9800
-angle_coeff 28 harmonic 66.000073 108.2970
-angle_coeff 29 harmonic 70.000077 116.9500
-angle_coeff 30 harmonic 110.000121 107.5770
-angle_coeff 31 harmonic 70.000077 108.1470
-angle_coeff 32 harmonic 70.000077 107.7610
-angle_coeff 33 harmonic 66.000073 108.4640
-angle_coeff 34 backmap/harmonic at 160.000177 125.0100
-angle_coeff 35 backmap/harmonic at 160.000177 116.1640
-angle_coeff 36 backmap/harmonic at 160.000177 125.2370
-angle_coeff 37 backmap/harmonic at 80.000088 114.8430
-angle_coeff 38 backmap/harmonic at 80.000088 114.8070
-angle_coeff 39 backmap/harmonic at 160.000177 118.7880
-angle_coeff 40 backmap/harmonic at 160.000177 124.9860
-angle_coeff 41 backmap/harmonic at 80.000088 115.1170
-angle_coeff 42 backmap/harmonic at 160.000177 118.8230
+angle_coeff 1 harmonic 80.000088 115.9740
+angle_coeff 2 harmonic 50.000055 122.7480
+angle_coeff 3 harmonic 35.000039 117.1410
+angle_coeff 4 harmonic 80.000088 112.2030
+angle_coeff 5 harmonic 35.000039 109.7990
+angle_coeff 6 harmonic 35.000039 110.3940
+angle_coeff 7 harmonic 80.000088 116.1820
+angle_coeff 8 harmonic 50.000055 123.0140
+angle_coeff 9 harmonic 35.000039 117.6650
+angle_coeff 10 harmonic 80.000088 112.1460
+angle_coeff 11 harmonic 35.000039 110.3040
+angle_coeff 12 harmonic 35.000039 109.9090
+angle_coeff 13 harmonic 80.000088 118.7940
+angle_coeff 14 harmonic 50.000055 123.0660
+angle_coeff 15 harmonic 35.000039 117.2970
+angle_coeff 16 harmonic 80.000088 112.5740
+angle_coeff 17 harmonic 35.000039 109.7450
+angle_coeff 18 harmonic 35.000039 110.2540
+angle_coeff 19 harmonic 35.000039 116.4310
+angle_coeff 20 harmonic 55.000061 107.8310
+angle_coeff 21 harmonic 35.000039 107.8120
+angle_coeff 22 harmonic 35.000039 108.1410
+angle_coeff 23 harmonic 33.000036 108.3770
+angle_coeff 24 harmonic 35.000039 116.7990
+angle_coeff 25 harmonic 55.000061 108.8060
+angle_coeff 26 harmonic 35.000039 107.8650
+angle_coeff 27 harmonic 35.000039 107.9800
+angle_coeff 28 harmonic 33.000036 108.2970
+angle_coeff 29 harmonic 35.000039 116.9500
+angle_coeff 30 harmonic 55.000061 107.5770
+angle_coeff 31 harmonic 35.000039 108.1470
+angle_coeff 32 harmonic 35.000039 107.7610
+angle_coeff 33 harmonic 33.000036 108.4640
+angle_coeff 34 backmap/harmonic at 80.000088 125.0100
+angle_coeff 35 backmap/harmonic at 80.000088 116.1640
+angle_coeff 36 backmap/harmonic at 80.000088 125.2370
+angle_coeff 37 backmap/harmonic at 40.000044 114.8430
+angle_coeff 38 backmap/harmonic at 40.000044 114.8070
+angle_coeff 39 backmap/harmonic at 80.000088 118.7880
+angle_coeff 40 backmap/harmonic at 80.000088 124.9860
+angle_coeff 41 backmap/harmonic at 40.000044 115.1170
+angle_coeff 42 backmap/harmonic at 80.000088 118.8230
+
+dihedral_style hybrid ryckaert backmap/ryckaert
+dihedral_coeff 1 ryckaert 7.936008 -0.000000 -7.936008 -0.000000 0.000000 -0.000000
+dihedral_coeff 2 ryckaert 4.900005 -0.000000 -4.900005 -0.000000 0.000000 -0.000000
+dihedral_coeff 3 ryckaert 6.089008 -0.000000 -6.089008 -0.000000 0.000000 -0.000000
+dihedral_coeff 4 ryckaert 0.280000 -0.840001 0.000000 1.120001 0.000000 -0.000000
+dihedral_coeff 5 ryckaert 0.200000 -0.600001 0.000000 0.800001 0.000000 -0.000000
+dihedral_coeff 6 ryckaert 4.000004 -1.000001 -5.000006 -0.000000 0.000000 -0.000000
+dihedral_coeff 7 ryckaert 0.225000 -0.675001 0.000000 0.900001 0.000000 -0.000000
+dihedral_coeff 8 backmap/ryckaert at 0.717018 -7.239009 -1.150001 6.089008 0.000000 -0.000000
+dihedral_coeff 9 backmap/ryckaert at 0.717018 -7.936008 0.000000 7.936008 0.000000 -0.000000
+dihedral_coeff 10 backmap/ryckaert at 0.717018 -4.900005 0.000000 4.900005 0.000000 -0.000000
 
 special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 
@@ -125,9 +133,18 @@ group cg_atoms type 1
 
 neigh_modify delay 0 every 1 check yes
 
+# Initial velocities at T=300.0 K
+velocity all create 300.0 12345 dist gaussian mom yes rot yes
+
+fix integrate at_atoms nve
+fix thermo at_atoms langevin 300.0 300.0 33.3 12345
+
 fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.0 nonuniform no
 
 compute at_temp at_atoms temp
+
+timestep 1.00
+
 thermo 1000
 thermo_style custom step temp pe ke etotal press f_bm
 thermo_modify colname f_bm lambda
@@ -136,46 +153,19 @@ thermo_modify temp at_temp
 dump traj all custom 1000 dump.backmap id mol type x y z f_bm
 dump_modify traj sort id
 
-# === Phase 0a: Minimize AT overlaps (CG frozen) ===
-fix freeze cg_atoms setforce 0.0 0.0 0.0
-minimize 1.0e-4 1.0e-6 1000 10000
-print "Phase 0a complete: minimization done"
-
-# === Phase 0b: Gentle relaxation (CG frozen, nve/limit). AT intra-bead
-# chemistry is always fully active (see docs/theory.md), so a thermostat
-# is needed here too, not just during the ramp. ===
-fix relax at_atoms nve/limit 0.01
-fix therm_relax at_atoms langevin 300.0 300.0 20.0 71933
-timestep 0.01
+# Phase 1: CG equilibration (λ frozen — optional if CG was pre-equilibrated)
+fix_modify bm active no
 run 10000
-unfix therm_relax
-print "Phase 0b complete: AT overlap relaxation done"
 
-# === Phase 1: Lambda ramp with nve/limit ===
-# Thermostat runs throughout the ramp (matching the original AdResS
-# protocol's always-on Langevin damping — Krajniak et al. JCTC 2016), so
-# transient force spikes from AT interactions turning on are removed as
-# heat instead of accumulating as runaway kinetic energy.
-unfix relax
-unfix freeze
-fix limit_all all nve/limit 0.05
-fix therm_ramp at_atoms langevin 300.0 300.0 100.0 71934
-fix_modify bm active yes
-timestep 0.10
-run 20000
-print "Phase 1 complete: lambda ramp done"
-
-# === Phase 2: NVT equilibration with gradual dt ===
-unfix limit_all
-unfix therm_ramp
-fix nvt_at at_atoms nvt temp 300.0 300.0 100.0
-fix nvt_cg cg_atoms nvt temp 300.0 300.0 100.0
-timestep 0.25
-run 10000
-timestep 0.50
-run 5000
+# Phase 2: Backmapping
 timestep 1.00
-run 5000
+fix_modify bm active yes
+run 10000
 
 write_data melamine_hybrid.data
-print "Backmapping complete."
+
+# Phase 3: AT production (optional post-backmap)
+timestep 1.00
+run 10000
+
+write_data melamine_final.data

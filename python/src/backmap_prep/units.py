@@ -13,8 +13,12 @@ FORCE = KJ_TO_KCAL / NM_TO_ANGSTROM  # kJ/(mol·nm) → kcal/(mol·Å)
 TIME = 1000.0  # ps → fs
 CHARGE = 1.0  # e → e
 MASS = 1.0  # g/mol → g/mol
-SPRING_BOND = KJ_TO_KCAL / (NM_TO_ANGSTROM**2)  # kJ/(mol·nm²) → kcal/(mol·Å²)
-SPRING_ANGLE = KJ_TO_KCAL  # kJ/(mol·rad²) → kcal/(mol·rad²)
+# GROMACS harmonic bond/angle potentials use E = (k/2)x²; LAMMPS's `harmonic`
+# and `backmap/harmonic` bond/angle styles use E = Kx² (force factor -2K), so
+# k must be halved on top of the unit conversion. See
+# research/decisions/2026-07-21-at-harmonic-k-half-for-epplus-parity.md.
+SPRING_BOND = KJ_TO_KCAL / (NM_TO_ANGSTROM**2) / 2.0  # kJ/(mol·nm²) → kcal/(mol·Å²), k→K
+SPRING_ANGLE = KJ_TO_KCAL / 2.0  # kJ/(mol·rad²) → kcal/(mol·rad²), k→K
 PRESSURE = 0.986923  # bar → atm
 
 
@@ -39,12 +43,12 @@ def time(val: float) -> float:
 
 
 def spring_bond(val: float) -> float:
-    """kJ/(mol·nm²) → kcal/(mol·Å²)"""
+    """GROMACS bond k (kJ/(mol·nm²), E=(k/2)x²) → LAMMPS K (kcal/(mol·Å²), E=Kx²)"""
     return val * SPRING_BOND
 
 
 def spring_angle(val: float) -> float:
-    """kJ/(mol·rad²) → kcal/(mol·rad²)"""
+    """GROMACS angle k (kJ/(mol·rad²), E=(k/2)x²) → LAMMPS K (kcal/(mol·rad²), E=Kx²)"""
     return val * SPRING_ANGLE
 
 

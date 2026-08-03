@@ -26,9 +26,19 @@ namespace LAMMPS_NS {
 /* ESPResSo++ LennardJonesEnergyCapped port for AT LJ inside backmap.
 
    For r <= caprad (= cap_factor * sigma): LJ force = 0, LJ energy = V(caprad).
-   Coulomb is unchanged. Default cap_factor = 0.5 (bakery tools_sim.py).
+   Coulomb is unchanged by default (matches bakery's tools_sim.py port).
+   Default cap_factor = 0.5 (bakery tools_sim.py).
 
-   Syntax: pair_style lj/cut/coul/cut/ecap cut_lj [cut_coul] [cap_factor]
+   Optional 4th arg coul_cap_radius (default 0.0 = disabled) is NOT part of
+   the bakery/E++ reference: it caps same-pair Coulomb the same way (force=0,
+   energy held flat at V(coul_cap_radius)) for r <= coul_cap_radius. Added to
+   absorb unrelaxed same-fragment 1-5+ electrostatic strain that plain LJ
+   capping cannot reach (see
+   research/experiments/20260802_melamine-bakery-rerun.md). Leave at 0.0 to
+   reproduce the original bakery-faithful behavior exactly.
+
+   Syntax: pair_style lj/cut/coul/cut/ecap cut_lj [cut_coul [cap_factor
+   [coul_cap_radius]]]
 */
 
 class PairLJCutCoulCutEcap : public PairLJCutCoulCut {
@@ -44,6 +54,8 @@ class PairLJCutCoulCutEcap : public PairLJCutCoulCut {
   double cap_factor;
   double **capradsq;
   double **lj_cap_eng;
+  double coul_cap_radius;
+  double coul_capradsq;
 
   void allocate() override;
 };

@@ -3,6 +3,12 @@
 # CG interactions: tabulated bonds
 # AT interactions: OPLS/AA
 
+prep:
+  # topol_aa.top's [ dihedrals ] section leaves ~12 amide/imide dihedrals
+  # (func 3, no coefficients) to be resolved from the OPLS-AA dihedraltypes
+  # table; shared with epoxy/PET.
+  forcefield_dir: ../../epoxy/forcefield
+
 molecules:
 - name: MF
   ident: MF

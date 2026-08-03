@@ -29,7 +29,9 @@ PairLJCutCoulCutEcap::PairLJCutCoulCutEcap(LAMMPS *lmp)
     : PairLJCutCoulCut(lmp),
       cap_factor(0.5),
       capradsq(nullptr),
-      lj_cap_eng(nullptr) {}
+      lj_cap_eng(nullptr),
+      coul_cap_radius(0.0),
+      coul_capradsq(0.0) {}
 
 /* ---------------------------------------------------------------------- */
 
@@ -53,7 +55,7 @@ void PairLJCutCoulCutEcap::allocate() {
 /* ---------------------------------------------------------------------- */
 
 void PairLJCutCoulCutEcap::settings(int narg, char **arg) {
-  if (narg < 1 || narg > 3) error->all(FLERR, "Illegal pair_style command");
+  if (narg < 1 || narg > 4) error->all(FLERR, "Illegal pair_style command");
 
   cut_lj_global = utils::numeric(FLERR, arg[0], false, lmp);
   if (narg == 1) {
@@ -62,12 +64,21 @@ void PairLJCutCoulCutEcap::settings(int narg, char **arg) {
     cut_coul_global = utils::numeric(FLERR, arg[1], false, lmp);
   }
   cap_factor = 0.5;
-  if (narg == 3) {
+  if (narg >= 3) {
     cap_factor = utils::numeric(FLERR, arg[2], false, lmp);
     if (cap_factor <= 0.0)
       error->all(FLERR,
                  "pair_style lj/cut/coul/cut/ecap cap_factor must be > 0");
   }
+  coul_cap_radius = 0.0;
+  if (narg == 4) {
+    coul_cap_radius = utils::numeric(FLERR, arg[3], false, lmp);
+    if (coul_cap_radius < 0.0)
+      error->all(
+          FLERR,
+          "pair_style lj/cut/coul/cut/ecap coul_cap_radius must be >= 0");
+  }
+  coul_capradsq = coul_cap_radius * coul_cap_radius;
 
   if (allocated) {
     for (int i = 1; i <= atom->ntypes; i++)
@@ -151,9 +162,12 @@ void PairLJCutCoulCutEcap::compute(int eflag, int vflag) {
       if (rsq < cutsq[itype][jtype]) {
         r2inv = 1.0 / rsq;
 
-        if (rsq < cut_coulsq[itype][jtype])
-          forcecoul = qqrd2e * qtmp * q[j] * sqrt(r2inv);
-        else
+        if (rsq < cut_coulsq[itype][jtype]) {
+          if (coul_capradsq > 0.0 && rsq < coul_capradsq)
+            forcecoul = 0.0;
+          else
+            forcecoul = qqrd2e * qtmp * q[j] * sqrt(r2inv);
+        } else
           forcecoul = 0.0;
 
         if (rsq < cut_ljsq[itype][jtype]) {
@@ -178,9 +192,12 @@ void PairLJCutCoulCutEcap::compute(int eflag, int vflag) {
         }
 
         if (eflag) {
-          if (rsq < cut_coulsq[itype][jtype])
-            ecoul = factor_coul * qqrd2e * qtmp * q[j] * sqrt(r2inv);
-          else
+          if (rsq < cut_coulsq[itype][jtype]) {
+            if (coul_capradsq > 0.0 && rsq < coul_capradsq)
+              ecoul = factor_coul * qqrd2e * qtmp * q[j] / sqrt(coul_capradsq);
+            else
+              ecoul = factor_coul * qqrd2e * qtmp * q[j] * sqrt(r2inv);
+          } else
             ecoul = 0.0;
           if (rsq < cut_ljsq[itype][jtype]) {
             if (rsq > capradsq[itype][jtype]) {
@@ -213,9 +230,12 @@ double PairLJCutCoulCutEcap::single(int i, int j, int itype, int jtype,
   double r2inv, r6inv, forcecoul, forcelj, phicoul, philj;
 
   r2inv = 1.0 / rsq;
-  if (rsq < cut_coulsq[itype][jtype])
-    forcecoul = force->qqrd2e * atom->q[i] * atom->q[j] * sqrt(r2inv);
-  else
+  if (rsq < cut_coulsq[itype][jtype]) {
+    if (coul_capradsq > 0.0 && rsq < coul_capradsq)
+      forcecoul = 0.0;
+    else
+      forcecoul = force->qqrd2e * atom->q[i] * atom->q[j] * sqrt(r2inv);
+  } else
     forcecoul = 0.0;
 
   if (rsq < cut_ljsq[itype][jtype]) {
@@ -236,7 +256,10 @@ double PairLJCutCoulCutEcap::single(int i, int j, int itype, int jtype,
 
   double eng = 0.0;
   if (rsq < cut_coulsq[itype][jtype]) {
-    phicoul = force->qqrd2e * atom->q[i] * atom->q[j] * sqrt(r2inv);
+    if (coul_capradsq > 0.0 && rsq < coul_capradsq)
+      phicoul = force->qqrd2e * atom->q[i] * atom->q[j] / sqrt(coul_capradsq);
+    else
+      phicoul = force->qqrd2e * atom->q[i] * atom->q[j] * sqrt(r2inv);
     eng += factor_coul * phicoul;
   }
   if (rsq < cut_ljsq[itype][jtype]) eng += factor_lj * philj;
