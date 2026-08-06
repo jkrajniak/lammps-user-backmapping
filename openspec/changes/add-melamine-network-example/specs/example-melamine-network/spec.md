@@ -16,10 +16,17 @@ as a fixed, static topology -- not regenerated via live reaction dynamics.
   associated crosslink-site angles/dihedrals), matching bakery's `cg_topol.top`
   `; chem` bond count
 
-#### Scenario: Unreacted arms match the uncrosslinked example
+#### Scenario: Unreacted arms match bakery's own reference charge scheme
 - **WHEN** a CG bead in `examples/melamine_network/` is not part of a crosslink
-- **THEN** its AT fragment SHALL be identical (atom count, charges, bonded
-  terms) to the corresponding bead in `examples/melamine/`
+- **THEN** its AT fragment SHALL have the same atom count and bonded terms as
+  the corresponding bead in `examples/melamine/`, and its per-atom charges
+  SHALL match the vendored `settings.xml`'s `<charge_map>` values for that
+  bead -- not `at_topol.top`'s own per-atom AA charges. (Confirmed during
+  implementation: bakery's own reference applies `<charge_map>` uniformly to
+  every arm, reacted or unreacted, as a CG-mapping-consistent charge scheme
+  distinct from the plain AA topology's charges -- this is bakery's real,
+  intended behavior for this network representation, not a defect to work
+  around, per the decision to import bakery's exact network in Task 1.)
 
 ### Requirement: Crosslink sites have real force-field parameters
 
