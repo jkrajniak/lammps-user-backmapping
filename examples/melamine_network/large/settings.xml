@@ -86,118 +86,12 @@
         </bonds>
 
         <angles params=" ; AT cross angles">
-            MF:C1 MF:O1 MF:C1
-            MF:C1 MF:O2 MF:C2
-            MF:C1 MF:O3 MF:C3
-            MF:C2 MF:O1 MF:C1
-            MF:C2 MF:O2 MF:C2
-            MF:C2 MF:O3 MF:C3
-            MF:C3 MF:O1 MF:C1
-            MF:C3 MF:O2 MF:C2
-            MF:C3 MF:O3 MF:C3
-            MF:O1 MF:C1 MF:H011
-            MF:O1 MF:C1 MF:H012
-            MF:O1 MF:C1 MF:N21
-            MF:O1 MF:C2 MF:H021
-            MF:O1 MF:C2 MF:H022
-            MF:O1 MF:C2 MF:N22
-            MF:O1 MF:C3 MF:H031
-            MF:O1 MF:C3 MF:H032
-            MF:O1 MF:C3 MF:N23
-            MF:O2 MF:C1 MF:H011
-            MF:O2 MF:C1 MF:H012
-            MF:O2 MF:C1 MF:N21
-            MF:O2 MF:C2 MF:H021
-            MF:O2 MF:C2 MF:H022
-            MF:O2 MF:C2 MF:N22
-            MF:O2 MF:C3 MF:H031
-            MF:O2 MF:C3 MF:H032
-            MF:O2 MF:C3 MF:N23
-            MF:O3 MF:C1 MF:H011
-            MF:O3 MF:C1 MF:H012
-            MF:O3 MF:C1 MF:N21
-            MF:O3 MF:C2 MF:H021
-            MF:O3 MF:C2 MF:H022
-            MF:O3 MF:C2 MF:N22
-            MF:O3 MF:C3 MF:H031
-            MF:O3 MF:C3 MF:H032
-            MF:O3 MF:C3 MF:N23
+
         </angles>
         <dihedrals params="; AT dihedrals">
-            MF:C1 MF:O1 MF:C1 MF:H011
-            MF:C1 MF:O1 MF:C1 MF:H012
-            MF:C1 MF:O1 MF:C1 MF:N21
-            MF:C1 MF:O1 MF:C2 MF:H021
-            MF:C1 MF:O1 MF:C2 MF:H022
-            MF:C1 MF:O1 MF:C2 MF:N22
-            MF:C1 MF:O1 MF:C3 MF:H031
-            MF:C1 MF:O1 MF:C3 MF:H032
-            MF:C1 MF:O1 MF:C3 MF:N23
-            MF:C1 MF:O2 MF:C2 MF:H021
-            MF:C1 MF:O2 MF:C2 MF:H022
-            MF:C1 MF:O2 MF:C2 MF:N22
-            MF:C1 MF:O3 MF:C3 MF:H031
-            MF:C1 MF:O3 MF:C3 MF:H032
-            MF:C1 MF:O3 MF:C3 MF:N23
-            MF:C2 MF:O1 MF:C1 MF:H011
-            MF:C2 MF:O1 MF:C1 MF:H012
-            MF:C2 MF:O1 MF:C1 MF:N21
-            MF:C2 MF:O2 MF:C1 MF:H011
-            MF:C2 MF:O2 MF:C1 MF:H012
-            MF:C2 MF:O2 MF:C1 MF:N21
-            MF:C2 MF:O2 MF:C2 MF:H021
-            MF:C2 MF:O2 MF:C2 MF:H022
-            MF:C2 MF:O2 MF:C2 MF:N22
-            MF:C2 MF:O2 MF:C3 MF:H031
-            MF:C2 MF:O2 MF:C3 MF:H032
-            MF:C2 MF:O2 MF:C3 MF:N23
-            MF:C2 MF:O3 MF:C3 MF:H031
-            MF:C2 MF:O3 MF:C3 MF:H032
-            MF:C2 MF:O3 MF:C3 MF:N23
-            MF:C3 MF:O1 MF:C1 MF:H011
-            MF:C3 MF:O1 MF:C1 MF:H012
-            MF:C3 MF:O1 MF:C1 MF:N21
-            MF:C3 MF:O2 MF:C2 MF:H021
-            MF:C3 MF:O2 MF:C2 MF:H022
-            MF:C3 MF:O2 MF:C2 MF:N22
-            MF:C3 MF:O3 MF:C1 MF:H011
-            MF:C3 MF:O3 MF:C1 MF:H012
-            MF:C3 MF:O3 MF:C1 MF:N21
-            MF:C3 MF:O3 MF:C2 MF:H021
-            MF:C3 MF:O3 MF:C2 MF:H022
-            MF:C3 MF:O3 MF:C2 MF:N22
-            MF:C3 MF:O3 MF:C3 MF:H031
-            MF:C3 MF:O3 MF:C3 MF:H032
-            MF:C3 MF:O3 MF:C3 MF:N23
-            MF:O1 MF:C1 MF:N21 MF:C11
-            MF:O1 MF:C1 MF:N21 MF:H21
-            MF:O1 MF:C2 MF:N22 MF:C12
-            MF:O1 MF:C2 MF:N22 MF:H31
-            MF:O1 MF:C3 MF:N23 MF:C13
-            MF:O1 MF:C3 MF:N23 MF:H11
-            MF:O2 MF:C1 MF:N21 MF:C11
-            MF:O2 MF:C1 MF:N21 MF:H21
-            MF:O2 MF:C2 MF:N22 MF:C12
-            MF:O2 MF:C2 MF:N22 MF:H31
-            MF:O2 MF:C3 MF:N23 MF:C13
-            MF:O2 MF:C3 MF:N23 MF:H11
-            MF:O3 MF:C1 MF:N21 MF:C11
-            MF:O3 MF:C1 MF:N21 MF:H21
-            MF:O3 MF:C2 MF:N22 MF:C12
-            MF:O3 MF:C2 MF:N22 MF:H31
-            MF:O3 MF:C3 MF:N23 MF:C13
-            MF:O3 MF:C3 MF:N23 MF:H11
+
         </dihedrals>
-        <!-- angles, dihedrals populated (task-4-report.md, 2026-08-06): completes
-             bakery's own unfinished "add angles, dihedrals, pairs??" TODO left in
-             this vendored reference file. Patterns match every distinct crosslink
-             site angle/dihedral atom-type signature found missing by
-             build_hybrid_gromacs(); numeric params intentionally omitted here,
-             same convention as the bonds block above: GROMACS/grompp fills
-             them in from ffbonded.itp's angletypes/dihedraltypes tables at
-             preprocessing time using atom types. See
-             examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp for the corresponding
-             generic OPLS-AA entries added to cover these atom-type combinations. -->
+        <!-- add angles, dihedrals, pairs?? -->
         <molecule_type>
             <name>HYB</name>
             <exclusion>3</exclusion>
