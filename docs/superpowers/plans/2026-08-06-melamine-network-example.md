@@ -533,11 +533,26 @@ def test_mf_network_no_missing_definitions() -> None:
 
 - [ ] **Step 4: If Step 2b was needed, add a decision record**
 
-Create `research/decisions/2026-08-XX-mf-network-ether-ff-params.md` (repo root
-`research/`, not the worktree's local copy — see Task 8 for how research-repo
-updates are coordinated) documenting the source of the added parameters and that
-they're a generic-aliphatic-ether approximation, not melamine-specific literature
-values.
+`research/` is a separate sibling repo, not part of this code repo, and not
+nested inside this git worktree — locate it first rather than assuming a path:
+
+```bash
+CODE_REPO_ROOT="$(cd "$(git rev-parse --show-toplevel)/../../.." && pwd)"
+# From a normal (non-worktree) checkout, --show-toplevel already IS the code
+# repo root; from a worktree under .claude/worktrees/<name>/, the three ".."
+# above walk back out to it. Either way, the sibling research repo is:
+ls -d "$CODE_REPO_ROOT/../research" 2>&1
+```
+
+If that doesn't resolve to a directory containing `decisions/`, `experiments/`,
+and `checkpoints.md`, stop and ask rather than guessing a different path — this
+step writes into a separate repo with its own git history, and a wrong guess
+here creates an orphaned file, not a merge conflict that would surface the
+mistake later.
+
+Once located, create `<research_repo>/decisions/2026-08-XX-mf-network-ether-ff-params.md`
+documenting the source of the added parameters and that they're a
+generic-aliphatic-ether approximation, not melamine-specific literature values.
 
 - [ ] **Step 5: Run tests, confirm pass**
 
@@ -683,8 +698,24 @@ from Task 4/5 — copy these type coefficient lines directly from the generated
 ```bash
 python3 -c "
 content = open('examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps').read()
-for required in ['read_data melamine_network.data', 'fix bm all backmap', 'fix cap all backmap/capforce', 'Stage 3', 'coul_cap_radius=0.0' if False else 'pair_style backmap']:
-    assert required in content, f'missing: {required}'
+required = [
+    'read_data melamine_network.data',
+    'fix bm all backmap',
+    'fix cap all backmap/capforce',
+    'Stage 3',
+    'pair_style backmap',
+]
+for item in required:
+    assert item in content, f'missing: {item}'
+# The staged coul_cap_radius pattern must appear twice: once at 5.0 (eq/ramp)
+# and once reissued at 0.0 immediately before Stage 3 (production) -- this is
+# the fix that made the uncrosslinked example's production run stable and
+# uncapped; verify it was actually carried over, not just 'pair_style backmap'
+# appearing somewhere.
+assert content.count('pair_style backmap') == 2, (
+    f'expected exactly 2 pair_style reissues (eq/ramp + Stage 3), '
+    f'got {content.count(\"pair_style backmap\")}'
+)
 print('structural check OK')
 "
 ```
@@ -747,9 +778,9 @@ git commit -m "docs(examples): record crosslinked MF network pilot run log"
 ### Task 8: Full VM production run, RDF comparison, docs
 
 **Files:**
-- Create: `research/experiments/<date>_melamine-network-tier-c.md` (repo root
-  `research/`, not this code repo — coordinate path with wherever the research repo
-  is checked out relative to this worktree)
+- Create: `<research_repo>/experiments/<date>_melamine-network-tier-c.md` — locate
+  `<research_repo>` the same way as Task 4 Step 4 (it's a separate sibling repo,
+  not nested in this worktree)
 - Modify: `openspec/changes/phase3-network-backmapping/tasks.md` (check off item 6.1)
 
 **Interfaces:**
@@ -786,15 +817,18 @@ python3 ../../melamine/large/compare_melamine_structure.py \
 
 - [ ] **Step 4: Write the research experiment note (honest report, no target pass-count claimed)**
 
-Document: protocol used, stability result (dangerous-rebuild fraction, T trace),
-full RDF pass/fail table (all 11 metrics, same format as
-`research/experiments/20260802_melamine-bakery-rerun.md`'s tables), and explicit
-comparison against the uncrosslinked example's own 5/11 result — reported as
-context, not a bar to clear (per proposal.md's Success criterion).
+In `<research_repo>/experiments/<date>_melamine-network-tier-c.md` (same
+`<research_repo>` located in Task 4 Step 4), document: protocol used, stability
+result (dangerous-rebuild fraction, T trace), full RDF pass/fail table (all 11
+metrics, same format as
+`<research_repo>/experiments/20260802_melamine-bakery-rerun.md`'s tables), and
+explicit comparison against the uncrosslinked example's own 5/11 result —
+reported as context, not a bar to clear (per proposal.md's Success criterion).
 
-- [ ] **Step 5: Update `research/checkpoints.md` with a new melamine-network entry**
-      (only after the run is confirmed complete and the RDF comparison has run
-      successfully — per that file's own registry practice, do not add speculatively).
+- [ ] **Step 5: Update `<research_repo>/checkpoints.md` with a new melamine-network
+      entry** (only after the run is confirmed complete and the RDF comparison has
+      run successfully — per that file's own registry practice, do not add
+      speculatively).
 
 - [ ] **Step 6: Check off `phase3-network-backmapping/tasks.md` item 6.1**
 
