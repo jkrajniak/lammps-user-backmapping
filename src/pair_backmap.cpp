@@ -304,6 +304,16 @@ void PairBackmap::compute(int eflag, int vflag) {
                "from fix backmap");
   double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
 
+  // Checked once per pair below; loop-invariant and false in production,
+  // so the branch predictor makes it negligible next to sub->single().
+  bool dbg = getenv("BACKMAP_DEBUG") != nullptr;
+  long dbg_n_cg = 0, dbg_n_at_same = 0, dbg_n_at_diff = 0, dbg_n_skipped_w0 = 0;
+  double dbg_e_cg = 0.0, dbg_e_at_same = 0.0, dbg_e_at_diff = 0.0;
+  if (dbg) {
+    fprintf(stderr, "[BACKMAP_DEBUG] lambda_global=%.10g atom2cg=%p\n",
+            lambda_global, (void *)atom2cg);
+  }
+
   double **x = atom->x;
   double **f = atom->f;
   int *type = atom->type;
@@ -344,7 +354,10 @@ void PairBackmap::compute(int eflag, int vflag) {
       double w =
           BackmapLambda::compute_weight3(same_bead, is_cg, lambda_global);
 
-      if (BackmapLambda::is_almost_zero(w)) continue;
+      if (BackmapLambda::is_almost_zero(w)) {
+        if (dbg) dbg_n_skipped_w0++;
+        continue;
+      }
 
       if (!is_cg && !same_bead && lambda_global < LAMBDA_AT_ONSET) continue;
 
@@ -355,6 +368,19 @@ void PairBackmap::compute(int eflag, int vflag) {
       // Scale by lambda weight
       fforce *= w;
       eng *= w;
+
+      if (dbg) {
+        if (is_cg) {
+          dbg_n_cg++;
+          dbg_e_cg += eng;
+        } else if (same_bead) {
+          dbg_n_at_same++;
+          dbg_e_at_same += eng;
+        } else {
+          dbg_n_at_diff++;
+          dbg_e_at_diff += eng;
+        }
+      }
 
       // Apply forces
       f[i][0] += delx * fforce;
@@ -380,6 +406,15 @@ void PairBackmap::compute(int eflag, int vflag) {
         ev_tally(i, j, nlocal, newton_pair, eng, 0.0, fforce, delx, dely, delz);
       }
     }
+  }
+
+  if (dbg) {
+    fprintf(stderr,
+            "[BACKMAP_DEBUG] cg: n=%ld e=%.6g | at_same: n=%ld e=%.6g | "
+            "at_diff: n=%ld e=%.6g | skipped_w0: n=%ld | inum=%d nlocal=%d "
+            "nghost=%d\n",
+            dbg_n_cg, dbg_e_cg, dbg_n_at_same, dbg_e_at_same, dbg_n_at_diff,
+            dbg_e_at_diff, dbg_n_skipped_w0, inum, nlocal, atom->nghost);
   }
 
   if (vflag_fdotr) virial_fdotr_compute();

@@ -221,6 +221,72 @@ class TestBuildSystem:
         harmonic_types = [bt for bt in system.bond_types if bt.style == "harmonic"]
         assert len(harmonic_types) > 0
 
+    def test_intra_bond_and_angle_k_halved(self, tmp_path: Path) -> None:
+        """GROMACS E=(k/2)x^2 -> LAMMPS harmonic E=Kx^2: K must be k/2 (unit-converted).
+
+        Regression test for research/decisions/2026-07-21-at-harmonic-k-half-for-epplus-parity.md:
+        this fix was previously hand-patched per-system (PET only) rather than in
+        backmap-prep itself, and melamine silently kept running ~2x-too-stiff AT
+        bonds/angles for weeks as a result.
+        """
+        from backmap_prep import units
+
+        _write_cg_files(tmp_path, n_mols=1)
+
+        gro = dedent("""\
+            AT template
+                3
+                1MOL  C1    1   0.500   0.500   0.500
+                1MOL  C2    2   0.510   0.500   0.500
+                1MOL  C3    3   0.520   0.510   0.500
+               5.00000   5.00000   5.00000
+        """)
+        (tmp_path / "at.gro").write_text(gro)
+
+        top = dedent("""\
+            [ defaults ]
+            1  2  yes  0.5  0.8333
+
+            [ atomtypes ]
+            CH2  14.0  0.0  A  0.395  0.382
+
+            [ moleculetype ]
+            TestMol  3
+
+            [ atoms ]
+            1  CH2  1  MOL  C1  1  0.0  14.0
+            2  CH2  1  MOL  C2  1  0.0  14.0
+            3  CH2  1  MOL  C3  1  0.0  14.0
+
+            [ bonds ]
+            1  2  1  0.154  200000.0
+            2  3  1  0.154  200000.0
+
+            [ angles ]
+            1  2  3  1  111.0  500.0
+        """)
+        (tmp_path / "at.top").write_text(top)
+
+        settings = Settings(
+            molecules=[
+                {
+                    "name": "TestMol",
+                    "source": {"coordinates": "at.gro", "topology": "at.top"},
+                    "beads": [{"name": "B1", "type": "CGA", "atoms": ["C1", "C2", "C3"]}],
+                }
+            ],
+            cg_system={"coordinates": "cg.gro", "topology": "cg.top"},
+        )
+        system = build_system(settings, tmp_path)
+
+        harmonic_bonds = [bt for bt in system.bond_types if bt.style == "harmonic"]
+        assert harmonic_bonds
+        assert harmonic_bonds[0].params[0] == pytest.approx(units.spring_bond(200000.0))
+
+        harmonic_angles = [at for at in system.angle_types if at.style == "harmonic"]
+        assert harmonic_angles
+        assert harmonic_angles[0].params[0] == pytest.approx(units.spring_angle(500.0))
+
     def test_cross_bonds(self, tmp_path: Path) -> None:
         _write_cg_files(tmp_path)
         _write_at_files(tmp_path)

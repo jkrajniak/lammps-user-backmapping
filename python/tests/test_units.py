@@ -48,13 +48,14 @@ class TestTimeConversion:
 
 class TestSpringBondConversion:
     def test_spring_bond(self) -> None:
-        expected = 0.239006 / 100.0
+        # GROMACS E=(k/2)x^2 -> LAMMPS E=Kx^2: unit conversion, then halved.
+        expected = (0.239006 / 100.0) / 2.0
         assert units.spring_bond(1.0) == pytest.approx(expected)
 
 
 class TestSpringAngleConversion:
     def test_spring_angle(self) -> None:
-        assert units.spring_angle(1.0) == pytest.approx(0.239006)
+        assert units.spring_angle(1.0) == pytest.approx(0.239006 / 2.0)
 
 
 class TestGromacsRbConversion:
