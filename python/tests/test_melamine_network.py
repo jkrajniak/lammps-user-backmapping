@@ -167,3 +167,26 @@ def test_mf_network_charges_match_bakery_charge_map() -> None:
         f"in settings.xml's <charge_map> elements -- arms may have been built "
         f"from an unexpected charge source: {sorted(unexpected)[:10]}"
     )
+
+
+def test_mf_network_no_missing_definitions() -> None:
+    """Crosslink-site angle/dihedral terms are fully parameterized.
+
+    Depends on two additions made together (see research/decisions/
+    2026-08-06-mf-network-ether-ff-params.md): the 36 angle + 63 dihedral
+    MF:-atom-name patterns registered in settings.xml's
+    <hybrid_topology><angles>/<dihedrals> blocks (bakery's own reference left
+    these empty, with a literal "add angles, dihedrals, pairs??" TODO), and
+    the corresponding generic OPLS-AA angletype/dihedraltype entries added to
+    examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp that GROMACS/grompp
+    resolves those patterns against at preprocessing time. Neither addition
+    alone makes this pass -- confirmed by an empirical canary-insert test
+    during diagnosis (see task-4-report.md).
+    """
+    from backmap_prep.network.api import build_hybrid_gromacs
+
+    xml_path = MF_NETWORK_DIR / "settings.xml"
+    result = build_hybrid_gromacs(xml_path, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+    if result.missing_definitions_path and result.missing_definitions_path.is_file():
+        content = result.missing_definitions_path.read_text().strip()
+        assert content == "", f"unresolved force-field gaps:\n{content}"
