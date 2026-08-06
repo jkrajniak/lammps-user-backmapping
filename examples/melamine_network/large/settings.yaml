@@ -1,0 +1,22 @@
+# examples/melamine_network/large/settings.yaml
+# Crosslinked melamine (MF) network -- bakery_xml passthrough.
+# Assets vendored from bakery's own network_backmapping/mf/backmapping/
+# reference (see README.md for provenance). No new molecule/bead YAML is
+# authored here -- bakery's settings.xml already defines the degree=2
+# (unreacted) / degree=3 (reacted) bead templates, and structures.py computes
+# each CG bead's actual degree from cg_topol.top's real bond graph.
+
+version: 2
+
+prep:
+  engine: network
+  bakery_xml: settings.xml
+  data_dir: .
+  tables_dir: .
+  forcefield_dir: ../../epoxy/forcefield
+  chain_rng_seed: 42
+
+output:
+  prefix: melamine_network
+  format: lammps
+  units: real
