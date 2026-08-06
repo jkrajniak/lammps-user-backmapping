@@ -458,7 +458,25 @@ git commit -m "test(network): add Tier A parity tests for crosslinked MF example
 
 ### Task 4: Resolve crosslink-site force-field parameters
 
+**SCOPE CORRECTED mid-execution** (see ledger): the implementer proved
+empirically (canary-value insertion into `ffbonded.itp`, rebuild,
+`missing_definitions.txt` unchanged) that `build_hybrid_gromacs()` never
+reads `ffbonded.itp` at all — it populates angle/dihedral params exclusively
+from `settings.xml`'s own `<hybrid_topology><angles>`/`<dihedrals>` blocks,
+which are empty for the vendored MF file (bakery's own file even has a
+`<!-- add angles, dihedrals, pairs?? -->` comment there — this gap is
+native to bakery's own reference, not introduced by vendoring). Human
+decision: extend `settings.xml`'s `<angles>`/`<dihedrals>` blocks with the
+atom-name-pattern registrations (mirroring the existing `<bonds>` block's 9
+literal `MF:O1 MF:C1`-style entries) rather than change shared pipeline code
+in `structures.py` (bigger blast radius, touches epoxy/PET too).
+
 **Files:**
+- Modify: `examples/melamine_network/large/settings.xml` (add the 36 angle +
+  63 dihedral atom-name patterns to the empty `<angles>`/`<dihedrals>` blocks,
+  mirroring the `<bonds>` block's existing format — this is a deliberate,
+  justified departure from "byte-for-byte vendored," completing a gap
+  bakery's own file left unfinished, not a fork of their network topology)
 - Modify: `examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp` (only if the check
   below finds a genuine gap — this file is shared with epoxy and melamine, so any
   edit must be additive, never removing/changing existing entries)
