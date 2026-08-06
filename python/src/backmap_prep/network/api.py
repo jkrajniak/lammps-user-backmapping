@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backmap_prep.network.lammps_builder import build_system_from_hybrid
-from backmap_prep.schema import resolve_data_dir, resolve_forcefield_dir, resolve_tables_dir
+from backmap_prep.schema import (
+    resolve_bakery_xml,
+    resolve_data_dir,
+    resolve_forcefield_dir,
+    resolve_tables_dir,
+)
 
 from .bakery.structures import BackmapperSettings2
 from .v2_loader import has_native_network_config, settings_to_xml_root
@@ -111,12 +116,26 @@ def build_hybrid_gromacs(
 def build_network_lammps(settings: Settings, settings_path: Path) -> NetworkLammpsBuildResult:
     """Build hybrid GRO/TOP for network systems and map them to a LAMMPS `System`."""
     work_dir = resolve_data_dir(settings_path, settings)
-    hybrid = build_hybrid_gromacs(
-        settings,
-        base_dir=work_dir,
-        allow_no_bonds=settings.prep.allow_no_bonds,
-        chain_rng_seed=settings.prep.chain_rng_seed,
-    )
+    if settings.prep.bakery_xml:
+        # Bakery settings.xml passthrough (e.g. melamine_network): the v2
+        # Settings object intentionally carries no native molecules/cg_system/
+        # hybrid block in this mode, so has_native_network_config() is False
+        # and build_hybrid_gromacs() must be driven from the XML path instead
+        # -- mirrors cli.py's _cmd_build_hybrid bakery_xml branch.
+        xml_path = resolve_bakery_xml(settings_path, settings)
+        hybrid = build_hybrid_gromacs(
+            xml_path,
+            base_dir=xml_path.parent,
+            allow_no_bonds=settings.prep.allow_no_bonds,
+            chain_rng_seed=settings.prep.chain_rng_seed,
+        )
+    else:
+        hybrid = build_hybrid_gromacs(
+            settings,
+            base_dir=work_dir,
+            allow_no_bonds=settings.prep.allow_no_bonds,
+            chain_rng_seed=settings.prep.chain_rng_seed,
+        )
     forcefield_dir = resolve_forcefield_dir(settings_path, settings)
     forcefield_dirs = [forcefield_dir] if forcefield_dir is not None else []
     system = build_system_from_hybrid(

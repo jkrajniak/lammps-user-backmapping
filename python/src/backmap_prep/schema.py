@@ -519,6 +519,22 @@ def resolve_forcefield_dir(settings_path: Path, settings: Settings) -> Path | No
     return None
 
 
+def resolve_bakery_xml(settings_path: Path, settings: Settings) -> Path:
+    """Resolve a bakery ``settings.xml`` path from ``prep.bakery_xml`` or a
+    sibling ``<settings_stem>.xml`` file next to the YAML settings."""
+    if settings.prep.bakery_xml:
+        xml_path = (settings_path.parent / settings.prep.bakery_xml).resolve()
+        if not xml_path.is_file():
+            raise FileNotFoundError(f"bakery XML not found: {xml_path}")
+        return xml_path
+    sibling = settings_path.with_suffix(".xml")
+    if sibling.is_file():
+        return sibling.resolve()
+    raise ValueError(
+        f"network prep requires prep.bakery_xml in settings.yaml or a sibling file {sibling.name}"
+    )
+
+
 def load_settings(path: Path) -> Settings:
     """Load and validate a YAML settings file."""
     with open(path) as f:
