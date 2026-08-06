@@ -671,6 +671,257 @@ git add examples/melamine_network/large/ python/tests/test_melamine_network.py
 git commit -m "feat(examples): generate LAMMPS data/input for crosslinked MF network"
 ```
 
+**Task 5 outcome: BLOCKED, not committed as originally scoped.** The implementer found
+two things: (1) `backmap-prep build` had never been wired for `prep.bakery_xml`
+passthrough mode at all (only `build-hybrid` had that branch) — fixed, independently
+correct, see Task 5a below; (2) after that fix, the 675 crosslink bonds (and their
+2700 angles, 5400 dihedrals) get written with **zero force constant**
+(`bond_coeff 12 backmap/harmonic at 0.000000 0.000000`) — `network/lammps_builder.py`
+resolves unparameterized bonds/angles/dihedrals against `settings.cross_interactions.*`
+(a Python-level YAML block), which `bakery_xml`-passthrough configs never populate
+(unlike PET/epoxy's native v2 configs). Human decision: rather than patch around this
+(e.g. adding `cross_interactions:` on top of the bakery_xml-passthrough config, or
+teaching `lammps_builder.py` a new fallback), **migrate `examples/melamine_network/large/settings.yaml`
+off `bakery_xml` passthrough entirely, onto native v2 YAML** (the well-tested path
+PET/epoxy already use) — see Task 2b below. This also lets Task 4's `settings.xml`
+edit be reverted, restoring that vendored file to pristine byte-for-byte state (Task 4b,
+folded into Task 2b).
+
+---
+
+### Task 5a: Commit the standalone `build` wiring fix
+
+**Files:**
+- Modify: `python/src/backmap_prep/schema.py` (new `resolve_bakery_xml()`, extracted
+  from `cli.py`'s private copy)
+- Modify: `python/src/backmap_prep/network/api.py` (`build_network_lammps()` branches
+  on `settings.prep.bakery_xml`)
+- Modify: `python/src/backmap_prep/cli.py` (`_cmd_build_hybrid` uses the shared
+  `resolve_bakery_xml`, private duplicate removed)
+
+**Interfaces:**
+- This fix is independently correct and needed for any future `bakery_xml`-passthrough
+  example using the `build` CLI command — not specific to `melamine_network`, and not
+  contingent on how the crosslink-parameter question (Task 2b) resolves.
+
+- [ ] **Step 1: Resume the Task 5 implementer** (same agent, already has this diff
+      uncommitted in its working tree) and have it commit exactly this diff, nothing
+      else from its Task 5 investigation (the generated `examples/melamine_network/large/{melamine_network.data,in.melamine_network,pairs.dat,table_b1.table}`
+      files stay uncommitted/untracked — they'll be regenerated correctly once Task 2b
+      + Task 5b land, and committing the buggy zero-K versions now would be misleading).
+
+- [ ] **Step 2: Verify the full suite still passes**
+
+```bash
+uv run pytest python/tests -q
+```
+
+Expected: same as the implementer already reported (214 passed, 8 skipped), no new
+failures.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add python/src/backmap_prep/schema.py python/src/backmap_prep/network/api.py python/src/backmap_prep/cli.py
+git commit -m "fix(network): wire build_network_lammps for bakery_xml passthrough mode"
+```
+
+---
+
+### Task 2b: Migrate `melamine_network` to native v2 YAML
+
+**Files:**
+- Modify: `examples/melamine_network/large/settings.yaml` (rewrite: drop
+  `prep.bakery_xml`, add native `molecules[].beads[].mapping` + `cg_system` +
+  `hybrid` + `cross_interactions`)
+- Modify: `examples/melamine_network/large/settings.xml` (revert to Task 1's
+  pristine vendored content — `git checkout 88f0f61 -- examples/melamine_network/large/settings.xml`
+  — it becomes a passive reference/provenance artifact only, no longer read by the
+  pipeline)
+- Modify: `python/tests/test_melamine_network.py` (adjust as needed once the new
+  pipeline's real output shapes are known — see Step 4)
+
+**Interfaces:**
+- Consumes: `Settings`/`MoleculeDef`/`BeadDef`/`BeadMappingEntry`/`ActiveSite`/
+  `CrossBond`/`CrossAngle`/`CrossDihedral` (`python/src/backmap_prep/schema.py`),
+  `settings_to_xml_root()` (`python/src/backmap_prep/network/v2_loader.py`),
+  `build_hybrid_gromacs()` (`python/src/backmap_prep/network/api.py`) — same
+  functions Task 3 already used, now exercised via the native-config path
+  (`has_native_network_config(settings)` true) instead of the `bakery_xml` path.
+- Produces: a `settings.yaml` whose generated hybrid topology is semantically
+  equivalent to bakery's own (same 500 molecules, same 675 crosslinks, same atom
+  counts per Task 3's already-confirmed `n_atoms == 12975`), but with real,
+  nonzero crosslink bond/angle/dihedral parameters baked in directly (no
+  `missing_definitions.txt` step needed at all for this path, since
+  `cross_interactions.angles`/`.dihedrals` require `params` directly, not a
+  pattern-then-resolve step).
+
+- [ ] **Step 1: Read the ground truth — bakery's vendored `settings.xml` bead-mapping
+      section, as reference only (don't execute it, just read it)**
+
+```bash
+git show 88f0f61:examples/melamine_network/large/settings.xml | sed -n '1,65p'
+```
+
+This shows the 3 `<cg_bead>` blocks (A1/A2/A3), each with two `<beads>` variants:
+`degree="2"` (unreacted — 2 bonds: the bead's 2 static intra-molecule bonds to its
+sibling beads) and `degree="3"` (reacted — 3 bonds: the same 2 static bonds plus 1
+crosslink). **Use bakery's own degree numbers (2 and 3), not 1 and 2** — they must
+match what `structures.py`'s `residue_graph.degree()` computation actually produces
+from `cg_topol.top`'s real bond graph (confirmed in an earlier task: `; static` bonds
+give every bead degree 2 by default, `; chem` crosslink bonds add +1 to degree 3 for
+the two beads it connects).
+
+Each `degree="3"` block carries `active_site="MF:O1:2 MF:C1:4"` (bakery's XML packs
+BOTH possible active sites for that bead's arm onto one element, with two `<remove>`
+children distinguishing which atoms vanish depending on which specific atom is the one
+that reacted for a given crosslink instance) and two `<remove>` children:
+`active_site="MF:C1"` removes `1:MF:O1 1:MF:H01` (this arm's C bonded out — whole
+hydroxyl leaves), `active_site="MF:O1"` removes only `1:MF:H01` (this arm's O bonded
+out — O stays as the bridging ether oxygen, only its H leaves).
+
+- [ ] **Step 2: Read `examples/epoxy/settings.v2.yaml`'s A1/A2 beads (already read
+      earlier this session) as the concrete v2 YAML syntax template** for exactly
+      this pattern (`mapping: [{degree, atoms}, {degree, base, add, active_sites}]`)
+      — your job is to express bakery's A1/A2/A3 beads (Step 1) in this same shape,
+      not invent new schema features. Read `python/src/backmap_prep/schema.py`'s
+      `BeadDef`/`BeadMappingEntry`/`ActiveSite` class definitions directly to confirm
+      exact field names before writing YAML (do not guess from the epoxy example
+      alone — confirm against the actual pydantic model).
+
+- [ ] **Step 3: Write the new `molecules[0]` block** — degree=2 mapping (9 atoms,
+      identical atom list to `examples/melamine/large/settings.yaml`'s existing A1/A2/A3
+      beads — reuse those exactly, this is the unreacted case and must match the
+      uncrosslinked example per spec), degree=3 mapping (`base: 2`, `remove` +
+      `active_sites` derived from Step 1's XML, for both the O-active and C-active
+      cases — check `_emit_bead_extras`/`_resolve_mapping` in `v2_loader.py` again if
+      the exact mechanics of "one mapping entry, two remove variants gated by which
+      active_site fired" isn't obvious from the schema alone; this dual-remove
+      behavior is real and must be preserved, not simplified away).
+
+- [ ] **Step 4: Verification strategy — generate XML from your new YAML, diff
+      against bakery's original**
+
+```bash
+uv run python3 -c "
+from pathlib import Path
+from backmap_prep.schema import load_settings
+from backmap_prep.network.v2_loader import settings_to_xml_root
+from xml.etree import ElementTree as ET
+s = load_settings(Path('examples/melamine_network/large/settings.yaml'))
+root = settings_to_xml_root(s)
+print(ET.tostring(root, encoding='unicode'))
+" > /tmp/generated_cg_molecule.xml
+```
+
+Compare the `<cg_molecule>` section of this output against bakery's original
+`settings.xml` (Step 1's output) — they should be semantically equivalent (same
+atom lists, same active sites, same remove rules) even if formatted differently.
+This is your primary correctness check for the bead-mapping migration, independent
+of running a full build.
+
+- [ ] **Step 5: Write `cg_system` and `hybrid` config blocks** matching bakery's own
+      `<cg_configuration>`/`<hybrid_configuration>`/`<hybrid_topology>` sections
+      (Step 1's full `settings.xml` read, lines beyond what was shown above —
+      re-run Step 1's command without `sed` truncation to see the rest). `cg_system`
+      points at the same vendored `cg_conf.gro`/`cg_topol.top` (unchanged from
+      Task 1 — the actual 675-crosslink network data doesn't change, only how the
+      AT bead-mapping is expressed).
+
+- [ ] **Step 6: Write `cross_interactions`** — bonds (9 `MF:O1↔MF:C1`-style pairs,
+      reusing the params already declared for the intramolecular C-O bond in
+      `at_topol.top`'s `[ bonds ]` section — read the actual line, don't assume
+      the value — this is the SAME chemical bond type, an ether/alcohol C-O single
+      bond, just now spanning two molecules instead of one), angles (the 36 triples,
+      reusing Task 4's already-sourced `ffbonded.itp` values verbatim — those are
+      already in real GROMACS units, no conversion needed, see
+      `research/decisions/2026-08-06-mf-network-ether-ff-params.md` in the sibling
+      research repo for the sourcing/confidence notes, especially the flagged-weak
+      `CT OH CT NT` dihedral), dihedrals (the 63 quadruples, same source). Match
+      the exact YAML shape already used by `examples/melamine/large/settings.yaml`'s
+      own `cross_interactions` block (read it for the format) and by
+      `examples/epoxy/settings.v2.yaml`.
+
+- [ ] **Step 7: Revert Task 4's `settings.xml` edit**
+
+```bash
+git checkout 88f0f61 -- examples/melamine_network/large/settings.xml
+```
+
+- [ ] **Step 8: Rebuild and verify**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+```
+
+Confirm no errors, and confirm atom/bond counts still match Task 3's established
+values (`n_atoms == 12975`, 675 crosslink AT bonds in `[ cross_bonds ]`) — the
+underlying chemistry hasn't changed, only how it's expressed, so these numbers
+should be identical. Restore `hyb_topol.top` if the build path differs from before
+(check `git status --porcelain examples/melamine_network/large/`).
+
+- [ ] **Step 9: Update `python/tests/test_melamine_network.py`** as needed — the
+      existing 6 tests should mostly still pass unchanged (same atom/bond counts,
+      same crosslink structure), but `test_mf_network_charges_match_bakery_charge_map`
+      needs re-examination: does the native v2 config reproduce the same charge_map
+      -sourced charges, or does it now use `at_topol.top`'s native AA charges (the
+      original, pre-Task-3-correction expectation)? Determine which is actually true
+      for the new pipeline and adjust the test + its docstring accordingly — don't
+      assume it's unchanged from the bakery_xml-passthrough behavior.
+
+- [ ] **Step 10: Run full test suite, confirm pass**
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add examples/melamine_network/large/settings.yaml examples/melamine_network/large/settings.xml python/tests/test_melamine_network.py
+git commit -m "refactor(examples): migrate melamine_network to native v2 YAML"
+```
+
+---
+
+### Task 5b: Regenerate LAMMPS files, verify nonzero crosslink parameters
+
+**Files:**
+- Modify: `python/tests/test_melamine_network.py` (add/restore the crosslink
+  bond-weighting test Task 5's implementer declined to commit)
+
+**Interfaces:**
+- Consumes: Task 5a's `build` wiring fix + Task 2b's native v2 `settings.yaml`.
+
+- [ ] **Step 1: Regenerate**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+```
+
+- [ ] **Step 2: Verify the crosslink bond/angle/dihedral now have real, nonzero
+      parameters** — identify the crosslink bond/angle/dihedral type IDs the same
+      way Task 5's implementer did (cross-reference `[ cross_bonds ]`'s `; AT cross
+      bonds`-tagged atom pairs against the LAMMPS `.data` file's `Bonds` section by
+      exact atom-ID match and count, not by coefficient-value similarity — the
+      implementer's report notes this approach initially misidentified the wrong
+      bond type when going by K/r0 similarity alone). Confirm `K != 0` and the value
+      matches what Task 2b's `cross_interactions` declared (converted to LAMMPS
+      units).
+
+- [ ] **Step 3: Write the regression test** — `bond_coeff <N> backmap/harmonic at <nonzero K> <r0>`
+      for the identified crosslink bond type (the correct target state Task 5's
+      implementer identified but didn't commit), plus analogous checks for the
+      crosslink angle and dihedral types.
+
+- [ ] **Step 4: Run full suite, confirm pass. Restore `hyb_topol.top` if needed. Commit.**
+
+```bash
+git add examples/melamine_network/large/ python/tests/test_melamine_network.py
+git commit -m "feat(examples): generate LAMMPS data/input with real crosslink parameters"
+```
+
 ---
 
 ### Task 6: Production LAMMPS protocol script
