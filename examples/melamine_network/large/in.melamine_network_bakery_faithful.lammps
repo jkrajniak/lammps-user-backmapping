@@ -43,22 +43,21 @@
 # builder-code-path difference already reviewed and accepted in Task 5/5b,
 # not something re-classified here -- copied as generated.
 #
-# KNOWN GAP, carried forward unmodified from the generated skeleton (out of
-# scope for this task -- purely a protocol-staging script, not a
-# force-field fix): `pair_coeff 1 1 cg 0.0 0.0` below means there is NO
-# CG-CG tabulated nonbonded potential for this system, unlike the
-# uncrosslinked example's `pair_coeff 1 1 cg table_A_A.table ENTRY`. Cause:
-# this example's settings.yaml (native v2, `engine: network`) has no
-# `simulation.table_groups` key, and backmap-prep's CG-CG pair-table wiring
-# (python/src/backmap_prep/network/lammps_builder.py, `_wire_pair_tables`
+# CG-CG tabulated nonbonded potential: `pair_coeff 1 1 cg table_A_A.table
+# ENTRY` below wires a real CG-CG tabulated potential, matching the
+# uncrosslinked example's own `pair_coeff 1 1 cg table_A_A.table ENTRY`.
+# table_A_A.xvg was vendored in this directory since Task 1 but, as
+# originally generated (Task 6), this example's settings.yaml (native v2,
+# `engine: network`) had no `simulation.table_groups` key, so
+# backmap-prep's CG-CG pair-table wiring
+# (python/src/backmap_prep/network/lammps_builder.py, `_resolve_pair_tables`
 # around line 763: `table_groups = set(settings.simulation.table_groups);
-# if not table_groups: return`) is a no-op without it, so every CG-CG pair
-# falls through to the `cg 0.0 0.0` default in writers.py. table_A_A.xvg IS
-# vendored in this directory (Task 1) but was never converted to
-# table_A_A.table because nothing requests it. Flagged here for visibility;
-# not fixed, since Task 6 explicitly builds the protocol script around
-# whatever the generated skeleton's coefficient tables already contain,
-# not around a re-derived force field.
+# if not table_groups: return`) was a no-op, and every CG-CG pair fell
+# through to the `cg 0.0 0.0` default in writers.py -- meaning there was NO
+# CG-CG nonbonded interaction at all until Task 2c added `simulation:
+# {table_groups: [A]}` to settings.yaml and regenerated the skeleton with
+# the real table wired in (see the Task 2c report for the fix and its
+# CG-CG-only verification against AT-level type IDs/counts).
 #
 # `fix pairs all backmap/pairs at file pairs.dat cut 12.000000` (below) has
 # no counterpart in the uncrosslinked example: pairs.dat (Task 5b) encodes
