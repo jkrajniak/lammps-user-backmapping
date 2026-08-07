@@ -1089,7 +1089,125 @@ than assuming exactly these filenames.)
 
 ---
 
+### Task 2d: Wire up the CG-CG crosslink bond table
+
+**Task 7's first attempt crashed at LAMMPS setup time** (before any MD step —
+`ERROR: Cannot open bond table file None`), not a dynamics-stability finding.
+Root cause: `bond_coeff 10 backmap/table cg None None` — bond type 10 covers all
+675 CG-CG "chem" (crosslink) bonds, and `cg_topol.top`'s own `[ bonds ]` section
+self-flags them (`; chem MISSING params type: A-A`) with literally no table-index
+params, so `network/lammps_builder.py::_cg_bond_table_name()` (`~line 725`)
+returns `None` for every one of them. This is a third instance of the same
+underlying issue as Task 4 (missing AT angle/dihedral params) and Task 2c
+(missing CG-CG pair table) — bakery's own reference never finished this specific
+piece either.
+
+Human decision: reuse `table_b1.table` (already used for the 1500 "static"
+intramolecular CG-CG bonds) for the 675 "chem" crosslink bonds too, rather than
+sourcing/deriving a wholly new tabulated potential — same reuse principle as
+Task 2b's AT-level crosslink bond fix (same *kind* of connection, just spanning
+molecules instead of one). Confirmed mechanism: `_cg_bond_table_name()` reads
+`bond.params[0]` as a literal table index (`8 1.0 1.0` -> index `1` ->
+`table_b1.xvg`); all 1500 "static" bonds uniformly use `8 1.0 1.0`
+(`grep '; static' cg_topol.top | awk '{print $3,$4,$5}' | sort -u` -> single
+value `8 1.0 1.0`, confirmed before writing this task).
+
+**This requires directly editing the vendored `cg_topol.top`** (unlike Task 2b's
+AT-level fix, there is no YAML-level `cross_interactions`-style overlay
+mechanism for CG-level bonds — `cg_system.topology` is read as a raw, complete
+GROMACS topology file, not a template Python code overlays). This is a smaller,
+more surgical deviation from "byte-for-byte vendored" than Task 4's reverted
+`settings.xml` edit was: it adds missing *parameters* to 675 already-existing
+bond entries, without changing which beads are connected (the crosslink
+connectivity itself, verified in Task 1 as `static=1500 chem=675`, is completely
+unchanged) — and unlike `settings.xml`, there was no clean alternative path that
+avoids touching this file.
+
+**Files:**
+- Modify: `examples/melamine_network/large/cg_topol.top` (the 675 `; chem` bond
+  lines: append `1.0 1.0` after the `8` funct code, matching the `; static`
+  bonds' own format exactly — e.g. `1 622 8 ; chem MISSING params type: A-A`
+  becomes `1 622 8 1.0 1.0 ; chem`)
+- Regenerate: `examples/melamine_network/large/{in.melamine_network,melamine_network.data,in.melamine_network_bakery_faithful.lammps}`
+  (bond type 10's `bond_coeff` line changes from `None None` to
+  `table_b1.table ENTRY`)
+
+**Interfaces:**
+- Consumes: `_cg_bond_table_name()`, `_register_bond_table()`
+  (`python/src/backmap_prep/network/lammps_builder.py`, unmodified — this is a
+  data-only fix).
+
+- [ ] **Step 1: Edit `cg_topol.top`**
+
+```bash
+sed -i '' 's/^\(\([0-9]\+ \)\{2\}8\) ; chem MISSING params type: A-A$/\1 1.0 1.0 ; chem/' \
+  examples/melamine_network/large/cg_topol.top
+```
+
+Verify before trusting the sed: `grep -c '; chem MISSING params' examples/melamine_network/large/cg_topol.top`
+should now be `0`, and `grep -c '8 1.0 1.0 ; chem$' examples/melamine_network/large/cg_topol.top`
+should be `675`. If the sed pattern doesn't match this file's actual exact
+whitespace/format, don't fight the regex — write a small Python script instead
+that parses each `; chem` line's existing atom-ID pair and rewrites it with
+`8 1.0 1.0 ; chem`, verified against the same two counts.
+
+- [ ] **Step 2: Re-verify the CG-level crosslink count is unaffected** (this
+      fix must be params-only, not connectivity-changing)
+
+```bash
+python3 -c "
+lines = open('examples/melamine_network/large/cg_topol.top').read()
+static = lines.count('; static')
+chem = lines.count('; chem')
+print(f'static={static} chem={chem}')
+assert static == 1500 and chem == 675
+"
+```
+
+- [ ] **Step 3: Rebuild and confirm bond type 10 resolves**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+grep -n "^bond_coeff 10" examples/melamine_network/large/in.melamine_network
+```
+
+Expected: `bond_coeff 10 backmap/table cg table_b1.table ENTRY` (not `None None`).
+
+- [ ] **Step 4: Re-verify the full test suite and AT-level types are unaffected**
+      (same discipline as Task 2c — this should be CG-bond-only)
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+Expected: same pass count as before (8), no AT-level assertion changes needed.
+
+- [ ] **Step 5: Update the protocol script** — in
+      `in.melamine_network_bakery_faithful.lammps`, replace the
+      `bond_coeff 10 backmap/table cg None None` line with the regenerated
+      skeleton's real line (copy directly, don't hand-retype). Re-run the
+      structural sanity check afterward. Restore `hyb_topol.top` if the rebuild
+      modified it (known gotcha).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add examples/melamine_network/large/cg_topol.top examples/melamine_network/large/in.melamine_network examples/melamine_network/large/melamine_network.data examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps
+git commit -m "fix(examples): wire up CG-CG crosslink bond table for melamine_network"
+```
+
+(Check `git status --porcelain examples/melamine_network/large/` for the real
+regenerated file list rather than assuming exactly these filenames.)
+
+---
+
 ### Task 7: VM pilot run — stability check
+
+**Retry after Task 2d.** The sync/launch/wait/commit steps below are unchanged;
+just re-sync the updated files (`melamine_network.data`,
+`in.melamine_network_bakery_faithful.lammps`, plus `table_b1.table` — already
+synced once, but re-sync in case Task 2d regenerated it) before relaunching.
 
 **Files:** none (VM-side execution + log capture back into the worktree for review)
 
