@@ -13,7 +13,7 @@ reset_atoms image all
 comm_modify cutoff 90.66
 
 pair_style backmap 12.00 lj/cut/coul/cut 12.00 9.00 14.00 table linear 1000
-pair_coeff 1 1 cg 0.0 0.0
+pair_coeff 1 1 cg table_A_A.table ENTRY
 pair_coeff 1 2 none
 pair_coeff 1 3 none
 pair_coeff 1 4 none

@@ -261,6 +261,9 @@ cross_interactions:
         - [MF:O3, MF:C2, MF:N22, MF:H31]
         - [MF:O3, MF:C3, MF:N23, MF:H11]
 
+simulation:
+  table_groups: [A]
+
 output:
   prefix: melamine_network
   format: lammps
