@@ -18,11 +18,18 @@ the other v2 examples (PET, epoxy) already work.
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
+from collections import Counter, defaultdict
 from pathlib import Path
 
-from backmap_prep.network.api import build_hybrid_gromacs
+import pytest
+
+from backmap_prep.network.api import build_hybrid_gromacs, build_network_lammps
 from backmap_prep.schema import load_settings
+from backmap_prep.table_converter import convert_tables
+from backmap_prep.units import distance, gromacs_rb_to_lammps, spring_angle, spring_bond
+from backmap_prep.writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
 
 MF_NETWORK_DIR = Path(__file__).resolve().parents[2] / "examples" / "melamine_network" / "large"
 SETTINGS_YAML = MF_NETWORK_DIR / "settings.yaml"
@@ -288,3 +295,308 @@ def test_mf_network_crosslink_angles_dihedrals_nonzero() -> None:
     assert not missing_dihedrals, (
         f"expected crosslink dihedral params not found: {missing_dihedrals}"
     )
+
+
+def _section_lines(topology_text: str, section: str) -> list[str]:
+    """Non-empty lines of a `[ section ]` block in a GROMACS topology."""
+    lines: list[str] = []
+    on = False
+    for line in topology_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(f"[ {section} ]"):
+            on = True
+            continue
+        if stripped.startswith("["):
+            on = False
+            continue
+        if on and stripped:
+            lines.append(stripped)
+    return lines
+
+
+def _typed_bonds(data_text: str) -> dict[frozenset[int], int]:
+    """`Bonds` section of a LAMMPS `.data` file: {frozenset(atom pair): type}."""
+    mapping: dict[frozenset[int], int] = {}
+    on = False
+    for line in data_text.splitlines():
+        stripped = line.strip()
+        if stripped == "Bonds":
+            on = True
+            continue
+        if not on:
+            continue
+        if stripped == "":
+            if mapping:
+                break
+            continue
+        parts = stripped.split()
+        if len(parts) != 4:
+            break
+        _, btype, a1, a2 = (int(x) for x in parts)
+        mapping[frozenset((a1, a2))] = btype
+    return mapping
+
+
+def _typed_angles(data_text: str) -> dict[tuple[int, int, int], int]:
+    """`Angles` section: {(min(i,k), j, max(i,k)): type} (i-j-k == k-j-i)."""
+    mapping: dict[tuple[int, int, int], int] = {}
+    on = False
+    for line in data_text.splitlines():
+        stripped = line.strip()
+        if stripped == "Angles":
+            on = True
+            continue
+        if not on:
+            continue
+        if stripped == "":
+            if mapping:
+                break
+            continue
+        parts = stripped.split()
+        if len(parts) != 5:
+            break
+        _, atype, a1, a2, a3 = (int(x) for x in parts)
+        mapping[(min(a1, a3), a2, max(a1, a3))] = atype
+    return mapping
+
+
+def _typed_dihedrals(data_text: str) -> dict[tuple[int, int, int, int], int]:
+    """`Dihedrals` section: {min(fwd, reversed(fwd)): type} (i-j-k-l == l-k-j-i)."""
+    mapping: dict[tuple[int, int, int, int], int] = {}
+    on = False
+    for line in data_text.splitlines():
+        stripped = line.strip()
+        if stripped == "Dihedrals":
+            on = True
+            continue
+        if not on:
+            continue
+        if stripped == "":
+            if mapping:
+                break
+            continue
+        parts = stripped.split()
+        if len(parts) != 6:
+            break
+        _, dtype, a1, a2, a3, a4 = (int(x) for x in parts)
+        fwd = (a1, a2, a3, a4)
+        mapping[min(fwd, tuple(reversed(fwd)))] = dtype
+    return mapping
+
+
+def test_mf_network_lammps_crosslink_types_nonzero(tmp_path: Path) -> None:
+    """LAMMPS-level regression test (Task 5b): the crosslink bond/angle/
+    dihedral LAMMPS types carry real, nonzero coefficients, converted from
+    Task 2b's `cross_interactions` GROMACS params via the existing,
+    already-tested `units.py` conversion (`spring_bond`/`spring_angle`/
+    `gromacs_rb_to_lammps`) -- not re-derived here.
+
+    This is the LAMMPS-layer counterpart to
+    `test_mf_network_crosslink_angles_dihedrals_nonzero` /
+    `test_mf_network_crosslink_bond_count` above, which only checked the
+    GROMACS-level hybrid topology. Task 5's original attempt found that a
+    correct-looking GROMACS topology could still be converted into a LAMMPS
+    `.data`/`in.*` pair with `K=0` crosslink bond/angle/dihedral types (the
+    bug this whole migration fixes), so this test regenerates the LAMMPS
+    output end to end (`build_network_lammps` + the `write_lammps_*`
+    writers, matching the CLI `build` command) and inspects the actual
+    `bond_coeff`/`angle_coeff`/`dihedral_coeff` lines.
+
+    LAMMPS type IDs are identified by exact atom-ID pair/triple/quadruple
+    cross-reference between `hyb_topol.top`'s tagged `cross_bonds`/
+    `cross_angles`/`cross_dihedrals` sections and the generated `.data`
+    file's `Bonds`/`Angles`/`Dihedrals` sections -- NOT by eyeballing
+    coefficient values. Task 5's original attempt initially misidentified
+    an unrelated, same-K-looking intramolecular bond type this way before
+    checking atom pairs/counts directly (see task-5-report.md); the same
+    risk applies here since the crosslink ether C-O bond now shares its
+    LAMMPS bond type with the pre-existing intramolecular ether C-O bond
+    (same chemistry, same params -- see settings.yaml's cross_interactions
+    comment), so the type is expected to carry more instances (1500) than
+    just the 675 crosslink ones, and that is not itself a bug.
+    """
+    settings = load_settings(SETTINGS_YAML)
+    result = build_network_lammps(settings, SETTINGS_YAML)
+
+    data_path = tmp_path / f"{settings.output.prefix}.data"
+    input_path = tmp_path / f"in.{settings.output.prefix}"
+    write_lammps_data(result.system, data_path)
+    if result.system.has_cross_pairs:
+        write_cross_pairs_file(result.system, tmp_path / result.system.cross_pairs_file)
+    write_lammps_input(result.system, settings, input_path, data_filename=data_path.name)
+    convert_tables(result.system, settings, tmp_path, extra_dirs=[MF_NETWORK_DIR])
+
+    topology_text = result.topology_path.read_text()
+    data_text = data_path.read_text()
+    input_text = input_path.read_text()
+
+    # --- Step 1: crosslink atom pairs/triples/quadruples tagged by Task 2b's
+    # exact cross_interactions param strings, read straight from the fresh
+    # hyb_topol.top (GROMACS level -- already independently verified by
+    # Task 2b and its reviewer; re-extracted here only as the join key). ---
+    bond_param = "1 0.143 267776.0"
+    angle_params = {
+        "CT-OH-CT": "1 109.500 502.080",
+        "HC-CT-OH": "1 109.500 292.880",
+        "NT-CT-OH": "1 109.500 418.400",
+    }
+    dihedral_params = {
+        "CT-OH-CT-HC_or_NT": "3 1.58992 4.76976 0.00000 -6.35968 0.00000 0.00000",
+        "OH-CT-NT-CA": "3 1.78866 3.49154 0.53555 -5.81576 0.00000 0.00000",
+        "OH-CT-NT-H": "3 -1.26775 3.02085 1.74473 -3.49782 0.00000 0.00000",
+    }
+
+    cross_bond_pairs: list[frozenset[int]] = []
+    for line in _section_lines(topology_text, "cross_bonds"):
+        if line.endswith(bond_param):
+            i, j = (int(x) for x in line.split()[:2])
+            cross_bond_pairs.append(frozenset((i, j)))
+    assert len(cross_bond_pairs) == 675, len(cross_bond_pairs)
+    assert len(set(cross_bond_pairs)) == 675, "duplicate crosslink bond atom pairs"
+
+    cross_angle_triples: dict[str, list[tuple[int, int, int]]] = defaultdict(list)
+    for line in _section_lines(topology_text, "cross_angles"):
+        for label, params in angle_params.items():
+            if line.endswith(params):
+                i, j, k = (int(x) for x in line.split()[:3])
+                cross_angle_triples[label].append((i, j, k))
+    n_cross_angles = sum(len(v) for v in cross_angle_triples.values())
+    assert n_cross_angles == 2700, n_cross_angles
+
+    cross_dihedral_quads: dict[str, list[tuple[int, int, int, int]]] = defaultdict(list)
+    for line in _section_lines(topology_text, "cross_dihedrals"):
+        core = line.split(";")[0].strip()
+        for label, params in dihedral_params.items():
+            if core.endswith(params):
+                i, j, k, m = (int(x) for x in core.split()[:4])
+                cross_dihedral_quads[label].append((i, j, k, m))
+    n_cross_dihedrals = sum(len(v) for v in cross_dihedral_quads.values())
+    assert n_cross_dihedrals == 5400, n_cross_dihedrals
+
+    # --- Step 2: cross-reference those atom-ID pairs/triples/quadruples
+    # against the generated LAMMPS .data file's Bonds/Angles/Dihedrals
+    # sections by exact match + instance count, to find the LAMMPS type
+    # ID(s) that actually carry the crosslink interactions. ---
+    bond_type_by_pair = _typed_bonds(data_text)
+    matched_bond_types = Counter(
+        bond_type_by_pair[p] for p in cross_bond_pairs if p in bond_type_by_pair
+    )
+    assert sum(matched_bond_types.values()) == 675, (
+        f"not all 675 crosslink bond atom pairs were found in the .data Bonds "
+        f"section: {matched_bond_types}"
+    )
+    assert len(matched_bond_types) == 1, (
+        f"crosslink bond atom pairs map to more than one LAMMPS bond type "
+        f"(expected exactly one): {matched_bond_types}"
+    )
+    crosslink_bond_type = next(iter(matched_bond_types))
+
+    angle_type_by_triple = _typed_angles(data_text)
+    crosslink_angle_types: dict[str, int] = {}
+    for label, triples in cross_angle_triples.items():
+        keys = [(min(i, k), j, max(i, k)) for (i, j, k) in triples]
+        matched = Counter(angle_type_by_triple[key] for key in keys if key in angle_type_by_triple)
+        assert sum(matched.values()) == len(triples), (
+            f"{label}: not all {len(triples)} crosslink angle triples were "
+            f"found in the .data Angles section: {matched}"
+        )
+        assert len(matched) == 1, (
+            f"{label}: crosslink angle triples map to more than one LAMMPS angle type: {matched}"
+        )
+        crosslink_angle_types[label] = next(iter(matched))
+
+    dihedral_type_by_quad = _typed_dihedrals(data_text)
+    crosslink_dihedral_types: dict[str, int] = {}
+    for label, quads in cross_dihedral_quads.items():
+        keys = [min(q, tuple(reversed(q))) for q in quads]
+        matched = Counter(
+            dihedral_type_by_quad[key] for key in keys if key in dihedral_type_by_quad
+        )
+        assert sum(matched.values()) == len(quads), (
+            f"{label}: not all {len(quads)} crosslink dihedral quadruples "
+            f"were found in the .data Dihedrals section: {matched}"
+        )
+        assert len(matched) == 1, (
+            f"{label}: crosslink dihedral quadruples map to more than one "
+            f"LAMMPS dihedral type: {matched}"
+        )
+        crosslink_dihedral_types[label] = next(iter(matched))
+
+    # --- Step 3: the identified types' bond_coeff/angle_coeff/dihedral_coeff
+    # lines in in.melamine_network are real and nonzero, and match Task 2b's
+    # declared GROMACS params converted to LAMMPS real units via units.py
+    # (spring_bond halves+converts kJ/(mol*nm^2) -> kcal/(mol*Angstrom^2);
+    # spring_angle halves+converts kJ/(mol*rad^2) -> kcal/(mol*rad^2);
+    # gromacs_rb_to_lammps alternates sign and converts kJ/mol -> kcal/mol
+    # per RB coefficient). ---
+    bond_coeff_re = re.compile(
+        r"^bond_coeff\s+(\d+)\s+backmap/harmonic\s+at\s+([-\d.]+)\s+([-\d.]+)\s*$",
+        re.MULTILINE,
+    )
+    bond_coeffs = {
+        int(m.group(1)): (float(m.group(2)), float(m.group(3)))
+        for m in bond_coeff_re.finditer(input_text)
+    }
+    got_bond_k, got_bond_r0 = bond_coeffs[crosslink_bond_type]
+    assert got_bond_k != 0.0, (
+        f"crosslink bond type {crosslink_bond_type} has K=0 -- the Task 5 defect"
+    )
+    assert got_bond_k == pytest.approx(spring_bond(267776.0), rel=1e-5), (
+        crosslink_bond_type,
+        got_bond_k,
+    )
+    assert got_bond_r0 == pytest.approx(distance(0.143), rel=1e-5), (
+        crosslink_bond_type,
+        got_bond_r0,
+    )
+
+    angle_coeff_re = re.compile(
+        r"^angle_coeff\s+(\d+)\s+at\s+([-\d.]+)\s+([-\d.]+)\s*$", re.MULTILINE
+    )
+    angle_coeffs = {
+        int(m.group(1)): (float(m.group(2)), float(m.group(3)))
+        for m in angle_coeff_re.finditer(input_text)
+    }
+    expected_angle_k = {
+        "CT-OH-CT": spring_angle(502.080),
+        "HC-CT-OH": spring_angle(292.880),
+        "NT-CT-OH": spring_angle(418.400),
+    }
+    for label, type_id in crosslink_angle_types.items():
+        got_k, got_theta0 = angle_coeffs[type_id]
+        assert got_k != 0.0, f"{label} (angle type {type_id}) has K=0"
+        assert got_k == pytest.approx(expected_angle_k[label], rel=1e-5), (
+            label,
+            type_id,
+            got_k,
+        )
+        assert got_theta0 == pytest.approx(109.5, abs=1e-3), (label, type_id, got_theta0)
+
+    dihedral_coeff_re = re.compile(
+        r"^dihedral_coeff\s+(\d+)\s+backmap/ryckaert\s+at\s+"
+        r"([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*$",
+        re.MULTILINE,
+    )
+    dihedral_coeffs = {
+        int(m.group(1)): [float(m.group(i)) for i in range(2, 8)]
+        for m in dihedral_coeff_re.finditer(input_text)
+    }
+    expected_dihedral_c = {
+        "CT-OH-CT-HC_or_NT": gromacs_rb_to_lammps(
+            [1.58992, 4.76976, 0.00000, -6.35968, 0.00000, 0.00000]
+        ),
+        "OH-CT-NT-CA": gromacs_rb_to_lammps(
+            [1.78866, 3.49154, 0.53555, -5.81576, 0.00000, 0.00000]
+        ),
+        "OH-CT-NT-H": gromacs_rb_to_lammps(
+            [-1.26775, 3.02085, 1.74473, -3.49782, 0.00000, 0.00000]
+        ),
+    }
+    for label, type_id in crosslink_dihedral_types.items():
+        got = dihedral_coeffs[type_id]
+        assert any(abs(c) > 1e-6 for c in got), (
+            f"{label} (dihedral type {type_id}) is all-zero: {got}"
+        )
+        expected = expected_dihedral_c[label]
+        for got_c, exp_c in zip(got, expected, strict=False):
+            assert got_c == pytest.approx(exp_c, abs=1e-3), (label, type_id, got, expected)
