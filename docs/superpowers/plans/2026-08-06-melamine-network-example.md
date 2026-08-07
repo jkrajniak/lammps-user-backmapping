@@ -996,6 +996,97 @@ git add examples/melamine_network/large/in.melamine_network_bakery_faithful.lamm
 git commit -m "feat(examples): add production LAMMPS protocol for crosslinked MF network"
 ```
 
+**Task 6 finding, addressed by Task 2c below**: `pair_coeff 1 1 cg 0.0 0.0` in the
+generated skeleton — this system has zero CG-CG nonbonded interaction, because
+`examples/melamine_network/large/settings.yaml` never set `simulation.table_groups`,
+so `network/lammps_builder.py::_resolve_pair_tables()` (`~line 763`, `if not
+table_groups: return`) never wires up the vendored `table_A_A.xvg` into a real
+tabulated potential. Combined with the by-design zero AT-AT inter-bead weighting at
+lambda=0, this means Stage 1 (eq) would have **zero repulsive force between
+different molecules from any mechanism at all**. Human decision: fix before Task 7's
+pilot rather than run a pilot with a known, already-diagnosed deficiency.
+
+---
+
+### Task 2c: Wire up the CG-CG tabulated potential
+
+**Files:**
+- Modify: `examples/melamine_network/large/settings.yaml` (add
+  `simulation: {table_groups: [A]}` — no `simulation:` block currently exists in
+  this file at all; add the minimal one needed, matching the field name/shape
+  already used by `examples/melamine/large/settings.yaml`'s own `table_groups: [A]`
+  and `examples/epoxy/settings.v2.yaml`'s `table_groups: [A, B, E, F, H, I, K, Q]`)
+- Modify: `examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps`
+  (Task 6's script — update the `pair_coeff 1 1` line, both occurrences, in the two
+  `pair_style backmap` blocks, from `cg 0.0 0.0` to the real table reference,
+  matching the generated skeleton's new output)
+
+**Interfaces:**
+- Consumes: `network/lammps_builder.py::_resolve_pair_tables()` (existing,
+  unmodified code — this is a config-only fix, not a code change) and the already-
+  vendored `table_A_A.xvg` (Task 1).
+
+- [ ] **Step 1: Add the minimal `simulation:` block**
+
+```yaml
+simulation:
+  table_groups: [A]
+```
+
+Append to `examples/melamine_network/large/settings.yaml` (all 3 CG beads share
+`type: A` per Task 2b's `molecules[0].beads[].type` — confirm this directly rather
+than assume, `grep -n "type: A" examples/melamine_network/large/settings.yaml`
+should show 3 matches, one per bead).
+
+- [ ] **Step 2: Rebuild and confirm the table gets wired up**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+grep -n "^pair_coeff 1 1" examples/melamine_network/large/in.melamine_network
+```
+
+Expected: `pair_coeff 1 1 cg table_A_A.table ENTRY` (or equivalent — confirm
+`table_A_A.table` was actually generated in the directory as a converted output of
+`table_A_A.xvg`, not just referenced).
+
+- [ ] **Step 3: Confirm nothing else shifted** — re-run the full test file and the
+      Task 5b LAMMPS-type test specifically, since those tests assert on exact type
+      IDs/counts that a CG-CG table addition should NOT change (CG-CG pair wiring
+      is orthogonal to AT-level bond/angle/dihedral type numbering), but verify
+      this is actually true rather than assume it:
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+Expected: all tests still pass, same counts as before (8 passed, matching Task
+5b's confirmed state). If any AT-level type ID or count changed, stop and
+investigate — that would mean this "CG-CG-only" fix had an unexpected side effect,
+worth understanding before proceeding, not just re-tightening assertions to match.
+
+- [ ] **Step 4: Update Task 6's protocol script**
+
+In `examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps`,
+find both `pair_coeff 1 1 cg 0.0 0.0` lines (Stage 1/2 block and the Stage 3
+reissue block) and replace with the real table reference from Step 2's
+regenerated skeleton — copy the line directly, don't hand-retype it. Restore
+`hyb_topol.top` if the rebuild in Step 2 modified it (known gotcha).
+
+- [ ] **Step 5: Run the structural sanity check again** (same script as Task 6's
+      Step 3) to confirm the hand-edited protocol script is still well-formed.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add examples/melamine_network/large/settings.yaml examples/melamine_network/large/in.melamine_network examples/melamine_network/large/melamine_network.data examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps examples/melamine_network/large/table_A_A.table
+git commit -m "fix(examples): wire up CG-CG tabulated potential for melamine_network"
+```
+
+(Include whatever regenerated files Step 2 actually produced/changed — check
+`git status --porcelain examples/melamine_network/large/` for the real list rather
+than assuming exactly these filenames.)
+
 ---
 
 ### Task 7: VM pilot run — stability check
