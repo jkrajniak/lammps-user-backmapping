@@ -1519,1038 +1519,1038 @@ MOL 3
 [ bonds ]
 1 2 8 1.0 1.0 ; static
 1 3 8 1.0 1.0 ; static
-1 622 8 ; chem MISSING params type: A-A
+1 622 8 1.0 1.0 ; chem
 2 3 8 1.0 1.0 ; static
-2 482 8 ; chem MISSING params type: A-A
-3 545 8 ; chem MISSING params type: A-A
+2 482 8 1.0 1.0 ; chem
+3 545 8 1.0 1.0 ; chem
 4 5 8 1.0 1.0 ; static
 4 6 8 1.0 1.0 ; static
-4 189 8 ; chem MISSING params type: A-A
+4 189 8 1.0 1.0 ; chem
 5 6 8 1.0 1.0 ; static
 7 8 8 1.0 1.0 ; static
 7 9 8 1.0 1.0 ; static
-7 464 8 ; chem MISSING params type: A-A
+7 464 8 1.0 1.0 ; chem
 8 9 8 1.0 1.0 ; static
-8 1350 8 ; chem MISSING params type: A-A
-9 944 8 ; chem MISSING params type: A-A
+8 1350 8 1.0 1.0 ; chem
+9 944 8 1.0 1.0 ; chem
 10 11 8 1.0 1.0 ; static
 10 12 8 1.0 1.0 ; static
-10 556 8 ; chem MISSING params type: A-A
+10 556 8 1.0 1.0 ; chem
 11 12 8 1.0 1.0 ; static
-12 80 8 ; chem MISSING params type: A-A
+12 80 8 1.0 1.0 ; chem
 13 14 8 1.0 1.0 ; static
 13 15 8 1.0 1.0 ; static
-13 299 8 ; chem MISSING params type: A-A
+13 299 8 1.0 1.0 ; chem
 14 15 8 1.0 1.0 ; static
-14 188 8 ; chem MISSING params type: A-A
-15 269 8 ; chem MISSING params type: A-A
+14 188 8 1.0 1.0 ; chem
+15 269 8 1.0 1.0 ; chem
 16 17 8 1.0 1.0 ; static
 16 18 8 1.0 1.0 ; static
-16 1064 8 ; chem MISSING params type: A-A
+16 1064 8 1.0 1.0 ; chem
 17 18 8 1.0 1.0 ; static
-17 1203 8 ; chem MISSING params type: A-A
-18 1226 8 ; chem MISSING params type: A-A
+17 1203 8 1.0 1.0 ; chem
+18 1226 8 1.0 1.0 ; chem
 19 20 8 1.0 1.0 ; static
 19 21 8 1.0 1.0 ; static
-19 1461 8 ; chem MISSING params type: A-A
+19 1461 8 1.0 1.0 ; chem
 20 21 8 1.0 1.0 ; static
-20 426 8 ; chem MISSING params type: A-A
-21 1107 8 ; chem MISSING params type: A-A
+20 426 8 1.0 1.0 ; chem
+21 1107 8 1.0 1.0 ; chem
 22 23 8 1.0 1.0 ; static
 22 24 8 1.0 1.0 ; static
-22 1417 8 ; chem MISSING params type: A-A
+22 1417 8 1.0 1.0 ; chem
 23 24 8 1.0 1.0 ; static
-23 391 8 ; chem MISSING params type: A-A
+23 391 8 1.0 1.0 ; chem
 25 26 8 1.0 1.0 ; static
 25 27 8 1.0 1.0 ; static
-25 1006 8 ; chem MISSING params type: A-A
+25 1006 8 1.0 1.0 ; chem
 26 27 8 1.0 1.0 ; static
-26 724 8 ; chem MISSING params type: A-A
-27 885 8 ; chem MISSING params type: A-A
+26 724 8 1.0 1.0 ; chem
+27 885 8 1.0 1.0 ; chem
 28 29 8 1.0 1.0 ; static
 28 30 8 1.0 1.0 ; static
 29 30 8 1.0 1.0 ; static
-29 346 8 ; chem MISSING params type: A-A
-30 455 8 ; chem MISSING params type: A-A
+29 346 8 1.0 1.0 ; chem
+30 455 8 1.0 1.0 ; chem
 31 32 8 1.0 1.0 ; static
 31 33 8 1.0 1.0 ; static
-31 882 8 ; chem MISSING params type: A-A
+31 882 8 1.0 1.0 ; chem
 32 33 8 1.0 1.0 ; static
-32 233 8 ; chem MISSING params type: A-A
-33 821 8 ; chem MISSING params type: A-A
+32 233 8 1.0 1.0 ; chem
+33 821 8 1.0 1.0 ; chem
 34 35 8 1.0 1.0 ; static
 34 36 8 1.0 1.0 ; static
-34 602 8 ; chem MISSING params type: A-A
+34 602 8 1.0 1.0 ; chem
 35 36 8 1.0 1.0 ; static
-35 1008 8 ; chem MISSING params type: A-A
-36 502 8 ; chem MISSING params type: A-A
+35 1008 8 1.0 1.0 ; chem
+36 502 8 1.0 1.0 ; chem
 37 38 8 1.0 1.0 ; static
 37 39 8 1.0 1.0 ; static
-37 354 8 ; chem MISSING params type: A-A
+37 354 8 1.0 1.0 ; chem
 38 39 8 1.0 1.0 ; static
-39 88 8 ; chem MISSING params type: A-A
+39 88 8 1.0 1.0 ; chem
 40 41 8 1.0 1.0 ; static
 40 42 8 1.0 1.0 ; static
-40 1001 8 ; chem MISSING params type: A-A
+40 1001 8 1.0 1.0 ; chem
 41 42 8 1.0 1.0 ; static
-42 682 8 ; chem MISSING params type: A-A
+42 682 8 1.0 1.0 ; chem
 43 44 8 1.0 1.0 ; static
 43 45 8 1.0 1.0 ; static
-43 1486 8 ; chem MISSING params type: A-A
+43 1486 8 1.0 1.0 ; chem
 44 45 8 1.0 1.0 ; static
-45 1165 8 ; chem MISSING params type: A-A
+45 1165 8 1.0 1.0 ; chem
 46 47 8 1.0 1.0 ; static
 46 48 8 1.0 1.0 ; static
-46 352 8 ; chem MISSING params type: A-A
+46 352 8 1.0 1.0 ; chem
 47 48 8 1.0 1.0 ; static
-47 1104 8 ; chem MISSING params type: A-A
-48 1345 8 ; chem MISSING params type: A-A
+47 1104 8 1.0 1.0 ; chem
+48 1345 8 1.0 1.0 ; chem
 49 50 8 1.0 1.0 ; static
 49 51 8 1.0 1.0 ; static
-49 563 8 ; chem MISSING params type: A-A
+49 563 8 1.0 1.0 ; chem
 50 51 8 1.0 1.0 ; static
-50 879 8 ; chem MISSING params type: A-A
-51 58 8 ; chem MISSING params type: A-A
+50 879 8 1.0 1.0 ; chem
+51 58 8 1.0 1.0 ; chem
 52 53 8 1.0 1.0 ; static
 52 54 8 1.0 1.0 ; static
-52 537 8 ; chem MISSING params type: A-A
+52 537 8 1.0 1.0 ; chem
 53 54 8 1.0 1.0 ; static
-53 797 8 ; chem MISSING params type: A-A
-54 1323 8 ; chem MISSING params type: A-A
+53 797 8 1.0 1.0 ; chem
+54 1323 8 1.0 1.0 ; chem
 55 56 8 1.0 1.0 ; static
 55 57 8 1.0 1.0 ; static
-55 988 8 ; chem MISSING params type: A-A
+55 988 8 1.0 1.0 ; chem
 56 57 8 1.0 1.0 ; static
-56 924 8 ; chem MISSING params type: A-A
-57 860 8 ; chem MISSING params type: A-A
+56 924 8 1.0 1.0 ; chem
+57 860 8 1.0 1.0 ; chem
 58 59 8 1.0 1.0 ; static
 58 60 8 1.0 1.0 ; static
 59 60 8 1.0 1.0 ; static
-59 1098 8 ; chem MISSING params type: A-A
-60 873 8 ; chem MISSING params type: A-A
+59 1098 8 1.0 1.0 ; chem
+60 873 8 1.0 1.0 ; chem
 61 62 8 1.0 1.0 ; static
 61 63 8 1.0 1.0 ; static
-61 444 8 ; chem MISSING params type: A-A
+61 444 8 1.0 1.0 ; chem
 62 63 8 1.0 1.0 ; static
-63 1273 8 ; chem MISSING params type: A-A
+63 1273 8 1.0 1.0 ; chem
 64 65 8 1.0 1.0 ; static
 64 66 8 1.0 1.0 ; static
-64 506 8 ; chem MISSING params type: A-A
+64 506 8 1.0 1.0 ; chem
 65 66 8 1.0 1.0 ; static
-65 1258 8 ; chem MISSING params type: A-A
-66 733 8 ; chem MISSING params type: A-A
+65 1258 8 1.0 1.0 ; chem
+66 733 8 1.0 1.0 ; chem
 67 68 8 1.0 1.0 ; static
 67 69 8 1.0 1.0 ; static
-67 122 8 ; chem MISSING params type: A-A
+67 122 8 1.0 1.0 ; chem
 68 69 8 1.0 1.0 ; static
-69 139 8 ; chem MISSING params type: A-A
+69 139 8 1.0 1.0 ; chem
 70 71 8 1.0 1.0 ; static
 70 72 8 1.0 1.0 ; static
-70 1313 8 ; chem MISSING params type: A-A
+70 1313 8 1.0 1.0 ; chem
 71 72 8 1.0 1.0 ; static
-71 629 8 ; chem MISSING params type: A-A
-72 309 8 ; chem MISSING params type: A-A
+71 629 8 1.0 1.0 ; chem
+72 309 8 1.0 1.0 ; chem
 73 74 8 1.0 1.0 ; static
 73 75 8 1.0 1.0 ; static
-73 550 8 ; chem MISSING params type: A-A
+73 550 8 1.0 1.0 ; chem
 74 75 8 1.0 1.0 ; static
-74 133 8 ; chem MISSING params type: A-A
-75 1010 8 ; chem MISSING params type: A-A
+74 133 8 1.0 1.0 ; chem
+75 1010 8 1.0 1.0 ; chem
 76 77 8 1.0 1.0 ; static
 76 78 8 1.0 1.0 ; static
 77 78 8 1.0 1.0 ; static
-77 662 8 ; chem MISSING params type: A-A
-78 97 8 ; chem MISSING params type: A-A
+77 662 8 1.0 1.0 ; chem
+78 97 8 1.0 1.0 ; chem
 79 80 8 1.0 1.0 ; static
 79 81 8 1.0 1.0 ; static
-79 1031 8 ; chem MISSING params type: A-A
+79 1031 8 1.0 1.0 ; chem
 80 81 8 1.0 1.0 ; static
-81 768 8 ; chem MISSING params type: A-A
+81 768 8 1.0 1.0 ; chem
 82 83 8 1.0 1.0 ; static
 82 84 8 1.0 1.0 ; static
-82 339 8 ; chem MISSING params type: A-A
+82 339 8 1.0 1.0 ; chem
 83 84 8 1.0 1.0 ; static
 85 86 8 1.0 1.0 ; static
 85 87 8 1.0 1.0 ; static
-85 1238 8 ; chem MISSING params type: A-A
+85 1238 8 1.0 1.0 ; chem
 86 87 8 1.0 1.0 ; static
-86 399 8 ; chem MISSING params type: A-A
-87 734 8 ; chem MISSING params type: A-A
+86 399 8 1.0 1.0 ; chem
+87 734 8 1.0 1.0 ; chem
 88 89 8 1.0 1.0 ; static
 88 90 8 1.0 1.0 ; static
 89 90 8 1.0 1.0 ; static
-89 1099 8 ; chem MISSING params type: A-A
-90 765 8 ; chem MISSING params type: A-A
+89 1099 8 1.0 1.0 ; chem
+90 765 8 1.0 1.0 ; chem
 91 92 8 1.0 1.0 ; static
 91 93 8 1.0 1.0 ; static
-91 921 8 ; chem MISSING params type: A-A
+91 921 8 1.0 1.0 ; chem
 92 93 8 1.0 1.0 ; static
-92 1171 8 ; chem MISSING params type: A-A
-93 527 8 ; chem MISSING params type: A-A
+92 1171 8 1.0 1.0 ; chem
+93 527 8 1.0 1.0 ; chem
 94 95 8 1.0 1.0 ; static
 94 96 8 1.0 1.0 ; static
-94 1050 8 ; chem MISSING params type: A-A
+94 1050 8 1.0 1.0 ; chem
 95 96 8 1.0 1.0 ; static
-95 1349 8 ; chem MISSING params type: A-A
-96 157 8 ; chem MISSING params type: A-A
+95 1349 8 1.0 1.0 ; chem
+96 157 8 1.0 1.0 ; chem
 97 98 8 1.0 1.0 ; static
 97 99 8 1.0 1.0 ; static
 98 99 8 1.0 1.0 ; static
-98 1111 8 ; chem MISSING params type: A-A
+98 1111 8 1.0 1.0 ; chem
 100 101 8 1.0 1.0 ; static
 100 102 8 1.0 1.0 ; static
-100 1070 8 ; chem MISSING params type: A-A
+100 1070 8 1.0 1.0 ; chem
 101 102 8 1.0 1.0 ; static
-101 340 8 ; chem MISSING params type: A-A
-102 1372 8 ; chem MISSING params type: A-A
+101 340 8 1.0 1.0 ; chem
+102 1372 8 1.0 1.0 ; chem
 103 104 8 1.0 1.0 ; static
 103 105 8 1.0 1.0 ; static
-103 627 8 ; chem MISSING params type: A-A
+103 627 8 1.0 1.0 ; chem
 104 105 8 1.0 1.0 ; static
-104 628 8 ; chem MISSING params type: A-A
-105 262 8 ; chem MISSING params type: A-A
+104 628 8 1.0 1.0 ; chem
+105 262 8 1.0 1.0 ; chem
 106 107 8 1.0 1.0 ; static
 106 108 8 1.0 1.0 ; static
-106 1282 8 ; chem MISSING params type: A-A
+106 1282 8 1.0 1.0 ; chem
 107 108 8 1.0 1.0 ; static
 109 110 8 1.0 1.0 ; static
 109 111 8 1.0 1.0 ; static
 110 111 8 1.0 1.0 ; static
-110 1437 8 ; chem MISSING params type: A-A
-111 1491 8 ; chem MISSING params type: A-A
+110 1437 8 1.0 1.0 ; chem
+111 1491 8 1.0 1.0 ; chem
 112 113 8 1.0 1.0 ; static
 112 114 8 1.0 1.0 ; static
-112 642 8 ; chem MISSING params type: A-A
+112 642 8 1.0 1.0 ; chem
 113 114 8 1.0 1.0 ; static
-113 1294 8 ; chem MISSING params type: A-A
-114 1124 8 ; chem MISSING params type: A-A
+113 1294 8 1.0 1.0 ; chem
+114 1124 8 1.0 1.0 ; chem
 115 116 8 1.0 1.0 ; static
 115 117 8 1.0 1.0 ; static
-115 456 8 ; chem MISSING params type: A-A
+115 456 8 1.0 1.0 ; chem
 116 117 8 1.0 1.0 ; static
-116 669 8 ; chem MISSING params type: A-A
-117 1228 8 ; chem MISSING params type: A-A
+116 669 8 1.0 1.0 ; chem
+117 1228 8 1.0 1.0 ; chem
 118 119 8 1.0 1.0 ; static
 118 120 8 1.0 1.0 ; static
 119 120 8 1.0 1.0 ; static
-119 351 8 ; chem MISSING params type: A-A
+119 351 8 1.0 1.0 ; chem
 121 122 8 1.0 1.0 ; static
 121 123 8 1.0 1.0 ; static
-121 406 8 ; chem MISSING params type: A-A
+121 406 8 1.0 1.0 ; chem
 122 123 8 1.0 1.0 ; static
-123 580 8 ; chem MISSING params type: A-A
+123 580 8 1.0 1.0 ; chem
 124 125 8 1.0 1.0 ; static
 124 126 8 1.0 1.0 ; static
-124 848 8 ; chem MISSING params type: A-A
+124 848 8 1.0 1.0 ; chem
 125 126 8 1.0 1.0 ; static
-125 980 8 ; chem MISSING params type: A-A
-126 1122 8 ; chem MISSING params type: A-A
+125 980 8 1.0 1.0 ; chem
+126 1122 8 1.0 1.0 ; chem
 127 128 8 1.0 1.0 ; static
 127 129 8 1.0 1.0 ; static
-127 336 8 ; chem MISSING params type: A-A
+127 336 8 1.0 1.0 ; chem
 128 129 8 1.0 1.0 ; static
-128 972 8 ; chem MISSING params type: A-A
-129 876 8 ; chem MISSING params type: A-A
+128 972 8 1.0 1.0 ; chem
+129 876 8 1.0 1.0 ; chem
 130 131 8 1.0 1.0 ; static
 130 132 8 1.0 1.0 ; static
-130 213 8 ; chem MISSING params type: A-A
+130 213 8 1.0 1.0 ; chem
 131 132 8 1.0 1.0 ; static
-131 667 8 ; chem MISSING params type: A-A
-132 1479 8 ; chem MISSING params type: A-A
+131 667 8 1.0 1.0 ; chem
+132 1479 8 1.0 1.0 ; chem
 133 134 8 1.0 1.0 ; static
 133 135 8 1.0 1.0 ; static
 134 135 8 1.0 1.0 ; static
-134 586 8 ; chem MISSING params type: A-A
-135 796 8 ; chem MISSING params type: A-A
+134 586 8 1.0 1.0 ; chem
+135 796 8 1.0 1.0 ; chem
 136 137 8 1.0 1.0 ; static
 136 138 8 1.0 1.0 ; static
-136 1045 8 ; chem MISSING params type: A-A
+136 1045 8 1.0 1.0 ; chem
 137 138 8 1.0 1.0 ; static
-137 985 8 ; chem MISSING params type: A-A
-138 281 8 ; chem MISSING params type: A-A
+137 985 8 1.0 1.0 ; chem
+138 281 8 1.0 1.0 ; chem
 139 140 8 1.0 1.0 ; static
 139 141 8 1.0 1.0 ; static
 140 141 8 1.0 1.0 ; static
-140 845 8 ; chem MISSING params type: A-A
+140 845 8 1.0 1.0 ; chem
 142 143 8 1.0 1.0 ; static
 142 144 8 1.0 1.0 ; static
-142 370 8 ; chem MISSING params type: A-A
+142 370 8 1.0 1.0 ; chem
 143 144 8 1.0 1.0 ; static
-143 172 8 ; chem MISSING params type: A-A
-144 716 8 ; chem MISSING params type: A-A
+143 172 8 1.0 1.0 ; chem
+144 716 8 1.0 1.0 ; chem
 145 146 8 1.0 1.0 ; static
 145 147 8 1.0 1.0 ; static
-145 1307 8 ; chem MISSING params type: A-A
+145 1307 8 1.0 1.0 ; chem
 146 147 8 1.0 1.0 ; static
-146 1095 8 ; chem MISSING params type: A-A
-147 641 8 ; chem MISSING params type: A-A
+146 1095 8 1.0 1.0 ; chem
+147 641 8 1.0 1.0 ; chem
 148 149 8 1.0 1.0 ; static
 148 150 8 1.0 1.0 ; static
-148 1136 8 ; chem MISSING params type: A-A
+148 1136 8 1.0 1.0 ; chem
 149 150 8 1.0 1.0 ; static
-149 424 8 ; chem MISSING params type: A-A
+149 424 8 1.0 1.0 ; chem
 151 152 8 1.0 1.0 ; static
 151 153 8 1.0 1.0 ; static
-151 274 8 ; chem MISSING params type: A-A
+151 274 8 1.0 1.0 ; chem
 152 153 8 1.0 1.0 ; static
-152 320 8 ; chem MISSING params type: A-A
-153 478 8 ; chem MISSING params type: A-A
+152 320 8 1.0 1.0 ; chem
+153 478 8 1.0 1.0 ; chem
 154 155 8 1.0 1.0 ; static
 154 156 8 1.0 1.0 ; static
-154 1480 8 ; chem MISSING params type: A-A
+154 1480 8 1.0 1.0 ; chem
 155 156 8 1.0 1.0 ; static
-156 314 8 ; chem MISSING params type: A-A
+156 314 8 1.0 1.0 ; chem
 157 158 8 1.0 1.0 ; static
 157 159 8 1.0 1.0 ; static
 158 159 8 1.0 1.0 ; static
-158 947 8 ; chem MISSING params type: A-A
-159 466 8 ; chem MISSING params type: A-A
+158 947 8 1.0 1.0 ; chem
+159 466 8 1.0 1.0 ; chem
 160 161 8 1.0 1.0 ; static
 160 162 8 1.0 1.0 ; static
-160 911 8 ; chem MISSING params type: A-A
+160 911 8 1.0 1.0 ; chem
 161 162 8 1.0 1.0 ; static
-161 606 8 ; chem MISSING params type: A-A
-162 428 8 ; chem MISSING params type: A-A
+161 606 8 1.0 1.0 ; chem
+162 428 8 1.0 1.0 ; chem
 163 164 8 1.0 1.0 ; static
 163 165 8 1.0 1.0 ; static
-163 1253 8 ; chem MISSING params type: A-A
+163 1253 8 1.0 1.0 ; chem
 164 165 8 1.0 1.0 ; static
-164 940 8 ; chem MISSING params type: A-A
-165 402 8 ; chem MISSING params type: A-A
+164 940 8 1.0 1.0 ; chem
+165 402 8 1.0 1.0 ; chem
 166 167 8 1.0 1.0 ; static
 166 168 8 1.0 1.0 ; static
-166 1162 8 ; chem MISSING params type: A-A
+166 1162 8 1.0 1.0 ; chem
 167 168 8 1.0 1.0 ; static
-167 1353 8 ; chem MISSING params type: A-A
-168 437 8 ; chem MISSING params type: A-A
+167 1353 8 1.0 1.0 ; chem
+168 437 8 1.0 1.0 ; chem
 169 170 8 1.0 1.0 ; static
 169 171 8 1.0 1.0 ; static
-169 401 8 ; chem MISSING params type: A-A
+169 401 8 1.0 1.0 ; chem
 170 171 8 1.0 1.0 ; static
-170 1055 8 ; chem MISSING params type: A-A
-171 925 8 ; chem MISSING params type: A-A
+170 1055 8 1.0 1.0 ; chem
+171 925 8 1.0 1.0 ; chem
 172 173 8 1.0 1.0 ; static
 172 174 8 1.0 1.0 ; static
 173 174 8 1.0 1.0 ; static
-173 211 8 ; chem MISSING params type: A-A
-174 1177 8 ; chem MISSING params type: A-A
+173 211 8 1.0 1.0 ; chem
+174 1177 8 1.0 1.0 ; chem
 175 176 8 1.0 1.0 ; static
 175 177 8 1.0 1.0 ; static
-175 419 8 ; chem MISSING params type: A-A
+175 419 8 1.0 1.0 ; chem
 176 177 8 1.0 1.0 ; static
-176 1144 8 ; chem MISSING params type: A-A
-177 185 8 ; chem MISSING params type: A-A
+176 1144 8 1.0 1.0 ; chem
+177 185 8 1.0 1.0 ; chem
 178 179 8 1.0 1.0 ; static
 178 180 8 1.0 1.0 ; static
-178 813 8 ; chem MISSING params type: A-A
+178 813 8 1.0 1.0 ; chem
 179 180 8 1.0 1.0 ; static
-179 1490 8 ; chem MISSING params type: A-A
-180 1186 8 ; chem MISSING params type: A-A
+179 1490 8 1.0 1.0 ; chem
+180 1186 8 1.0 1.0 ; chem
 181 182 8 1.0 1.0 ; static
 181 183 8 1.0 1.0 ; static
-181 1482 8 ; chem MISSING params type: A-A
+181 1482 8 1.0 1.0 ; chem
 182 183 8 1.0 1.0 ; static
-183 798 8 ; chem MISSING params type: A-A
+183 798 8 1.0 1.0 ; chem
 184 185 8 1.0 1.0 ; static
 184 186 8 1.0 1.0 ; static
-184 1219 8 ; chem MISSING params type: A-A
+184 1219 8 1.0 1.0 ; chem
 185 186 8 1.0 1.0 ; static
-186 1097 8 ; chem MISSING params type: A-A
+186 1097 8 1.0 1.0 ; chem
 187 188 8 1.0 1.0 ; static
 187 189 8 1.0 1.0 ; static
-187 300 8 ; chem MISSING params type: A-A
+187 300 8 1.0 1.0 ; chem
 188 189 8 1.0 1.0 ; static
 190 191 8 1.0 1.0 ; static
 190 192 8 1.0 1.0 ; static
-190 231 8 ; chem MISSING params type: A-A
+190 231 8 1.0 1.0 ; chem
 191 192 8 1.0 1.0 ; static
-191 1033 8 ; chem MISSING params type: A-A
-192 1106 8 ; chem MISSING params type: A-A
+191 1033 8 1.0 1.0 ; chem
+192 1106 8 1.0 1.0 ; chem
 193 194 8 1.0 1.0 ; static
 193 195 8 1.0 1.0 ; static
-193 1339 8 ; chem MISSING params type: A-A
+193 1339 8 1.0 1.0 ; chem
 194 195 8 1.0 1.0 ; static
-194 741 8 ; chem MISSING params type: A-A
+194 741 8 1.0 1.0 ; chem
 196 197 8 1.0 1.0 ; static
 196 198 8 1.0 1.0 ; static
-196 512 8 ; chem MISSING params type: A-A
+196 512 8 1.0 1.0 ; chem
 197 198 8 1.0 1.0 ; static
-197 1268 8 ; chem MISSING params type: A-A
-198 577 8 ; chem MISSING params type: A-A
+197 1268 8 1.0 1.0 ; chem
+198 577 8 1.0 1.0 ; chem
 199 200 8 1.0 1.0 ; static
 199 201 8 1.0 1.0 ; static
-199 1356 8 ; chem MISSING params type: A-A
+199 1356 8 1.0 1.0 ; chem
 200 201 8 1.0 1.0 ; static
-200 1403 8 ; chem MISSING params type: A-A
-201 205 8 ; chem MISSING params type: A-A
+200 1403 8 1.0 1.0 ; chem
+201 205 8 1.0 1.0 ; chem
 202 203 8 1.0 1.0 ; static
 202 204 8 1.0 1.0 ; static
-202 1105 8 ; chem MISSING params type: A-A
+202 1105 8 1.0 1.0 ; chem
 203 204 8 1.0 1.0 ; static
-204 1429 8 ; chem MISSING params type: A-A
+204 1429 8 1.0 1.0 ; chem
 205 206 8 1.0 1.0 ; static
 205 207 8 1.0 1.0 ; static
 206 207 8 1.0 1.0 ; static
-206 651 8 ; chem MISSING params type: A-A
-207 1419 8 ; chem MISSING params type: A-A
+206 651 8 1.0 1.0 ; chem
+207 1419 8 1.0 1.0 ; chem
 208 209 8 1.0 1.0 ; static
 208 210 8 1.0 1.0 ; static
-208 234 8 ; chem MISSING params type: A-A
+208 234 8 1.0 1.0 ; chem
 209 210 8 1.0 1.0 ; static
-209 1415 8 ; chem MISSING params type: A-A
-210 1399 8 ; chem MISSING params type: A-A
+209 1415 8 1.0 1.0 ; chem
+210 1399 8 1.0 1.0 ; chem
 211 212 8 1.0 1.0 ; static
 211 213 8 1.0 1.0 ; static
 212 213 8 1.0 1.0 ; static
-212 487 8 ; chem MISSING params type: A-A
+212 487 8 1.0 1.0 ; chem
 214 215 8 1.0 1.0 ; static
 214 216 8 1.0 1.0 ; static
-214 967 8 ; chem MISSING params type: A-A
+214 967 8 1.0 1.0 ; chem
 215 216 8 1.0 1.0 ; static
-215 541 8 ; chem MISSING params type: A-A
-216 317 8 ; chem MISSING params type: A-A
+215 541 8 1.0 1.0 ; chem
+216 317 8 1.0 1.0 ; chem
 217 218 8 1.0 1.0 ; static
 217 219 8 1.0 1.0 ; static
-217 608 8 ; chem MISSING params type: A-A
+217 608 8 1.0 1.0 ; chem
 218 219 8 1.0 1.0 ; static
-218 1026 8 ; chem MISSING params type: A-A
-219 1073 8 ; chem MISSING params type: A-A
+218 1026 8 1.0 1.0 ; chem
+219 1073 8 1.0 1.0 ; chem
 220 221 8 1.0 1.0 ; static
 220 222 8 1.0 1.0 ; static
-220 445 8 ; chem MISSING params type: A-A
+220 445 8 1.0 1.0 ; chem
 221 222 8 1.0 1.0 ; static
-221 820 8 ; chem MISSING params type: A-A
-222 323 8 ; chem MISSING params type: A-A
+221 820 8 1.0 1.0 ; chem
+222 323 8 1.0 1.0 ; chem
 223 224 8 1.0 1.0 ; static
 223 225 8 1.0 1.0 ; static
-223 1192 8 ; chem MISSING params type: A-A
+223 1192 8 1.0 1.0 ; chem
 224 225 8 1.0 1.0 ; static
-224 866 8 ; chem MISSING params type: A-A
-225 678 8 ; chem MISSING params type: A-A
+224 866 8 1.0 1.0 ; chem
+225 678 8 1.0 1.0 ; chem
 226 227 8 1.0 1.0 ; static
 226 228 8 1.0 1.0 ; static
-226 868 8 ; chem MISSING params type: A-A
+226 868 8 1.0 1.0 ; chem
 227 228 8 1.0 1.0 ; static
-227 432 8 ; chem MISSING params type: A-A
-228 1394 8 ; chem MISSING params type: A-A
+227 432 8 1.0 1.0 ; chem
+228 1394 8 1.0 1.0 ; chem
 229 230 8 1.0 1.0 ; static
 229 231 8 1.0 1.0 ; static
-229 1159 8 ; chem MISSING params type: A-A
+229 1159 8 1.0 1.0 ; chem
 230 231 8 1.0 1.0 ; static
-230 764 8 ; chem MISSING params type: A-A
+230 764 8 1.0 1.0 ; chem
 232 233 8 1.0 1.0 ; static
 232 234 8 1.0 1.0 ; static
-232 599 8 ; chem MISSING params type: A-A
+232 599 8 1.0 1.0 ; chem
 233 234 8 1.0 1.0 ; static
 235 236 8 1.0 1.0 ; static
 235 237 8 1.0 1.0 ; static
-235 1080 8 ; chem MISSING params type: A-A
+235 1080 8 1.0 1.0 ; chem
 236 237 8 1.0 1.0 ; static
-236 1181 8 ; chem MISSING params type: A-A
-237 930 8 ; chem MISSING params type: A-A
+236 1181 8 1.0 1.0 ; chem
+237 930 8 1.0 1.0 ; chem
 238 239 8 1.0 1.0 ; static
 238 240 8 1.0 1.0 ; static
-238 752 8 ; chem MISSING params type: A-A
+238 752 8 1.0 1.0 ; chem
 239 240 8 1.0 1.0 ; static
-239 1145 8 ; chem MISSING params type: A-A
-240 551 8 ; chem MISSING params type: A-A
+239 1145 8 1.0 1.0 ; chem
+240 551 8 1.0 1.0 ; chem
 241 242 8 1.0 1.0 ; static
 241 243 8 1.0 1.0 ; static
-241 1262 8 ; chem MISSING params type: A-A
+241 1262 8 1.0 1.0 ; chem
 242 243 8 1.0 1.0 ; static
-243 408 8 ; chem MISSING params type: A-A
+243 408 8 1.0 1.0 ; chem
 244 245 8 1.0 1.0 ; static
 244 246 8 1.0 1.0 ; static
-244 1396 8 ; chem MISSING params type: A-A
+244 1396 8 1.0 1.0 ; chem
 245 246 8 1.0 1.0 ; static
-245 1498 8 ; chem MISSING params type: A-A
+245 1498 8 1.0 1.0 ; chem
 247 248 8 1.0 1.0 ; static
 247 249 8 1.0 1.0 ; static
-247 1129 8 ; chem MISSING params type: A-A
+247 1129 8 1.0 1.0 ; chem
 248 249 8 1.0 1.0 ; static
-248 616 8 ; chem MISSING params type: A-A
-249 1408 8 ; chem MISSING params type: A-A
+248 616 8 1.0 1.0 ; chem
+249 1408 8 1.0 1.0 ; chem
 250 251 8 1.0 1.0 ; static
 250 252 8 1.0 1.0 ; static
-250 1161 8 ; chem MISSING params type: A-A
+250 1161 8 1.0 1.0 ; chem
 251 252 8 1.0 1.0 ; static
-251 916 8 ; chem MISSING params type: A-A
-252 1250 8 ; chem MISSING params type: A-A
+251 916 8 1.0 1.0 ; chem
+252 1250 8 1.0 1.0 ; chem
 253 254 8 1.0 1.0 ; static
 253 255 8 1.0 1.0 ; static
-253 807 8 ; chem MISSING params type: A-A
+253 807 8 1.0 1.0 ; chem
 254 255 8 1.0 1.0 ; static
-254 1451 8 ; chem MISSING params type: A-A
-255 1174 8 ; chem MISSING params type: A-A
+254 1451 8 1.0 1.0 ; chem
+255 1174 8 1.0 1.0 ; chem
 256 257 8 1.0 1.0 ; static
 256 258 8 1.0 1.0 ; static
-256 1176 8 ; chem MISSING params type: A-A
+256 1176 8 1.0 1.0 ; chem
 257 258 8 1.0 1.0 ; static
-257 959 8 ; chem MISSING params type: A-A
-258 1037 8 ; chem MISSING params type: A-A
+257 959 8 1.0 1.0 ; chem
+258 1037 8 1.0 1.0 ; chem
 259 260 8 1.0 1.0 ; static
 259 261 8 1.0 1.0 ; static
-259 1032 8 ; chem MISSING params type: A-A
+259 1032 8 1.0 1.0 ; chem
 260 261 8 1.0 1.0 ; static
-260 1288 8 ; chem MISSING params type: A-A
+260 1288 8 1.0 1.0 ; chem
 262 263 8 1.0 1.0 ; static
 262 264 8 1.0 1.0 ; static
 263 264 8 1.0 1.0 ; static
-263 1198 8 ; chem MISSING params type: A-A
-264 1427 8 ; chem MISSING params type: A-A
+263 1198 8 1.0 1.0 ; chem
+264 1427 8 1.0 1.0 ; chem
 265 266 8 1.0 1.0 ; static
 265 267 8 1.0 1.0 ; static
-265 337 8 ; chem MISSING params type: A-A
+265 337 8 1.0 1.0 ; chem
 266 267 8 1.0 1.0 ; static
-266 745 8 ; chem MISSING params type: A-A
-267 1237 8 ; chem MISSING params type: A-A
+266 745 8 1.0 1.0 ; chem
+267 1237 8 1.0 1.0 ; chem
 268 269 8 1.0 1.0 ; static
 268 270 8 1.0 1.0 ; static
-268 335 8 ; chem MISSING params type: A-A
+268 335 8 1.0 1.0 ; chem
 269 270 8 1.0 1.0 ; static
-270 935 8 ; chem MISSING params type: A-A
+270 935 8 1.0 1.0 ; chem
 271 272 8 1.0 1.0 ; static
 271 273 8 1.0 1.0 ; static
 272 273 8 1.0 1.0 ; static
-272 1416 8 ; chem MISSING params type: A-A
-273 414 8 ; chem MISSING params type: A-A
+272 1416 8 1.0 1.0 ; chem
+273 414 8 1.0 1.0 ; chem
 274 275 8 1.0 1.0 ; static
 274 276 8 1.0 1.0 ; static
 275 276 8 1.0 1.0 ; static
-275 321 8 ; chem MISSING params type: A-A
-276 618 8 ; chem MISSING params type: A-A
+275 321 8 1.0 1.0 ; chem
+276 618 8 1.0 1.0 ; chem
 277 278 8 1.0 1.0 ; static
 277 279 8 1.0 1.0 ; static
-277 489 8 ; chem MISSING params type: A-A
+277 489 8 1.0 1.0 ; chem
 278 279 8 1.0 1.0 ; static
-278 319 8 ; chem MISSING params type: A-A
-279 1178 8 ; chem MISSING params type: A-A
+278 319 8 1.0 1.0 ; chem
+279 1178 8 1.0 1.0 ; chem
 280 281 8 1.0 1.0 ; static
 280 282 8 1.0 1.0 ; static
-280 779 8 ; chem MISSING params type: A-A
+280 779 8 1.0 1.0 ; chem
 281 282 8 1.0 1.0 ; static
-282 1046 8 ; chem MISSING params type: A-A
+282 1046 8 1.0 1.0 ; chem
 283 284 8 1.0 1.0 ; static
 283 285 8 1.0 1.0 ; static
-283 303 8 ; chem MISSING params type: A-A
+283 303 8 1.0 1.0 ; chem
 284 285 8 1.0 1.0 ; static
-284 1376 8 ; chem MISSING params type: A-A
-285 1354 8 ; chem MISSING params type: A-A
+284 1376 8 1.0 1.0 ; chem
+285 1354 8 1.0 1.0 ; chem
 286 287 8 1.0 1.0 ; static
 286 288 8 1.0 1.0 ; static
 287 288 8 1.0 1.0 ; static
-288 679 8 ; chem MISSING params type: A-A
+288 679 8 1.0 1.0 ; chem
 289 290 8 1.0 1.0 ; static
 289 291 8 1.0 1.0 ; static
-289 292 8 ; chem MISSING params type: A-A
+289 292 8 1.0 1.0 ; chem
 290 291 8 1.0 1.0 ; static
-290 452 8 ; chem MISSING params type: A-A
-291 1056 8 ; chem MISSING params type: A-A
+290 452 8 1.0 1.0 ; chem
+291 1056 8 1.0 1.0 ; chem
 292 293 8 1.0 1.0 ; static
 292 294 8 1.0 1.0 ; static
 293 294 8 1.0 1.0 ; static
-293 1431 8 ; chem MISSING params type: A-A
-294 1375 8 ; chem MISSING params type: A-A
+293 1431 8 1.0 1.0 ; chem
+294 1375 8 1.0 1.0 ; chem
 295 296 8 1.0 1.0 ; static
 295 297 8 1.0 1.0 ; static
-295 677 8 ; chem MISSING params type: A-A
+295 677 8 1.0 1.0 ; chem
 296 297 8 1.0 1.0 ; static
-296 956 8 ; chem MISSING params type: A-A
+296 956 8 1.0 1.0 ; chem
 298 299 8 1.0 1.0 ; static
 298 300 8 1.0 1.0 ; static
-298 1440 8 ; chem MISSING params type: A-A
+298 1440 8 1.0 1.0 ; chem
 299 300 8 1.0 1.0 ; static
 301 302 8 1.0 1.0 ; static
 301 303 8 1.0 1.0 ; static
-301 1175 8 ; chem MISSING params type: A-A
+301 1175 8 1.0 1.0 ; chem
 302 303 8 1.0 1.0 ; static
-302 663 8 ; chem MISSING params type: A-A
+302 663 8 1.0 1.0 ; chem
 304 305 8 1.0 1.0 ; static
 304 306 8 1.0 1.0 ; static
-304 508 8 ; chem MISSING params type: A-A
+304 508 8 1.0 1.0 ; chem
 305 306 8 1.0 1.0 ; static
-305 744 8 ; chem MISSING params type: A-A
+305 744 8 1.0 1.0 ; chem
 307 308 8 1.0 1.0 ; static
 307 309 8 1.0 1.0 ; static
-307 891 8 ; chem MISSING params type: A-A
+307 891 8 1.0 1.0 ; chem
 308 309 8 1.0 1.0 ; static
-308 1126 8 ; chem MISSING params type: A-A
+308 1126 8 1.0 1.0 ; chem
 310 311 8 1.0 1.0 ; static
 310 312 8 1.0 1.0 ; static
-310 943 8 ; chem MISSING params type: A-A
+310 943 8 1.0 1.0 ; chem
 311 312 8 1.0 1.0 ; static
-311 965 8 ; chem MISSING params type: A-A
-312 785 8 ; chem MISSING params type: A-A
+311 965 8 1.0 1.0 ; chem
+312 785 8 1.0 1.0 ; chem
 313 314 8 1.0 1.0 ; static
 313 315 8 1.0 1.0 ; static
-313 598 8 ; chem MISSING params type: A-A
+313 598 8 1.0 1.0 ; chem
 314 315 8 1.0 1.0 ; static
-315 509 8 ; chem MISSING params type: A-A
+315 509 8 1.0 1.0 ; chem
 316 317 8 1.0 1.0 ; static
 316 318 8 1.0 1.0 ; static
-316 565 8 ; chem MISSING params type: A-A
+316 565 8 1.0 1.0 ; chem
 317 318 8 1.0 1.0 ; static
-318 839 8 ; chem MISSING params type: A-A
+318 839 8 1.0 1.0 ; chem
 319 320 8 1.0 1.0 ; static
 319 321 8 1.0 1.0 ; static
 320 321 8 1.0 1.0 ; static
 322 323 8 1.0 1.0 ; static
 322 324 8 1.0 1.0 ; static
-322 749 8 ; chem MISSING params type: A-A
+322 749 8 1.0 1.0 ; chem
 323 324 8 1.0 1.0 ; static
-324 747 8 ; chem MISSING params type: A-A
+324 747 8 1.0 1.0 ; chem
 325 326 8 1.0 1.0 ; static
 325 327 8 1.0 1.0 ; static
-325 831 8 ; chem MISSING params type: A-A
+325 831 8 1.0 1.0 ; chem
 326 327 8 1.0 1.0 ; static
-326 350 8 ; chem MISSING params type: A-A
-327 1077 8 ; chem MISSING params type: A-A
+326 350 8 1.0 1.0 ; chem
+327 1077 8 1.0 1.0 ; chem
 328 329 8 1.0 1.0 ; static
 328 330 8 1.0 1.0 ; static
-328 1023 8 ; chem MISSING params type: A-A
+328 1023 8 1.0 1.0 ; chem
 329 330 8 1.0 1.0 ; static
-329 404 8 ; chem MISSING params type: A-A
-330 913 8 ; chem MISSING params type: A-A
+329 404 8 1.0 1.0 ; chem
+330 913 8 1.0 1.0 ; chem
 331 332 8 1.0 1.0 ; static
 331 333 8 1.0 1.0 ; static
-331 360 8 ; chem MISSING params type: A-A
+331 360 8 1.0 1.0 ; chem
 332 333 8 1.0 1.0 ; static
-332 829 8 ; chem MISSING params type: A-A
-333 1232 8 ; chem MISSING params type: A-A
+332 829 8 1.0 1.0 ; chem
+333 1232 8 1.0 1.0 ; chem
 334 335 8 1.0 1.0 ; static
 334 336 8 1.0 1.0 ; static
-334 1079 8 ; chem MISSING params type: A-A
+334 1079 8 1.0 1.0 ; chem
 335 336 8 1.0 1.0 ; static
 337 338 8 1.0 1.0 ; static
 337 339 8 1.0 1.0 ; static
 338 339 8 1.0 1.0 ; static
-338 900 8 ; chem MISSING params type: A-A
+338 900 8 1.0 1.0 ; chem
 340 341 8 1.0 1.0 ; static
 340 342 8 1.0 1.0 ; static
 341 342 8 1.0 1.0 ; static
-341 823 8 ; chem MISSING params type: A-A
-342 1373 8 ; chem MISSING params type: A-A
+341 823 8 1.0 1.0 ; chem
+342 1373 8 1.0 1.0 ; chem
 343 344 8 1.0 1.0 ; static
 343 345 8 1.0 1.0 ; static
-343 358 8 ; chem MISSING params type: A-A
+343 358 8 1.0 1.0 ; chem
 344 345 8 1.0 1.0 ; static
-345 555 8 ; chem MISSING params type: A-A
+345 555 8 1.0 1.0 ; chem
 346 347 8 1.0 1.0 ; static
 346 348 8 1.0 1.0 ; static
 347 348 8 1.0 1.0 ; static
-347 1435 8 ; chem MISSING params type: A-A
-348 1187 8 ; chem MISSING params type: A-A
+347 1435 8 1.0 1.0 ; chem
+348 1187 8 1.0 1.0 ; chem
 349 350 8 1.0 1.0 ; static
 349 351 8 1.0 1.0 ; static
-349 1214 8 ; chem MISSING params type: A-A
+349 1214 8 1.0 1.0 ; chem
 350 351 8 1.0 1.0 ; static
 352 353 8 1.0 1.0 ; static
 352 354 8 1.0 1.0 ; static
 353 354 8 1.0 1.0 ; static
-353 886 8 ; chem MISSING params type: A-A
+353 886 8 1.0 1.0 ; chem
 355 356 8 1.0 1.0 ; static
 355 357 8 1.0 1.0 ; static
-355 774 8 ; chem MISSING params type: A-A
+355 774 8 1.0 1.0 ; chem
 356 357 8 1.0 1.0 ; static
-357 462 8 ; chem MISSING params type: A-A
+357 462 8 1.0 1.0 ; chem
 358 359 8 1.0 1.0 ; static
 358 360 8 1.0 1.0 ; static
 359 360 8 1.0 1.0 ; static
-359 1493 8 ; chem MISSING params type: A-A
+359 1493 8 1.0 1.0 ; chem
 361 362 8 1.0 1.0 ; static
 361 363 8 1.0 1.0 ; static
-361 1236 8 ; chem MISSING params type: A-A
+361 1236 8 1.0 1.0 ; chem
 362 363 8 1.0 1.0 ; static
-363 1361 8 ; chem MISSING params type: A-A
+363 1361 8 1.0 1.0 ; chem
 364 365 8 1.0 1.0 ; static
 364 366 8 1.0 1.0 ; static
-364 613 8 ; chem MISSING params type: A-A
+364 613 8 1.0 1.0 ; chem
 365 366 8 1.0 1.0 ; static
-365 488 8 ; chem MISSING params type: A-A
-366 1414 8 ; chem MISSING params type: A-A
+365 488 8 1.0 1.0 ; chem
+366 1414 8 1.0 1.0 ; chem
 367 368 8 1.0 1.0 ; static
 367 369 8 1.0 1.0 ; static
-367 1058 8 ; chem MISSING params type: A-A
+367 1058 8 1.0 1.0 ; chem
 368 369 8 1.0 1.0 ; static
-368 737 8 ; chem MISSING params type: A-A
-369 1444 8 ; chem MISSING params type: A-A
+368 737 8 1.0 1.0 ; chem
+369 1444 8 1.0 1.0 ; chem
 370 371 8 1.0 1.0 ; static
 370 372 8 1.0 1.0 ; static
 371 372 8 1.0 1.0 ; static
-371 525 8 ; chem MISSING params type: A-A
-372 1057 8 ; chem MISSING params type: A-A
+371 525 8 1.0 1.0 ; chem
+372 1057 8 1.0 1.0 ; chem
 373 374 8 1.0 1.0 ; static
 373 375 8 1.0 1.0 ; static
 374 375 8 1.0 1.0 ; static
-375 844 8 ; chem MISSING params type: A-A
+375 844 8 1.0 1.0 ; chem
 376 377 8 1.0 1.0 ; static
 376 378 8 1.0 1.0 ; static
-376 484 8 ; chem MISSING params type: A-A
+376 484 8 1.0 1.0 ; chem
 377 378 8 1.0 1.0 ; static
-378 1003 8 ; chem MISSING params type: A-A
+378 1003 8 1.0 1.0 ; chem
 379 380 8 1.0 1.0 ; static
 379 381 8 1.0 1.0 ; static
-379 1308 8 ; chem MISSING params type: A-A
+379 1308 8 1.0 1.0 ; chem
 380 381 8 1.0 1.0 ; static
-380 1036 8 ; chem MISSING params type: A-A
-381 751 8 ; chem MISSING params type: A-A
+380 1036 8 1.0 1.0 ; chem
+381 751 8 1.0 1.0 ; chem
 382 383 8 1.0 1.0 ; static
 382 384 8 1.0 1.0 ; static
-382 782 8 ; chem MISSING params type: A-A
+382 782 8 1.0 1.0 ; chem
 383 384 8 1.0 1.0 ; static
-383 960 8 ; chem MISSING params type: A-A
-384 1344 8 ; chem MISSING params type: A-A
+383 960 8 1.0 1.0 ; chem
+384 1344 8 1.0 1.0 ; chem
 385 386 8 1.0 1.0 ; static
 385 387 8 1.0 1.0 ; static
-385 805 8 ; chem MISSING params type: A-A
+385 805 8 1.0 1.0 ; chem
 386 387 8 1.0 1.0 ; static
-387 715 8 ; chem MISSING params type: A-A
+387 715 8 1.0 1.0 ; chem
 388 389 8 1.0 1.0 ; static
 388 390 8 1.0 1.0 ; static
-388 594 8 ; chem MISSING params type: A-A
+388 594 8 1.0 1.0 ; chem
 389 390 8 1.0 1.0 ; static
-389 1364 8 ; chem MISSING params type: A-A
-390 1452 8 ; chem MISSING params type: A-A
+389 1364 8 1.0 1.0 ; chem
+390 1452 8 1.0 1.0 ; chem
 391 392 8 1.0 1.0 ; static
 391 393 8 1.0 1.0 ; static
 392 393 8 1.0 1.0 ; static
-392 1366 8 ; chem MISSING params type: A-A
-393 708 8 ; chem MISSING params type: A-A
+392 1366 8 1.0 1.0 ; chem
+393 708 8 1.0 1.0 ; chem
 394 395 8 1.0 1.0 ; static
 394 396 8 1.0 1.0 ; static
-394 633 8 ; chem MISSING params type: A-A
+394 633 8 1.0 1.0 ; chem
 395 396 8 1.0 1.0 ; static
-395 865 8 ; chem MISSING params type: A-A
-396 398 8 ; chem MISSING params type: A-A
+395 865 8 1.0 1.0 ; chem
+396 398 8 1.0 1.0 ; chem
 397 398 8 1.0 1.0 ; static
 397 399 8 1.0 1.0 ; static
-397 748 8 ; chem MISSING params type: A-A
+397 748 8 1.0 1.0 ; chem
 398 399 8 1.0 1.0 ; static
 400 401 8 1.0 1.0 ; static
 400 402 8 1.0 1.0 ; static
-400 927 8 ; chem MISSING params type: A-A
+400 927 8 1.0 1.0 ; chem
 401 402 8 1.0 1.0 ; static
 403 404 8 1.0 1.0 ; static
 403 405 8 1.0 1.0 ; static
-403 1430 8 ; chem MISSING params type: A-A
+403 1430 8 1.0 1.0 ; chem
 404 405 8 1.0 1.0 ; static
-405 592 8 ; chem MISSING params type: A-A
+405 592 8 1.0 1.0 ; chem
 406 407 8 1.0 1.0 ; static
 406 408 8 1.0 1.0 ; static
 407 408 8 1.0 1.0 ; static
-407 1148 8 ; chem MISSING params type: A-A
+407 1148 8 1.0 1.0 ; chem
 409 410 8 1.0 1.0 ; static
 409 411 8 1.0 1.0 ; static
 410 411 8 1.0 1.0 ; static
-410 619 8 ; chem MISSING params type: A-A
-411 687 8 ; chem MISSING params type: A-A
+410 619 8 1.0 1.0 ; chem
+411 687 8 1.0 1.0 ; chem
 412 413 8 1.0 1.0 ; static
 412 414 8 1.0 1.0 ; static
-412 1436 8 ; chem MISSING params type: A-A
+412 1436 8 1.0 1.0 ; chem
 413 414 8 1.0 1.0 ; static
-413 1358 8 ; chem MISSING params type: A-A
+413 1358 8 1.0 1.0 ; chem
 415 416 8 1.0 1.0 ; static
 415 417 8 1.0 1.0 ; static
-415 660 8 ; chem MISSING params type: A-A
+415 660 8 1.0 1.0 ; chem
 416 417 8 1.0 1.0 ; static
-416 1388 8 ; chem MISSING params type: A-A
-417 1494 8 ; chem MISSING params type: A-A
+416 1388 8 1.0 1.0 ; chem
+417 1494 8 1.0 1.0 ; chem
 418 419 8 1.0 1.0 ; static
 418 420 8 1.0 1.0 ; static
-418 883 8 ; chem MISSING params type: A-A
+418 883 8 1.0 1.0 ; chem
 419 420 8 1.0 1.0 ; static
-420 1298 8 ; chem MISSING params type: A-A
+420 1298 8 1.0 1.0 ; chem
 421 422 8 1.0 1.0 ; static
 421 423 8 1.0 1.0 ; static
 422 423 8 1.0 1.0 ; static
-422 1369 8 ; chem MISSING params type: A-A
-423 1049 8 ; chem MISSING params type: A-A
+422 1369 8 1.0 1.0 ; chem
+423 1049 8 1.0 1.0 ; chem
 424 425 8 1.0 1.0 ; static
 424 426 8 1.0 1.0 ; static
 425 426 8 1.0 1.0 ; static
-425 1251 8 ; chem MISSING params type: A-A
+425 1251 8 1.0 1.0 ; chem
 427 428 8 1.0 1.0 ; static
 427 429 8 1.0 1.0 ; static
-427 605 8 ; chem MISSING params type: A-A
+427 605 8 1.0 1.0 ; chem
 428 429 8 1.0 1.0 ; static
-429 504 8 ; chem MISSING params type: A-A
+429 504 8 1.0 1.0 ; chem
 430 431 8 1.0 1.0 ; static
 430 432 8 1.0 1.0 ; static
-430 1277 8 ; chem MISSING params type: A-A
+430 1277 8 1.0 1.0 ; chem
 431 432 8 1.0 1.0 ; static
-431 1309 8 ; chem MISSING params type: A-A
+431 1309 8 1.0 1.0 ; chem
 433 434 8 1.0 1.0 ; static
 433 435 8 1.0 1.0 ; static
-433 588 8 ; chem MISSING params type: A-A
+433 588 8 1.0 1.0 ; chem
 434 435 8 1.0 1.0 ; static
-435 654 8 ; chem MISSING params type: A-A
+435 654 8 1.0 1.0 ; chem
 436 437 8 1.0 1.0 ; static
 436 438 8 1.0 1.0 ; static
 437 438 8 1.0 1.0 ; static
-438 892 8 ; chem MISSING params type: A-A
+438 892 8 1.0 1.0 ; chem
 439 440 8 1.0 1.0 ; static
 439 441 8 1.0 1.0 ; static
-439 1467 8 ; chem MISSING params type: A-A
+439 1467 8 1.0 1.0 ; chem
 440 441 8 1.0 1.0 ; static
-440 658 8 ; chem MISSING params type: A-A
-441 951 8 ; chem MISSING params type: A-A
+440 658 8 1.0 1.0 ; chem
+441 951 8 1.0 1.0 ; chem
 442 443 8 1.0 1.0 ; static
 442 444 8 1.0 1.0 ; static
-442 1147 8 ; chem MISSING params type: A-A
+442 1147 8 1.0 1.0 ; chem
 443 444 8 1.0 1.0 ; static
 445 446 8 1.0 1.0 ; static
 445 447 8 1.0 1.0 ; static
 446 447 8 1.0 1.0 ; static
-446 1472 8 ; chem MISSING params type: A-A
-447 1360 8 ; chem MISSING params type: A-A
+446 1472 8 1.0 1.0 ; chem
+447 1360 8 1.0 1.0 ; chem
 448 449 8 1.0 1.0 ; static
 448 450 8 1.0 1.0 ; static
-448 853 8 ; chem MISSING params type: A-A
+448 853 8 1.0 1.0 ; chem
 449 450 8 1.0 1.0 ; static
-449 1393 8 ; chem MISSING params type: A-A
-450 906 8 ; chem MISSING params type: A-A
+449 1393 8 1.0 1.0 ; chem
+450 906 8 1.0 1.0 ; chem
 451 452 8 1.0 1.0 ; static
 451 453 8 1.0 1.0 ; static
-451 725 8 ; chem MISSING params type: A-A
+451 725 8 1.0 1.0 ; chem
 452 453 8 1.0 1.0 ; static
-453 1054 8 ; chem MISSING params type: A-A
+453 1054 8 1.0 1.0 ; chem
 454 455 8 1.0 1.0 ; static
 454 456 8 1.0 1.0 ; static
-454 788 8 ; chem MISSING params type: A-A
+454 788 8 1.0 1.0 ; chem
 455 456 8 1.0 1.0 ; static
 457 458 8 1.0 1.0 ; static
 457 459 8 1.0 1.0 ; static
 458 459 8 1.0 1.0 ; static
-458 1063 8 ; chem MISSING params type: A-A
-459 1110 8 ; chem MISSING params type: A-A
+458 1063 8 1.0 1.0 ; chem
+459 1110 8 1.0 1.0 ; chem
 460 461 8 1.0 1.0 ; static
 460 462 8 1.0 1.0 ; static
-460 743 8 ; chem MISSING params type: A-A
+460 743 8 1.0 1.0 ; chem
 461 462 8 1.0 1.0 ; static
-461 830 8 ; chem MISSING params type: A-A
+461 830 8 1.0 1.0 ; chem
 463 464 8 1.0 1.0 ; static
 463 465 8 1.0 1.0 ; static
-463 656 8 ; chem MISSING params type: A-A
+463 656 8 1.0 1.0 ; chem
 464 465 8 1.0 1.0 ; static
-465 1499 8 ; chem MISSING params type: A-A
+465 1499 8 1.0 1.0 ; chem
 466 467 8 1.0 1.0 ; static
 466 468 8 1.0 1.0 ; static
 467 468 8 1.0 1.0 ; static
-468 730 8 ; chem MISSING params type: A-A
+468 730 8 1.0 1.0 ; chem
 469 470 8 1.0 1.0 ; static
 469 471 8 1.0 1.0 ; static
 470 471 8 1.0 1.0 ; static
-470 1380 8 ; chem MISSING params type: A-A
-471 964 8 ; chem MISSING params type: A-A
+470 1380 8 1.0 1.0 ; chem
+471 964 8 1.0 1.0 ; chem
 472 473 8 1.0 1.0 ; static
 472 474 8 1.0 1.0 ; static
 473 474 8 1.0 1.0 ; static
-473 1335 8 ; chem MISSING params type: A-A
-474 736 8 ; chem MISSING params type: A-A
+473 1335 8 1.0 1.0 ; chem
+474 736 8 1.0 1.0 ; chem
 475 476 8 1.0 1.0 ; static
 475 477 8 1.0 1.0 ; static
-475 1447 8 ; chem MISSING params type: A-A
+475 1447 8 1.0 1.0 ; chem
 476 477 8 1.0 1.0 ; static
-477 516 8 ; chem MISSING params type: A-A
+477 516 8 1.0 1.0 ; chem
 478 479 8 1.0 1.0 ; static
 478 480 8 1.0 1.0 ; static
 479 480 8 1.0 1.0 ; static
-480 1391 8 ; chem MISSING params type: A-A
+480 1391 8 1.0 1.0 ; chem
 481 482 8 1.0 1.0 ; static
 481 483 8 1.0 1.0 ; static
-481 636 8 ; chem MISSING params type: A-A
+481 636 8 1.0 1.0 ; chem
 482 483 8 1.0 1.0 ; static
-483 928 8 ; chem MISSING params type: A-A
+483 928 8 1.0 1.0 ; chem
 484 485 8 1.0 1.0 ; static
 484 486 8 1.0 1.0 ; static
 485 486 8 1.0 1.0 ; static
-485 1197 8 ; chem MISSING params type: A-A
-486 671 8 ; chem MISSING params type: A-A
+485 1197 8 1.0 1.0 ; chem
+486 671 8 1.0 1.0 ; chem
 487 488 8 1.0 1.0 ; static
 487 489 8 1.0 1.0 ; static
 488 489 8 1.0 1.0 ; static
 490 491 8 1.0 1.0 ; static
 490 492 8 1.0 1.0 ; static
-490 1420 8 ; chem MISSING params type: A-A
+490 1420 8 1.0 1.0 ; chem
 491 492 8 1.0 1.0 ; static
-491 861 8 ; chem MISSING params type: A-A
+491 861 8 1.0 1.0 ; chem
 493 494 8 1.0 1.0 ; static
 493 495 8 1.0 1.0 ; static
-493 817 8 ; chem MISSING params type: A-A
+493 817 8 1.0 1.0 ; chem
 494 495 8 1.0 1.0 ; static
-494 912 8 ; chem MISSING params type: A-A
-495 630 8 ; chem MISSING params type: A-A
+494 912 8 1.0 1.0 ; chem
+495 630 8 1.0 1.0 ; chem
 496 497 8 1.0 1.0 ; static
 496 498 8 1.0 1.0 ; static
-496 976 8 ; chem MISSING params type: A-A
+496 976 8 1.0 1.0 ; chem
 497 498 8 1.0 1.0 ; static
-497 1206 8 ; chem MISSING params type: A-A
-498 1222 8 ; chem MISSING params type: A-A
+497 1206 8 1.0 1.0 ; chem
+498 1222 8 1.0 1.0 ; chem
 499 500 8 1.0 1.0 ; static
 499 501 8 1.0 1.0 ; static
-499 1090 8 ; chem MISSING params type: A-A
+499 1090 8 1.0 1.0 ; chem
 500 501 8 1.0 1.0 ; static
-500 841 8 ; chem MISSING params type: A-A
-501 1269 8 ; chem MISSING params type: A-A
+500 841 8 1.0 1.0 ; chem
+501 1269 8 1.0 1.0 ; chem
 502 503 8 1.0 1.0 ; static
 502 504 8 1.0 1.0 ; static
 503 504 8 1.0 1.0 ; static
-503 893 8 ; chem MISSING params type: A-A
+503 893 8 1.0 1.0 ; chem
 505 506 8 1.0 1.0 ; static
 505 507 8 1.0 1.0 ; static
-505 1083 8 ; chem MISSING params type: A-A
+505 1083 8 1.0 1.0 ; chem
 506 507 8 1.0 1.0 ; static
-507 1259 8 ; chem MISSING params type: A-A
+507 1259 8 1.0 1.0 ; chem
 508 509 8 1.0 1.0 ; static
 508 510 8 1.0 1.0 ; static
 509 510 8 1.0 1.0 ; static
-510 1202 8 ; chem MISSING params type: A-A
+510 1202 8 1.0 1.0 ; chem
 511 512 8 1.0 1.0 ; static
 511 513 8 1.0 1.0 ; static
-511 557 8 ; chem MISSING params type: A-A
+511 557 8 1.0 1.0 ; chem
 512 513 8 1.0 1.0 ; static
-513 721 8 ; chem MISSING params type: A-A
+513 721 8 1.0 1.0 ; chem
 514 515 8 1.0 1.0 ; static
 514 516 8 1.0 1.0 ; static
-514 1478 8 ; chem MISSING params type: A-A
+514 1478 8 1.0 1.0 ; chem
 515 516 8 1.0 1.0 ; static
-515 1316 8 ; chem MISSING params type: A-A
+515 1316 8 1.0 1.0 ; chem
 517 518 8 1.0 1.0 ; static
 517 519 8 1.0 1.0 ; static
-517 1158 8 ; chem MISSING params type: A-A
+517 1158 8 1.0 1.0 ; chem
 518 519 8 1.0 1.0 ; static
-519 1043 8 ; chem MISSING params type: A-A
+519 1043 8 1.0 1.0 ; chem
 520 521 8 1.0 1.0 ; static
 520 522 8 1.0 1.0 ; static
-520 1234 8 ; chem MISSING params type: A-A
+520 1234 8 1.0 1.0 ; chem
 521 522 8 1.0 1.0 ; static
-521 600 8 ; chem MISSING params type: A-A
-522 1201 8 ; chem MISSING params type: A-A
+521 600 8 1.0 1.0 ; chem
+522 1201 8 1.0 1.0 ; chem
 523 524 8 1.0 1.0 ; static
 523 525 8 1.0 1.0 ; static
-523 1327 8 ; chem MISSING params type: A-A
+523 1327 8 1.0 1.0 ; chem
 524 525 8 1.0 1.0 ; static
-524 1213 8 ; chem MISSING params type: A-A
+524 1213 8 1.0 1.0 ; chem
 526 527 8 1.0 1.0 ; static
 526 528 8 1.0 1.0 ; static
-526 1304 8 ; chem MISSING params type: A-A
+526 1304 8 1.0 1.0 ; chem
 527 528 8 1.0 1.0 ; static
-528 542 8 ; chem MISSING params type: A-A
+528 542 8 1.0 1.0 ; chem
 529 530 8 1.0 1.0 ; static
 529 531 8 1.0 1.0 ; static
-529 975 8 ; chem MISSING params type: A-A
+529 975 8 1.0 1.0 ; chem
 530 531 8 1.0 1.0 ; static
-530 803 8 ; chem MISSING params type: A-A
+530 803 8 1.0 1.0 ; chem
 532 533 8 1.0 1.0 ; static
 532 534 8 1.0 1.0 ; static
-532 595 8 ; chem MISSING params type: A-A
+532 595 8 1.0 1.0 ; chem
 533 534 8 1.0 1.0 ; static
-533 567 8 ; chem MISSING params type: A-A
-534 806 8 ; chem MISSING params type: A-A
+533 567 8 1.0 1.0 ; chem
+534 806 8 1.0 1.0 ; chem
 535 536 8 1.0 1.0 ; static
 535 537 8 1.0 1.0 ; static
-535 1321 8 ; chem MISSING params type: A-A
+535 1321 8 1.0 1.0 ; chem
 536 537 8 1.0 1.0 ; static
-536 1193 8 ; chem MISSING params type: A-A
+536 1193 8 1.0 1.0 ; chem
 538 539 8 1.0 1.0 ; static
 538 540 8 1.0 1.0 ; static
-538 1439 8 ; chem MISSING params type: A-A
+538 1439 8 1.0 1.0 ; chem
 539 540 8 1.0 1.0 ; static
-539 936 8 ; chem MISSING params type: A-A
-540 1047 8 ; chem MISSING params type: A-A
+539 936 8 1.0 1.0 ; chem
+540 1047 8 1.0 1.0 ; chem
 541 542 8 1.0 1.0 ; static
 541 543 8 1.0 1.0 ; static
 542 543 8 1.0 1.0 ; static
-543 840 8 ; chem MISSING params type: A-A
+543 840 8 1.0 1.0 ; chem
 544 545 8 1.0 1.0 ; static
 544 546 8 1.0 1.0 ; static
-544 1022 8 ; chem MISSING params type: A-A
+544 1022 8 1.0 1.0 ; chem
 545 546 8 1.0 1.0 ; static
-546 799 8 ; chem MISSING params type: A-A
+546 799 8 1.0 1.0 ; chem
 547 548 8 1.0 1.0 ; static
 547 549 8 1.0 1.0 ; static
-547 772 8 ; chem MISSING params type: A-A
+547 772 8 1.0 1.0 ; chem
 548 549 8 1.0 1.0 ; static
-548 778 8 ; chem MISSING params type: A-A
-549 655 8 ; chem MISSING params type: A-A
+548 778 8 1.0 1.0 ; chem
+549 655 8 1.0 1.0 ; chem
 550 551 8 1.0 1.0 ; static
 550 552 8 1.0 1.0 ; static
 551 552 8 1.0 1.0 ; static
-552 706 8 ; chem MISSING params type: A-A
+552 706 8 1.0 1.0 ; chem
 553 554 8 1.0 1.0 ; static
 553 555 8 1.0 1.0 ; static
-553 814 8 ; chem MISSING params type: A-A
+553 814 8 1.0 1.0 ; chem
 554 555 8 1.0 1.0 ; static
 556 557 8 1.0 1.0 ; static
 556 558 8 1.0 1.0 ; static
 557 558 8 1.0 1.0 ; static
-558 1474 8 ; chem MISSING params type: A-A
+558 1474 8 1.0 1.0 ; chem
 559 560 8 1.0 1.0 ; static
 559 561 8 1.0 1.0 ; static
-559 697 8 ; chem MISSING params type: A-A
+559 697 8 1.0 1.0 ; chem
 560 561 8 1.0 1.0 ; static
-560 607 8 ; chem MISSING params type: A-A
+560 607 8 1.0 1.0 ; chem
 562 563 8 1.0 1.0 ; static
 562 564 8 1.0 1.0 ; static
-562 1139 8 ; chem MISSING params type: A-A
+562 1139 8 1.0 1.0 ; chem
 563 564 8 1.0 1.0 ; static
-564 1242 8 ; chem MISSING params type: A-A
+564 1242 8 1.0 1.0 ; chem
 565 566 8 1.0 1.0 ; static
 565 567 8 1.0 1.0 ; static
 566 567 8 1.0 1.0 ; static
 568 569 8 1.0 1.0 ; static
 568 570 8 1.0 1.0 ; static
-568 851 8 ; chem MISSING params type: A-A
+568 851 8 1.0 1.0 ; chem
 569 570 8 1.0 1.0 ; static
-569 1266 8 ; chem MISSING params type: A-A
-570 786 8 ; chem MISSING params type: A-A
+569 1266 8 1.0 1.0 ; chem
+570 786 8 1.0 1.0 ; chem
 571 572 8 1.0 1.0 ; static
 571 573 8 1.0 1.0 ; static
 572 573 8 1.0 1.0 ; static
-572 1328 8 ; chem MISSING params type: A-A
+572 1328 8 1.0 1.0 ; chem
 574 575 8 1.0 1.0 ; static
 574 576 8 1.0 1.0 ; static
 575 576 8 1.0 1.0 ; static
-575 836 8 ; chem MISSING params type: A-A
-576 675 8 ; chem MISSING params type: A-A
+575 836 8 1.0 1.0 ; chem
+576 675 8 1.0 1.0 ; chem
 577 578 8 1.0 1.0 ; static
 577 579 8 1.0 1.0 ; static
 578 579 8 1.0 1.0 ; static
-578 1130 8 ; chem MISSING params type: A-A
-579 720 8 ; chem MISSING params type: A-A
+578 1130 8 1.0 1.0 ; chem
+579 720 8 1.0 1.0 ; chem
 580 581 8 1.0 1.0 ; static
 580 582 8 1.0 1.0 ; static
 581 582 8 1.0 1.0 ; static
-581 756 8 ; chem MISSING params type: A-A
-582 877 8 ; chem MISSING params type: A-A
+581 756 8 1.0 1.0 ; chem
+582 877 8 1.0 1.0 ; chem
 583 584 8 1.0 1.0 ; static
 583 585 8 1.0 1.0 ; static
-583 970 8 ; chem MISSING params type: A-A
+583 970 8 1.0 1.0 ; chem
 584 585 8 1.0 1.0 ; static
-585 1155 8 ; chem MISSING params type: A-A
+585 1155 8 1.0 1.0 ; chem
 586 587 8 1.0 1.0 ; static
 586 588 8 1.0 1.0 ; static
 587 588 8 1.0 1.0 ; static
-587 1235 8 ; chem MISSING params type: A-A
+587 1235 8 1.0 1.0 ; chem
 589 590 8 1.0 1.0 ; static
 589 591 8 1.0 1.0 ; static
 590 591 8 1.0 1.0 ; static
-590 1051 8 ; chem MISSING params type: A-A
-591 626 8 ; chem MISSING params type: A-A
+590 1051 8 1.0 1.0 ; chem
+591 626 8 1.0 1.0 ; chem
 592 593 8 1.0 1.0 ; static
 592 594 8 1.0 1.0 ; static
 593 594 8 1.0 1.0 ; static
-593 1014 8 ; chem MISSING params type: A-A
+593 1014 8 1.0 1.0 ; chem
 595 596 8 1.0 1.0 ; static
 595 597 8 1.0 1.0 ; static
 596 597 8 1.0 1.0 ; static
-596 1270 8 ; chem MISSING params type: A-A
+596 1270 8 1.0 1.0 ; chem
 598 599 8 1.0 1.0 ; static
 598 600 8 1.0 1.0 ; static
 599 600 8 1.0 1.0 ; static
 601 602 8 1.0 1.0 ; static
 601 603 8 1.0 1.0 ; static
-601 1071 8 ; chem MISSING params type: A-A
+601 1071 8 1.0 1.0 ; chem
 602 603 8 1.0 1.0 ; static
 604 605 8 1.0 1.0 ; static
 604 606 8 1.0 1.0 ; static
@@ -2558,337 +2558,337 @@ MOL 3
 607 608 8 1.0 1.0 ; static
 607 609 8 1.0 1.0 ; static
 608 609 8 1.0 1.0 ; static
-609 895 8 ; chem MISSING params type: A-A
+609 895 8 1.0 1.0 ; chem
 610 611 8 1.0 1.0 ; static
 610 612 8 1.0 1.0 ; static
-610 1303 8 ; chem MISSING params type: A-A
+610 1303 8 1.0 1.0 ; chem
 611 612 8 1.0 1.0 ; static
-611 1027 8 ; chem MISSING params type: A-A
-612 838 8 ; chem MISSING params type: A-A
+611 1027 8 1.0 1.0 ; chem
+612 838 8 1.0 1.0 ; chem
 613 614 8 1.0 1.0 ; static
 613 615 8 1.0 1.0 ; static
 614 615 8 1.0 1.0 ; static
-614 1395 8 ; chem MISSING params type: A-A
-615 1302 8 ; chem MISSING params type: A-A
+614 1395 8 1.0 1.0 ; chem
+615 1302 8 1.0 1.0 ; chem
 616 617 8 1.0 1.0 ; static
 616 618 8 1.0 1.0 ; static
 617 618 8 1.0 1.0 ; static
 619 620 8 1.0 1.0 ; static
 619 621 8 1.0 1.0 ; static
 620 621 8 1.0 1.0 ; static
-620 812 8 ; chem MISSING params type: A-A
-621 1470 8 ; chem MISSING params type: A-A
+620 812 8 1.0 1.0 ; chem
+621 1470 8 1.0 1.0 ; chem
 622 623 8 1.0 1.0 ; static
 622 624 8 1.0 1.0 ; static
 623 624 8 1.0 1.0 ; static
-624 1039 8 ; chem MISSING params type: A-A
+624 1039 8 1.0 1.0 ; chem
 625 626 8 1.0 1.0 ; static
 625 627 8 1.0 1.0 ; static
-625 1183 8 ; chem MISSING params type: A-A
+625 1183 8 1.0 1.0 ; chem
 626 627 8 1.0 1.0 ; static
 628 629 8 1.0 1.0 ; static
 628 630 8 1.0 1.0 ; static
 629 630 8 1.0 1.0 ; static
 631 632 8 1.0 1.0 ; static
 631 633 8 1.0 1.0 ; static
-631 1017 8 ; chem MISSING params type: A-A
+631 1017 8 1.0 1.0 ; chem
 632 633 8 1.0 1.0 ; static
-632 835 8 ; chem MISSING params type: A-A
+632 835 8 1.0 1.0 ; chem
 634 635 8 1.0 1.0 ; static
 634 636 8 1.0 1.0 ; static
-634 997 8 ; chem MISSING params type: A-A
+634 997 8 1.0 1.0 ; chem
 635 636 8 1.0 1.0 ; static
 637 638 8 1.0 1.0 ; static
 637 639 8 1.0 1.0 ; static
-637 1398 8 ; chem MISSING params type: A-A
+637 1398 8 1.0 1.0 ; chem
 638 639 8 1.0 1.0 ; static
-638 1189 8 ; chem MISSING params type: A-A
-639 690 8 ; chem MISSING params type: A-A
+638 1189 8 1.0 1.0 ; chem
+639 690 8 1.0 1.0 ; chem
 640 641 8 1.0 1.0 ; static
 640 642 8 1.0 1.0 ; static
-640 1469 8 ; chem MISSING params type: A-A
+640 1469 8 1.0 1.0 ; chem
 641 642 8 1.0 1.0 ; static
 643 644 8 1.0 1.0 ; static
 643 645 8 1.0 1.0 ; static
 644 645 8 1.0 1.0 ; static
-644 759 8 ; chem MISSING params type: A-A
-645 760 8 ; chem MISSING params type: A-A
+644 759 8 1.0 1.0 ; chem
+645 760 8 1.0 1.0 ; chem
 646 647 8 1.0 1.0 ; static
 646 648 8 1.0 1.0 ; static
-646 1101 8 ; chem MISSING params type: A-A
+646 1101 8 1.0 1.0 ; chem
 647 648 8 1.0 1.0 ; static
-647 1305 8 ; chem MISSING params type: A-A
-648 1029 8 ; chem MISSING params type: A-A
+647 1305 8 1.0 1.0 ; chem
+648 1029 8 1.0 1.0 ; chem
 649 650 8 1.0 1.0 ; static
 649 651 8 1.0 1.0 ; static
-649 1261 8 ; chem MISSING params type: A-A
+649 1261 8 1.0 1.0 ; chem
 650 651 8 1.0 1.0 ; static
-650 1404 8 ; chem MISSING params type: A-A
+650 1404 8 1.0 1.0 ; chem
 652 653 8 1.0 1.0 ; static
 652 654 8 1.0 1.0 ; static
-652 1216 8 ; chem MISSING params type: A-A
+652 1216 8 1.0 1.0 ; chem
 653 654 8 1.0 1.0 ; static
-653 740 8 ; chem MISSING params type: A-A
+653 740 8 1.0 1.0 ; chem
 655 656 8 1.0 1.0 ; static
 655 657 8 1.0 1.0 ; static
 656 657 8 1.0 1.0 ; static
-657 780 8 ; chem MISSING params type: A-A
+657 780 8 1.0 1.0 ; chem
 658 659 8 1.0 1.0 ; static
 658 660 8 1.0 1.0 ; static
 659 660 8 1.0 1.0 ; static
-659 1075 8 ; chem MISSING params type: A-A
+659 1075 8 1.0 1.0 ; chem
 661 662 8 1.0 1.0 ; static
 661 663 8 1.0 1.0 ; static
-661 818 8 ; chem MISSING params type: A-A
+661 818 8 1.0 1.0 ; chem
 662 663 8 1.0 1.0 ; static
 664 665 8 1.0 1.0 ; static
 664 666 8 1.0 1.0 ; static
-664 1173 8 ; chem MISSING params type: A-A
+664 1173 8 1.0 1.0 ; chem
 665 666 8 1.0 1.0 ; static
-665 1337 8 ; chem MISSING params type: A-A
-666 1180 8 ; chem MISSING params type: A-A
+665 1337 8 1.0 1.0 ; chem
+666 1180 8 1.0 1.0 ; chem
 667 668 8 1.0 1.0 ; static
 667 669 8 1.0 1.0 ; static
 668 669 8 1.0 1.0 ; static
-668 789 8 ; chem MISSING params type: A-A
+668 789 8 1.0 1.0 ; chem
 670 671 8 1.0 1.0 ; static
 670 672 8 1.0 1.0 ; static
-670 703 8 ; chem MISSING params type: A-A
+670 703 8 1.0 1.0 ; chem
 671 672 8 1.0 1.0 ; static
-672 1184 8 ; chem MISSING params type: A-A
+672 1184 8 1.0 1.0 ; chem
 673 674 8 1.0 1.0 ; static
 673 675 8 1.0 1.0 ; static
-673 887 8 ; chem MISSING params type: A-A
+673 887 8 1.0 1.0 ; chem
 674 675 8 1.0 1.0 ; static
-674 957 8 ; chem MISSING params type: A-A
+674 957 8 1.0 1.0 ; chem
 676 677 8 1.0 1.0 ; static
 676 678 8 1.0 1.0 ; static
 677 678 8 1.0 1.0 ; static
 679 680 8 1.0 1.0 ; static
 679 681 8 1.0 1.0 ; static
 680 681 8 1.0 1.0 ; static
-680 837 8 ; chem MISSING params type: A-A
+680 837 8 1.0 1.0 ; chem
 682 683 8 1.0 1.0 ; static
 682 684 8 1.0 1.0 ; static
 683 684 8 1.0 1.0 ; static
-683 771 8 ; chem MISSING params type: A-A
-684 1317 8 ; chem MISSING params type: A-A
+683 771 8 1.0 1.0 ; chem
+684 1317 8 1.0 1.0 ; chem
 685 686 8 1.0 1.0 ; static
 685 687 8 1.0 1.0 ; static
-685 915 8 ; chem MISSING params type: A-A
+685 915 8 1.0 1.0 ; chem
 686 687 8 1.0 1.0 ; static
-686 1312 8 ; chem MISSING params type: A-A
+686 1312 8 1.0 1.0 ; chem
 688 689 8 1.0 1.0 ; static
 688 690 8 1.0 1.0 ; static
-688 1191 8 ; chem MISSING params type: A-A
+688 1191 8 1.0 1.0 ; chem
 689 690 8 1.0 1.0 ; static
-689 1397 8 ; chem MISSING params type: A-A
+689 1397 8 1.0 1.0 ; chem
 691 692 8 1.0 1.0 ; static
 691 693 8 1.0 1.0 ; static
-691 1460 8 ; chem MISSING params type: A-A
+691 1460 8 1.0 1.0 ; chem
 692 693 8 1.0 1.0 ; static
-692 1160 8 ; chem MISSING params type: A-A
-693 1044 8 ; chem MISSING params type: A-A
+692 1160 8 1.0 1.0 ; chem
+693 1044 8 1.0 1.0 ; chem
 694 695 8 1.0 1.0 ; static
 694 696 8 1.0 1.0 ; static
 695 696 8 1.0 1.0 ; static
-695 948 8 ; chem MISSING params type: A-A
-696 939 8 ; chem MISSING params type: A-A
+695 948 8 1.0 1.0 ; chem
+696 939 8 1.0 1.0 ; chem
 697 698 8 1.0 1.0 ; static
 697 699 8 1.0 1.0 ; static
 698 699 8 1.0 1.0 ; static
-698 1066 8 ; chem MISSING params type: A-A
-699 1272 8 ; chem MISSING params type: A-A
+698 1066 8 1.0 1.0 ; chem
+699 1272 8 1.0 1.0 ; chem
 700 701 8 1.0 1.0 ; static
 700 702 8 1.0 1.0 ; static
 701 702 8 1.0 1.0 ; static
-701 1207 8 ; chem MISSING params type: A-A
+701 1207 8 1.0 1.0 ; chem
 703 704 8 1.0 1.0 ; static
 703 705 8 1.0 1.0 ; static
 704 705 8 1.0 1.0 ; static
-705 1281 8 ; chem MISSING params type: A-A
+705 1281 8 1.0 1.0 ; chem
 706 707 8 1.0 1.0 ; static
 706 708 8 1.0 1.0 ; static
 707 708 8 1.0 1.0 ; static
-707 1332 8 ; chem MISSING params type: A-A
+707 1332 8 1.0 1.0 ; chem
 709 710 8 1.0 1.0 ; static
 709 711 8 1.0 1.0 ; static
 710 711 8 1.0 1.0 ; static
-710 946 8 ; chem MISSING params type: A-A
+710 946 8 1.0 1.0 ; chem
 712 713 8 1.0 1.0 ; static
 712 714 8 1.0 1.0 ; static
 713 714 8 1.0 1.0 ; static
-713 1314 8 ; chem MISSING params type: A-A
-714 1151 8 ; chem MISSING params type: A-A
+713 1314 8 1.0 1.0 ; chem
+714 1151 8 1.0 1.0 ; chem
 715 716 8 1.0 1.0 ; static
 715 717 8 1.0 1.0 ; static
 716 717 8 1.0 1.0 ; static
-717 1086 8 ; chem MISSING params type: A-A
+717 1086 8 1.0 1.0 ; chem
 718 719 8 1.0 1.0 ; static
 718 720 8 1.0 1.0 ; static
 719 720 8 1.0 1.0 ; static
-719 1300 8 ; chem MISSING params type: A-A
+719 1300 8 1.0 1.0 ; chem
 721 722 8 1.0 1.0 ; static
 721 723 8 1.0 1.0 ; static
 722 723 8 1.0 1.0 ; static
-722 869 8 ; chem MISSING params type: A-A
-723 1495 8 ; chem MISSING params type: A-A
+722 869 8 1.0 1.0 ; chem
+723 1495 8 1.0 1.0 ; chem
 724 725 8 1.0 1.0 ; static
 724 726 8 1.0 1.0 ; static
 725 726 8 1.0 1.0 ; static
-726 1141 8 ; chem MISSING params type: A-A
+726 1141 8 1.0 1.0 ; chem
 727 728 8 1.0 1.0 ; static
 727 729 8 1.0 1.0 ; static
 728 729 8 1.0 1.0 ; static
-729 1340 8 ; chem MISSING params type: A-A
+729 1340 8 1.0 1.0 ; chem
 730 731 8 1.0 1.0 ; static
 730 732 8 1.0 1.0 ; static
 731 732 8 1.0 1.0 ; static
-731 1233 8 ; chem MISSING params type: A-A
-732 1211 8 ; chem MISSING params type: A-A
+731 1233 8 1.0 1.0 ; chem
+732 1211 8 1.0 1.0 ; chem
 733 734 8 1.0 1.0 ; static
 733 735 8 1.0 1.0 ; static
 734 735 8 1.0 1.0 ; static
-735 942 8 ; chem MISSING params type: A-A
+735 942 8 1.0 1.0 ; chem
 736 737 8 1.0 1.0 ; static
 736 738 8 1.0 1.0 ; static
 737 738 8 1.0 1.0 ; static
-738 1448 8 ; chem MISSING params type: A-A
+738 1448 8 1.0 1.0 ; chem
 739 740 8 1.0 1.0 ; static
 739 741 8 1.0 1.0 ; static
-739 1341 8 ; chem MISSING params type: A-A
+739 1341 8 1.0 1.0 ; chem
 740 741 8 1.0 1.0 ; static
 742 743 8 1.0 1.0 ; static
 742 744 8 1.0 1.0 ; static
-742 1215 8 ; chem MISSING params type: A-A
+742 1215 8 1.0 1.0 ; chem
 743 744 8 1.0 1.0 ; static
 745 746 8 1.0 1.0 ; static
 745 747 8 1.0 1.0 ; static
 746 747 8 1.0 1.0 ; static
-746 750 8 ; chem MISSING params type: A-A
+746 750 8 1.0 1.0 ; chem
 748 749 8 1.0 1.0 ; static
 748 750 8 1.0 1.0 ; static
 749 750 8 1.0 1.0 ; static
 751 752 8 1.0 1.0 ; static
 751 753 8 1.0 1.0 ; static
 752 753 8 1.0 1.0 ; static
-753 1418 8 ; chem MISSING params type: A-A
+753 1418 8 1.0 1.0 ; chem
 754 755 8 1.0 1.0 ; static
 754 756 8 1.0 1.0 ; static
-754 961 8 ; chem MISSING params type: A-A
+754 961 8 1.0 1.0 ; chem
 755 756 8 1.0 1.0 ; static
-755 1149 8 ; chem MISSING params type: A-A
+755 1149 8 1.0 1.0 ; chem
 757 758 8 1.0 1.0 ; static
 757 759 8 1.0 1.0 ; static
-757 1318 8 ; chem MISSING params type: A-A
+757 1318 8 1.0 1.0 ; chem
 758 759 8 1.0 1.0 ; static
-758 984 8 ; chem MISSING params type: A-A
+758 984 8 1.0 1.0 ; chem
 760 761 8 1.0 1.0 ; static
 760 762 8 1.0 1.0 ; static
 761 762 8 1.0 1.0 ; static
-761 773 8 ; chem MISSING params type: A-A
-762 987 8 ; chem MISSING params type: A-A
+761 773 8 1.0 1.0 ; chem
+762 987 8 1.0 1.0 ; chem
 763 764 8 1.0 1.0 ; static
 763 765 8 1.0 1.0 ; static
-763 1034 8 ; chem MISSING params type: A-A
+763 1034 8 1.0 1.0 ; chem
 764 765 8 1.0 1.0 ; static
 766 767 8 1.0 1.0 ; static
 766 768 8 1.0 1.0 ; static
-766 1338 8 ; chem MISSING params type: A-A
+766 1338 8 1.0 1.0 ; chem
 767 768 8 1.0 1.0 ; static
-767 859 8 ; chem MISSING params type: A-A
+767 859 8 1.0 1.0 ; chem
 769 770 8 1.0 1.0 ; static
 769 771 8 1.0 1.0 ; static
-769 1271 8 ; chem MISSING params type: A-A
+769 1271 8 1.0 1.0 ; chem
 770 771 8 1.0 1.0 ; static
 772 773 8 1.0 1.0 ; static
 772 774 8 1.0 1.0 ; static
 773 774 8 1.0 1.0 ; static
 775 776 8 1.0 1.0 ; static
 775 777 8 1.0 1.0 ; static
-775 983 8 ; chem MISSING params type: A-A
+775 983 8 1.0 1.0 ; chem
 776 777 8 1.0 1.0 ; static
-776 890 8 ; chem MISSING params type: A-A
-777 1128 8 ; chem MISSING params type: A-A
+776 890 8 1.0 1.0 ; chem
+777 1128 8 1.0 1.0 ; chem
 778 779 8 1.0 1.0 ; static
 778 780 8 1.0 1.0 ; static
 779 780 8 1.0 1.0 ; static
 781 782 8 1.0 1.0 ; static
 781 783 8 1.0 1.0 ; static
-781 974 8 ; chem MISSING params type: A-A
+781 974 8 1.0 1.0 ; chem
 782 783 8 1.0 1.0 ; static
-783 991 8 ; chem MISSING params type: A-A
+783 991 8 1.0 1.0 ; chem
 784 785 8 1.0 1.0 ; static
 784 786 8 1.0 1.0 ; static
-784 945 8 ; chem MISSING params type: A-A
+784 945 8 1.0 1.0 ; chem
 785 786 8 1.0 1.0 ; static
 787 788 8 1.0 1.0 ; static
 787 789 8 1.0 1.0 ; static
-787 1230 8 ; chem MISSING params type: A-A
+787 1230 8 1.0 1.0 ; chem
 788 789 8 1.0 1.0 ; static
 790 791 8 1.0 1.0 ; static
 790 792 8 1.0 1.0 ; static
-790 1182 8 ; chem MISSING params type: A-A
+790 1182 8 1.0 1.0 ; chem
 791 792 8 1.0 1.0 ; static
-792 1424 8 ; chem MISSING params type: A-A
+792 1424 8 1.0 1.0 ; chem
 793 794 8 1.0 1.0 ; static
 793 795 8 1.0 1.0 ; static
-793 999 8 ; chem MISSING params type: A-A
+793 999 8 1.0 1.0 ; chem
 794 795 8 1.0 1.0 ; static
-794 1336 8 ; chem MISSING params type: A-A
+794 1336 8 1.0 1.0 ; chem
 796 797 8 1.0 1.0 ; static
 796 798 8 1.0 1.0 ; static
 797 798 8 1.0 1.0 ; static
 799 800 8 1.0 1.0 ; static
 799 801 8 1.0 1.0 ; static
 800 801 8 1.0 1.0 ; static
-801 1260 8 ; chem MISSING params type: A-A
+801 1260 8 1.0 1.0 ; chem
 802 803 8 1.0 1.0 ; static
 802 804 8 1.0 1.0 ; static
-802 1231 8 ; chem MISSING params type: A-A
+802 1231 8 1.0 1.0 ; chem
 803 804 8 1.0 1.0 ; static
-804 1297 8 ; chem MISSING params type: A-A
+804 1297 8 1.0 1.0 ; chem
 805 806 8 1.0 1.0 ; static
 805 807 8 1.0 1.0 ; static
 806 807 8 1.0 1.0 ; static
 808 809 8 1.0 1.0 ; static
 808 810 8 1.0 1.0 ; static
-808 1459 8 ; chem MISSING params type: A-A
+808 1459 8 1.0 1.0 ; chem
 809 810 8 1.0 1.0 ; static
-809 1477 8 ; chem MISSING params type: A-A
-810 898 8 ; chem MISSING params type: A-A
+809 1477 8 1.0 1.0 ; chem
+810 898 8 1.0 1.0 ; chem
 811 812 8 1.0 1.0 ; static
 811 813 8 1.0 1.0 ; static
 812 813 8 1.0 1.0 ; static
 814 815 8 1.0 1.0 ; static
 814 816 8 1.0 1.0 ; static
 815 816 8 1.0 1.0 ; static
-815 1157 8 ; chem MISSING params type: A-A
-816 1221 8 ; chem MISSING params type: A-A
+815 1157 8 1.0 1.0 ; chem
+816 1221 8 1.0 1.0 ; chem
 817 818 8 1.0 1.0 ; static
 817 819 8 1.0 1.0 ; static
 818 819 8 1.0 1.0 ; static
 820 821 8 1.0 1.0 ; static
 820 822 8 1.0 1.0 ; static
 821 822 8 1.0 1.0 ; static
-822 1322 8 ; chem MISSING params type: A-A
+822 1322 8 1.0 1.0 ; chem
 823 824 8 1.0 1.0 ; static
 823 825 8 1.0 1.0 ; static
 824 825 8 1.0 1.0 ; static
-825 1025 8 ; chem MISSING params type: A-A
+825 1025 8 1.0 1.0 ; chem
 826 827 8 1.0 1.0 ; static
 826 828 8 1.0 1.0 ; static
-826 966 8 ; chem MISSING params type: A-A
+826 966 8 1.0 1.0 ; chem
 827 828 8 1.0 1.0 ; static
-827 1004 8 ; chem MISSING params type: A-A
+827 1004 8 1.0 1.0 ; chem
 829 830 8 1.0 1.0 ; static
 829 831 8 1.0 1.0 ; static
 830 831 8 1.0 1.0 ; static
 832 833 8 1.0 1.0 ; static
 832 834 8 1.0 1.0 ; static
-832 1463 8 ; chem MISSING params type: A-A
+832 1463 8 1.0 1.0 ; chem
 833 834 8 1.0 1.0 ; static
-834 1382 8 ; chem MISSING params type: A-A
+834 1382 8 1.0 1.0 ; chem
 835 836 8 1.0 1.0 ; static
 835 837 8 1.0 1.0 ; static
 836 837 8 1.0 1.0 ; static
@@ -2898,147 +2898,147 @@ MOL 3
 841 842 8 1.0 1.0 ; static
 841 843 8 1.0 1.0 ; static
 842 843 8 1.0 1.0 ; static
-842 1167 8 ; chem MISSING params type: A-A
-843 1293 8 ; chem MISSING params type: A-A
+842 1167 8 1.0 1.0 ; chem
+843 1293 8 1.0 1.0 ; chem
 844 845 8 1.0 1.0 ; static
 844 846 8 1.0 1.0 ; static
 845 846 8 1.0 1.0 ; static
 847 848 8 1.0 1.0 ; static
 847 849 8 1.0 1.0 ; static
-847 981 8 ; chem MISSING params type: A-A
+847 981 8 1.0 1.0 ; chem
 848 849 8 1.0 1.0 ; static
-849 1088 8 ; chem MISSING params type: A-A
+849 1088 8 1.0 1.0 ; chem
 850 851 8 1.0 1.0 ; static
 850 852 8 1.0 1.0 ; static
-850 1359 8 ; chem MISSING params type: A-A
+850 1359 8 1.0 1.0 ; chem
 851 852 8 1.0 1.0 ; static
-852 1264 8 ; chem MISSING params type: A-A
+852 1264 8 1.0 1.0 ; chem
 853 854 8 1.0 1.0 ; static
 853 855 8 1.0 1.0 ; static
 854 855 8 1.0 1.0 ; static
-854 1135 8 ; chem MISSING params type: A-A
-855 1496 8 ; chem MISSING params type: A-A
+854 1135 8 1.0 1.0 ; chem
+855 1496 8 1.0 1.0 ; chem
 856 857 8 1.0 1.0 ; static
 856 858 8 1.0 1.0 ; static
-856 926 8 ; chem MISSING params type: A-A
+856 926 8 1.0 1.0 ; chem
 857 858 8 1.0 1.0 ; static
-857 1292 8 ; chem MISSING params type: A-A
+857 1292 8 1.0 1.0 ; chem
 859 860 8 1.0 1.0 ; static
 859 861 8 1.0 1.0 ; static
 860 861 8 1.0 1.0 ; static
 862 863 8 1.0 1.0 ; static
 862 864 8 1.0 1.0 ; static
 863 864 8 1.0 1.0 ; static
-863 1471 8 ; chem MISSING params type: A-A
-864 1489 8 ; chem MISSING params type: A-A
+863 1471 8 1.0 1.0 ; chem
+864 1489 8 1.0 1.0 ; chem
 865 866 8 1.0 1.0 ; static
 865 867 8 1.0 1.0 ; static
 866 867 8 1.0 1.0 ; static
-867 1351 8 ; chem MISSING params type: A-A
+867 1351 8 1.0 1.0 ; chem
 868 869 8 1.0 1.0 ; static
 868 870 8 1.0 1.0 ; static
 869 870 8 1.0 1.0 ; static
-870 1276 8 ; chem MISSING params type: A-A
+870 1276 8 1.0 1.0 ; chem
 871 872 8 1.0 1.0 ; static
 871 873 8 1.0 1.0 ; static
-871 1212 8 ; chem MISSING params type: A-A
+871 1212 8 1.0 1.0 ; chem
 872 873 8 1.0 1.0 ; static
-872 1387 8 ; chem MISSING params type: A-A
+872 1387 8 1.0 1.0 ; chem
 874 875 8 1.0 1.0 ; static
 874 876 8 1.0 1.0 ; static
-874 952 8 ; chem MISSING params type: A-A
+874 952 8 1.0 1.0 ; chem
 875 876 8 1.0 1.0 ; static
-875 1346 8 ; chem MISSING params type: A-A
+875 1346 8 1.0 1.0 ; chem
 877 878 8 1.0 1.0 ; static
 877 879 8 1.0 1.0 ; static
 878 879 8 1.0 1.0 ; static
-878 1074 8 ; chem MISSING params type: A-A
+878 1074 8 1.0 1.0 ; chem
 880 881 8 1.0 1.0 ; static
 880 882 8 1.0 1.0 ; static
 881 882 8 1.0 1.0 ; static
-881 1274 8 ; chem MISSING params type: A-A
+881 1274 8 1.0 1.0 ; chem
 883 884 8 1.0 1.0 ; static
 883 885 8 1.0 1.0 ; static
 884 885 8 1.0 1.0 ; static
-884 1252 8 ; chem MISSING params type: A-A
+884 1252 8 1.0 1.0 ; chem
 886 887 8 1.0 1.0 ; static
 886 888 8 1.0 1.0 ; static
 887 888 8 1.0 1.0 ; static
-888 1441 8 ; chem MISSING params type: A-A
+888 1441 8 1.0 1.0 ; chem
 889 890 8 1.0 1.0 ; static
 889 891 8 1.0 1.0 ; static
-889 1053 8 ; chem MISSING params type: A-A
+889 1053 8 1.0 1.0 ; chem
 890 891 8 1.0 1.0 ; static
 892 893 8 1.0 1.0 ; static
 892 894 8 1.0 1.0 ; static
 893 894 8 1.0 1.0 ; static
-894 1011 8 ; chem MISSING params type: A-A
+894 1011 8 1.0 1.0 ; chem
 895 896 8 1.0 1.0 ; static
 895 897 8 1.0 1.0 ; static
 896 897 8 1.0 1.0 ; static
-896 1113 8 ; chem MISSING params type: A-A
-897 1072 8 ; chem MISSING params type: A-A
+896 1113 8 1.0 1.0 ; chem
+897 1072 8 1.0 1.0 ; chem
 898 899 8 1.0 1.0 ; static
 898 900 8 1.0 1.0 ; static
 899 900 8 1.0 1.0 ; static
 901 902 8 1.0 1.0 ; static
 901 903 8 1.0 1.0 ; static
-901 1423 8 ; chem MISSING params type: A-A
+901 1423 8 1.0 1.0 ; chem
 902 903 8 1.0 1.0 ; static
-903 1284 8 ; chem MISSING params type: A-A
+903 1284 8 1.0 1.0 ; chem
 904 905 8 1.0 1.0 ; static
 904 906 8 1.0 1.0 ; static
 905 906 8 1.0 1.0 ; static
-905 982 8 ; chem MISSING params type: A-A
+905 982 8 1.0 1.0 ; chem
 907 908 8 1.0 1.0 ; static
 907 909 8 1.0 1.0 ; static
-907 1421 8 ; chem MISSING params type: A-A
+907 1421 8 1.0 1.0 ; chem
 908 909 8 1.0 1.0 ; static
-908 922 8 ; chem MISSING params type: A-A
-909 1299 8 ; chem MISSING params type: A-A
+908 922 8 1.0 1.0 ; chem
+909 1299 8 1.0 1.0 ; chem
 910 911 8 1.0 1.0 ; static
 910 912 8 1.0 1.0 ; static
-910 1330 8 ; chem MISSING params type: A-A
+910 1330 8 1.0 1.0 ; chem
 911 912 8 1.0 1.0 ; static
 913 914 8 1.0 1.0 ; static
 913 915 8 1.0 1.0 ; static
 914 915 8 1.0 1.0 ; static
-914 1020 8 ; chem MISSING params type: A-A
+914 1020 8 1.0 1.0 ; chem
 916 917 8 1.0 1.0 ; static
 916 918 8 1.0 1.0 ; static
 917 918 8 1.0 1.0 ; static
-917 1109 8 ; chem MISSING params type: A-A
-918 1249 8 ; chem MISSING params type: A-A
+917 1109 8 1.0 1.0 ; chem
+918 1249 8 1.0 1.0 ; chem
 919 920 8 1.0 1.0 ; static
 919 921 8 1.0 1.0 ; static
-919 1368 8 ; chem MISSING params type: A-A
+919 1368 8 1.0 1.0 ; chem
 920 921 8 1.0 1.0 ; static
 922 923 8 1.0 1.0 ; static
 922 924 8 1.0 1.0 ; static
 923 924 8 1.0 1.0 ; static
-923 990 8 ; chem MISSING params type: A-A
+923 990 8 1.0 1.0 ; chem
 925 926 8 1.0 1.0 ; static
 925 927 8 1.0 1.0 ; static
 926 927 8 1.0 1.0 ; static
 928 929 8 1.0 1.0 ; static
 928 930 8 1.0 1.0 ; static
 929 930 8 1.0 1.0 ; static
-929 1021 8 ; chem MISSING params type: A-A
+929 1021 8 1.0 1.0 ; chem
 931 932 8 1.0 1.0 ; static
 931 933 8 1.0 1.0 ; static
-931 1030 8 ; chem MISSING params type: A-A
+931 1030 8 1.0 1.0 ; chem
 932 933 8 1.0 1.0 ; static
-932 1425 8 ; chem MISSING params type: A-A
-933 992 8 ; chem MISSING params type: A-A
+932 1425 8 1.0 1.0 ; chem
+933 992 8 1.0 1.0 ; chem
 934 935 8 1.0 1.0 ; static
 934 936 8 1.0 1.0 ; static
-934 1497 8 ; chem MISSING params type: A-A
+934 1497 8 1.0 1.0 ; chem
 935 936 8 1.0 1.0 ; static
 937 938 8 1.0 1.0 ; static
 937 939 8 1.0 1.0 ; static
-937 1402 8 ; chem MISSING params type: A-A
+937 1402 8 1.0 1.0 ; chem
 938 939 8 1.0 1.0 ; static
-938 1154 8 ; chem MISSING params type: A-A
+938 1154 8 1.0 1.0 ; chem
 940 941 8 1.0 1.0 ; static
 940 942 8 1.0 1.0 ; static
 941 942 8 1.0 1.0 ; static
@@ -3050,17 +3050,17 @@ MOL 3
 947 948 8 1.0 1.0 ; static
 949 950 8 1.0 1.0 ; static
 949 951 8 1.0 1.0 ; static
-949 1153 8 ; chem MISSING params type: A-A
+949 1153 8 1.0 1.0 ; chem
 950 951 8 1.0 1.0 ; static
-950 1456 8 ; chem MISSING params type: A-A
+950 1456 8 1.0 1.0 ; chem
 952 953 8 1.0 1.0 ; static
 952 954 8 1.0 1.0 ; static
 953 954 8 1.0 1.0 ; static
-953 1454 8 ; chem MISSING params type: A-A
-954 1102 8 ; chem MISSING params type: A-A
+953 1454 8 1.0 1.0 ; chem
+954 1102 8 1.0 1.0 ; chem
 955 956 8 1.0 1.0 ; static
 955 957 8 1.0 1.0 ; static
-955 1060 8 ; chem MISSING params type: A-A
+955 1060 8 1.0 1.0 ; chem
 956 957 8 1.0 1.0 ; static
 958 959 8 1.0 1.0 ; static
 958 960 8 1.0 1.0 ; static
@@ -3068,32 +3068,32 @@ MOL 3
 961 962 8 1.0 1.0 ; static
 961 963 8 1.0 1.0 ; static
 962 963 8 1.0 1.0 ; static
-962 1170 8 ; chem MISSING params type: A-A
-963 1389 8 ; chem MISSING params type: A-A
+962 1170 8 1.0 1.0 ; chem
+963 1389 8 1.0 1.0 ; chem
 964 965 8 1.0 1.0 ; static
 964 966 8 1.0 1.0 ; static
 965 966 8 1.0 1.0 ; static
 967 968 8 1.0 1.0 ; static
 967 969 8 1.0 1.0 ; static
 968 969 8 1.0 1.0 ; static
-968 1227 8 ; chem MISSING params type: A-A
-969 1275 8 ; chem MISSING params type: A-A
+968 1227 8 1.0 1.0 ; chem
+969 1275 8 1.0 1.0 ; chem
 970 971 8 1.0 1.0 ; static
 970 972 8 1.0 1.0 ; static
 971 972 8 1.0 1.0 ; static
-971 1465 8 ; chem MISSING params type: A-A
+971 1465 8 1.0 1.0 ; chem
 973 974 8 1.0 1.0 ; static
 973 975 8 1.0 1.0 ; static
-973 1257 8 ; chem MISSING params type: A-A
+973 1257 8 1.0 1.0 ; chem
 974 975 8 1.0 1.0 ; static
 976 977 8 1.0 1.0 ; static
 976 978 8 1.0 1.0 ; static
 977 978 8 1.0 1.0 ; static
-977 1204 8 ; chem MISSING params type: A-A
-978 1096 8 ; chem MISSING params type: A-A
+977 1204 8 1.0 1.0 ; chem
+978 1096 8 1.0 1.0 ; chem
 979 980 8 1.0 1.0 ; static
 979 981 8 1.0 1.0 ; static
-979 1012 8 ; chem MISSING params type: A-A
+979 1012 8 1.0 1.0 ; chem
 980 981 8 1.0 1.0 ; static
 982 983 8 1.0 1.0 ; static
 982 984 8 1.0 1.0 ; static
@@ -3101,53 +3101,53 @@ MOL 3
 985 986 8 1.0 1.0 ; static
 985 987 8 1.0 1.0 ; static
 986 987 8 1.0 1.0 ; static
-986 1378 8 ; chem MISSING params type: A-A
+986 1378 8 1.0 1.0 ; chem
 988 989 8 1.0 1.0 ; static
 988 990 8 1.0 1.0 ; static
 989 990 8 1.0 1.0 ; static
 991 992 8 1.0 1.0 ; static
 991 993 8 1.0 1.0 ; static
 992 993 8 1.0 1.0 ; static
-993 1422 8 ; chem MISSING params type: A-A
+993 1422 8 1.0 1.0 ; chem
 994 995 8 1.0 1.0 ; static
 994 996 8 1.0 1.0 ; static
-994 1133 8 ; chem MISSING params type: A-A
+994 1133 8 1.0 1.0 ; chem
 995 996 8 1.0 1.0 ; static
-995 1367 8 ; chem MISSING params type: A-A
-996 1331 8 ; chem MISSING params type: A-A
+995 1367 8 1.0 1.0 ; chem
+996 1331 8 1.0 1.0 ; chem
 997 998 8 1.0 1.0 ; static
 997 999 8 1.0 1.0 ; static
 998 999 8 1.0 1.0 ; static
-998 1355 8 ; chem MISSING params type: A-A
+998 1355 8 1.0 1.0 ; chem
 1000 1001 8 1.0 1.0 ; static
 1000 1002 8 1.0 1.0 ; static
-1000 1067 8 ; chem MISSING params type: A-A
+1000 1067 8 1.0 1.0 ; chem
 1001 1002 8 1.0 1.0 ; static
-1002 1315 8 ; chem MISSING params type: A-A
+1002 1315 8 1.0 1.0 ; chem
 1003 1004 8 1.0 1.0 ; static
 1003 1005 8 1.0 1.0 ; static
 1004 1005 8 1.0 1.0 ; static
-1005 1199 8 ; chem MISSING params type: A-A
+1005 1199 8 1.0 1.0 ; chem
 1006 1007 8 1.0 1.0 ; static
 1006 1008 8 1.0 1.0 ; static
 1007 1008 8 1.0 1.0 ; static
-1007 1254 8 ; chem MISSING params type: A-A
+1007 1254 8 1.0 1.0 ; chem
 1009 1010 8 1.0 1.0 ; static
 1009 1011 8 1.0 1.0 ; static
 1010 1011 8 1.0 1.0 ; static
 1012 1013 8 1.0 1.0 ; static
 1012 1014 8 1.0 1.0 ; static
 1013 1014 8 1.0 1.0 ; static
-1013 1078 8 ; chem MISSING params type: A-A
+1013 1078 8 1.0 1.0 ; chem
 1015 1016 8 1.0 1.0 ; static
 1015 1017 8 1.0 1.0 ; static
 1016 1017 8 1.0 1.0 ; static
-1016 1352 8 ; chem MISSING params type: A-A
+1016 1352 8 1.0 1.0 ; chem
 1018 1019 8 1.0 1.0 ; static
 1018 1020 8 1.0 1.0 ; static
-1018 1152 8 ; chem MISSING params type: A-A
+1018 1152 8 1.0 1.0 ; chem
 1019 1020 8 1.0 1.0 ; static
-1019 1164 8 ; chem MISSING params type: A-A
+1019 1164 8 1.0 1.0 ; chem
 1021 1022 8 1.0 1.0 ; static
 1021 1023 8 1.0 1.0 ; static
 1022 1023 8 1.0 1.0 ; static
@@ -3157,36 +3157,36 @@ MOL 3
 1027 1028 8 1.0 1.0 ; static
 1027 1029 8 1.0 1.0 ; static
 1028 1029 8 1.0 1.0 ; static
-1028 1455 8 ; chem MISSING params type: A-A
+1028 1455 8 1.0 1.0 ; chem
 1030 1031 8 1.0 1.0 ; static
 1030 1032 8 1.0 1.0 ; static
 1031 1032 8 1.0 1.0 ; static
 1033 1034 8 1.0 1.0 ; static
 1033 1035 8 1.0 1.0 ; static
 1034 1035 8 1.0 1.0 ; static
-1035 1476 8 ; chem MISSING params type: A-A
+1035 1476 8 1.0 1.0 ; chem
 1036 1037 8 1.0 1.0 ; static
 1036 1038 8 1.0 1.0 ; static
 1037 1038 8 1.0 1.0 ; static
-1038 1377 8 ; chem MISSING params type: A-A
+1038 1377 8 1.0 1.0 ; chem
 1039 1040 8 1.0 1.0 ; static
 1039 1041 8 1.0 1.0 ; static
 1040 1041 8 1.0 1.0 ; static
 1042 1043 8 1.0 1.0 ; static
 1042 1044 8 1.0 1.0 ; static
-1042 1443 8 ; chem MISSING params type: A-A
+1042 1443 8 1.0 1.0 ; chem
 1043 1044 8 1.0 1.0 ; static
 1045 1046 8 1.0 1.0 ; static
 1045 1047 8 1.0 1.0 ; static
 1046 1047 8 1.0 1.0 ; static
 1048 1049 8 1.0 1.0 ; static
 1048 1050 8 1.0 1.0 ; static
-1048 1348 8 ; chem MISSING params type: A-A
+1048 1348 8 1.0 1.0 ; chem
 1049 1050 8 1.0 1.0 ; static
 1051 1052 8 1.0 1.0 ; static
 1051 1053 8 1.0 1.0 ; static
 1052 1053 8 1.0 1.0 ; static
-1052 1196 8 ; chem MISSING params type: A-A
+1052 1196 8 1.0 1.0 ; chem
 1054 1055 8 1.0 1.0 ; static
 1054 1056 8 1.0 1.0 ; static
 1055 1056 8 1.0 1.0 ; static
@@ -3196,18 +3196,18 @@ MOL 3
 1060 1061 8 1.0 1.0 ; static
 1060 1062 8 1.0 1.0 ; static
 1061 1062 8 1.0 1.0 ; static
-1061 1138 8 ; chem MISSING params type: A-A
-1062 1103 8 ; chem MISSING params type: A-A
+1061 1138 8 1.0 1.0 ; chem
+1062 1103 8 1.0 1.0 ; chem
 1063 1064 8 1.0 1.0 ; static
 1063 1065 8 1.0 1.0 ; static
 1064 1065 8 1.0 1.0 ; static
-1065 1301 8 ; chem MISSING params type: A-A
+1065 1301 8 1.0 1.0 ; chem
 1066 1067 8 1.0 1.0 ; static
 1066 1068 8 1.0 1.0 ; static
 1067 1068 8 1.0 1.0 ; static
 1069 1070 8 1.0 1.0 ; static
 1069 1071 8 1.0 1.0 ; static
-1069 1324 8 ; chem MISSING params type: A-A
+1069 1324 8 1.0 1.0 ; chem
 1070 1071 8 1.0 1.0 ; static
 1072 1073 8 1.0 1.0 ; static
 1072 1074 8 1.0 1.0 ; static
@@ -3215,34 +3215,34 @@ MOL 3
 1075 1076 8 1.0 1.0 ; static
 1075 1077 8 1.0 1.0 ; static
 1076 1077 8 1.0 1.0 ; static
-1076 1168 8 ; chem MISSING params type: A-A
+1076 1168 8 1.0 1.0 ; chem
 1078 1079 8 1.0 1.0 ; static
 1078 1080 8 1.0 1.0 ; static
 1079 1080 8 1.0 1.0 ; static
 1081 1082 8 1.0 1.0 ; static
 1081 1083 8 1.0 1.0 ; static
-1081 1143 8 ; chem MISSING params type: A-A
+1081 1143 8 1.0 1.0 ; chem
 1082 1083 8 1.0 1.0 ; static
-1082 1468 8 ; chem MISSING params type: A-A
+1082 1468 8 1.0 1.0 ; chem
 1084 1085 8 1.0 1.0 ; static
 1084 1086 8 1.0 1.0 ; static
-1084 1392 8 ; chem MISSING params type: A-A
+1084 1392 8 1.0 1.0 ; chem
 1085 1086 8 1.0 1.0 ; static
-1085 1385 8 ; chem MISSING params type: A-A
+1085 1385 8 1.0 1.0 ; chem
 1087 1088 8 1.0 1.0 ; static
 1087 1089 8 1.0 1.0 ; static
-1087 1466 8 ; chem MISSING params type: A-A
+1087 1466 8 1.0 1.0 ; chem
 1088 1089 8 1.0 1.0 ; static
-1089 1453 8 ; chem MISSING params type: A-A
+1089 1453 8 1.0 1.0 ; chem
 1090 1091 8 1.0 1.0 ; static
 1090 1092 8 1.0 1.0 ; static
 1091 1092 8 1.0 1.0 ; static
-1091 1267 8 ; chem MISSING params type: A-A
+1091 1267 8 1.0 1.0 ; chem
 1093 1094 8 1.0 1.0 ; static
 1093 1095 8 1.0 1.0 ; static
-1093 1333 8 ; chem MISSING params type: A-A
+1093 1333 8 1.0 1.0 ; chem
 1094 1095 8 1.0 1.0 ; static
-1094 1291 8 ; chem MISSING params type: A-A
+1094 1291 8 1.0 1.0 ; chem
 1096 1097 8 1.0 1.0 ; static
 1096 1098 8 1.0 1.0 ; static
 1097 1098 8 1.0 1.0 ; static
@@ -3257,69 +3257,69 @@ MOL 3
 1106 1107 8 1.0 1.0 ; static
 1108 1109 8 1.0 1.0 ; static
 1108 1110 8 1.0 1.0 ; static
-1108 1116 8 ; chem MISSING params type: A-A
+1108 1116 8 1.0 1.0 ; chem
 1109 1110 8 1.0 1.0 ; static
 1111 1112 8 1.0 1.0 ; static
 1111 1113 8 1.0 1.0 ; static
 1112 1113 8 1.0 1.0 ; static
-1112 1458 8 ; chem MISSING params type: A-A
+1112 1458 8 1.0 1.0 ; chem
 1114 1115 8 1.0 1.0 ; static
 1114 1116 8 1.0 1.0 ; static
 1115 1116 8 1.0 1.0 ; static
-1115 1137 8 ; chem MISSING params type: A-A
+1115 1137 8 1.0 1.0 ; chem
 1117 1118 8 1.0 1.0 ; static
 1117 1119 8 1.0 1.0 ; static
-1117 1412 8 ; chem MISSING params type: A-A
+1117 1412 8 1.0 1.0 ; chem
 1118 1119 8 1.0 1.0 ; static
 1120 1121 8 1.0 1.0 ; static
 1120 1122 8 1.0 1.0 ; static
-1120 1132 8 ; chem MISSING params type: A-A
+1120 1132 8 1.0 1.0 ; chem
 1121 1122 8 1.0 1.0 ; static
-1121 1370 8 ; chem MISSING params type: A-A
+1121 1370 8 1.0 1.0 ; chem
 1123 1124 8 1.0 1.0 ; static
 1123 1125 8 1.0 1.0 ; static
-1123 1450 8 ; chem MISSING params type: A-A
+1123 1450 8 1.0 1.0 ; chem
 1124 1125 8 1.0 1.0 ; static
-1125 1296 8 ; chem MISSING params type: A-A
+1125 1296 8 1.0 1.0 ; chem
 1126 1127 8 1.0 1.0 ; static
 1126 1128 8 1.0 1.0 ; static
 1127 1128 8 1.0 1.0 ; static
 1129 1130 8 1.0 1.0 ; static
 1129 1131 8 1.0 1.0 ; static
 1130 1131 8 1.0 1.0 ; static
-1131 1409 8 ; chem MISSING params type: A-A
+1131 1409 8 1.0 1.0 ; chem
 1132 1133 8 1.0 1.0 ; static
 1132 1134 8 1.0 1.0 ; static
 1133 1134 8 1.0 1.0 ; static
-1134 1483 8 ; chem MISSING params type: A-A
+1134 1483 8 1.0 1.0 ; chem
 1135 1136 8 1.0 1.0 ; static
 1135 1137 8 1.0 1.0 ; static
 1136 1137 8 1.0 1.0 ; static
 1138 1139 8 1.0 1.0 ; static
 1138 1140 8 1.0 1.0 ; static
 1139 1140 8 1.0 1.0 ; static
-1140 1245 8 ; chem MISSING params type: A-A
+1140 1245 8 1.0 1.0 ; chem
 1141 1142 8 1.0 1.0 ; static
 1141 1143 8 1.0 1.0 ; static
 1142 1143 8 1.0 1.0 ; static
-1142 1306 8 ; chem MISSING params type: A-A
+1142 1306 8 1.0 1.0 ; chem
 1144 1145 8 1.0 1.0 ; static
 1144 1146 8 1.0 1.0 ; static
 1145 1146 8 1.0 1.0 ; static
-1146 1485 8 ; chem MISSING params type: A-A
+1146 1485 8 1.0 1.0 ; chem
 1147 1148 8 1.0 1.0 ; static
 1147 1149 8 1.0 1.0 ; static
 1148 1149 8 1.0 1.0 ; static
 1150 1151 8 1.0 1.0 ; static
 1150 1152 8 1.0 1.0 ; static
-1150 1163 8 ; chem MISSING params type: A-A
+1150 1163 8 1.0 1.0 ; chem
 1151 1152 8 1.0 1.0 ; static
 1153 1154 8 1.0 1.0 ; static
 1153 1155 8 1.0 1.0 ; static
 1154 1155 8 1.0 1.0 ; static
 1156 1157 8 1.0 1.0 ; static
 1156 1158 8 1.0 1.0 ; static
-1156 1220 8 ; chem MISSING params type: A-A
+1156 1220 8 1.0 1.0 ; chem
 1157 1158 8 1.0 1.0 ; static
 1159 1160 8 1.0 1.0 ; static
 1159 1161 8 1.0 1.0 ; static
@@ -3336,32 +3336,32 @@ MOL 3
 1171 1172 8 1.0 1.0 ; static
 1171 1173 8 1.0 1.0 ; static
 1172 1173 8 1.0 1.0 ; static
-1172 1208 8 ; chem MISSING params type: A-A
+1172 1208 8 1.0 1.0 ; chem
 1174 1175 8 1.0 1.0 ; static
 1174 1176 8 1.0 1.0 ; static
 1175 1176 8 1.0 1.0 ; static
 1177 1178 8 1.0 1.0 ; static
 1177 1179 8 1.0 1.0 ; static
 1178 1179 8 1.0 1.0 ; static
-1179 1386 8 ; chem MISSING params type: A-A
+1179 1386 8 1.0 1.0 ; chem
 1180 1181 8 1.0 1.0 ; static
 1180 1182 8 1.0 1.0 ; static
 1181 1182 8 1.0 1.0 ; static
 1183 1184 8 1.0 1.0 ; static
 1183 1185 8 1.0 1.0 ; static
 1184 1185 8 1.0 1.0 ; static
-1185 1200 8 ; chem MISSING params type: A-A
+1185 1200 8 1.0 1.0 ; chem
 1186 1187 8 1.0 1.0 ; static
 1186 1188 8 1.0 1.0 ; static
 1187 1188 8 1.0 1.0 ; static
-1188 1426 8 ; chem MISSING params type: A-A
+1188 1426 8 1.0 1.0 ; chem
 1189 1190 8 1.0 1.0 ; static
 1189 1191 8 1.0 1.0 ; static
 1190 1191 8 1.0 1.0 ; static
 1192 1193 8 1.0 1.0 ; static
 1192 1194 8 1.0 1.0 ; static
 1193 1194 8 1.0 1.0 ; static
-1194 1241 8 ; chem MISSING params type: A-A
+1194 1241 8 1.0 1.0 ; chem
 1195 1196 8 1.0 1.0 ; static
 1195 1197 8 1.0 1.0 ; static
 1196 1197 8 1.0 1.0 ; static
@@ -3374,7 +3374,7 @@ MOL 3
 1204 1205 8 1.0 1.0 ; static
 1204 1206 8 1.0 1.0 ; static
 1205 1206 8 1.0 1.0 ; static
-1205 1217 8 ; chem MISSING params type: A-A
+1205 1217 8 1.0 1.0 ; chem
 1207 1208 8 1.0 1.0 ; static
 1207 1209 8 1.0 1.0 ; static
 1208 1209 8 1.0 1.0 ; static
@@ -3393,15 +3393,15 @@ MOL 3
 1222 1223 8 1.0 1.0 ; static
 1222 1224 8 1.0 1.0 ; static
 1223 1224 8 1.0 1.0 ; static
-1223 1247 8 ; chem MISSING params type: A-A
+1223 1247 8 1.0 1.0 ; chem
 1225 1226 8 1.0 1.0 ; static
 1225 1227 8 1.0 1.0 ; static
-1225 1320 8 ; chem MISSING params type: A-A
+1225 1320 8 1.0 1.0 ; chem
 1226 1227 8 1.0 1.0 ; static
 1228 1229 8 1.0 1.0 ; static
 1228 1230 8 1.0 1.0 ; static
 1229 1230 8 1.0 1.0 ; static
-1229 1311 8 ; chem MISSING params type: A-A
+1229 1311 8 1.0 1.0 ; chem
 1231 1232 8 1.0 1.0 ; static
 1231 1233 8 1.0 1.0 ; static
 1232 1233 8 1.0 1.0 ; static
@@ -3411,17 +3411,17 @@ MOL 3
 1237 1238 8 1.0 1.0 ; static
 1237 1239 8 1.0 1.0 ; static
 1238 1239 8 1.0 1.0 ; static
-1239 1473 8 ; chem MISSING params type: A-A
+1239 1473 8 1.0 1.0 ; chem
 1240 1241 8 1.0 1.0 ; static
 1240 1242 8 1.0 1.0 ; static
-1240 1244 8 ; chem MISSING params type: A-A
+1240 1244 8 1.0 1.0 ; chem
 1241 1242 8 1.0 1.0 ; static
 1243 1244 8 1.0 1.0 ; static
 1243 1245 8 1.0 1.0 ; static
 1244 1245 8 1.0 1.0 ; static
 1246 1247 8 1.0 1.0 ; static
 1246 1248 8 1.0 1.0 ; static
-1246 1481 8 ; chem MISSING params type: A-A
+1246 1481 8 1.0 1.0 ; chem
 1247 1248 8 1.0 1.0 ; static
 1249 1250 8 1.0 1.0 ; static
 1249 1251 8 1.0 1.0 ; static
@@ -3431,7 +3431,7 @@ MOL 3
 1253 1254 8 1.0 1.0 ; static
 1255 1256 8 1.0 1.0 ; static
 1255 1257 8 1.0 1.0 ; static
-1255 1285 8 ; chem MISSING params type: A-A
+1255 1285 8 1.0 1.0 ; chem
 1256 1257 8 1.0 1.0 ; static
 1258 1259 8 1.0 1.0 ; static
 1258 1260 8 1.0 1.0 ; static
@@ -3439,11 +3439,11 @@ MOL 3
 1261 1262 8 1.0 1.0 ; static
 1261 1263 8 1.0 1.0 ; static
 1262 1263 8 1.0 1.0 ; static
-1263 1457 8 ; chem MISSING params type: A-A
+1263 1457 8 1.0 1.0 ; chem
 1264 1265 8 1.0 1.0 ; static
 1264 1266 8 1.0 1.0 ; static
 1265 1266 8 1.0 1.0 ; static
-1265 1401 8 ; chem MISSING params type: A-A
+1265 1401 8 1.0 1.0 ; chem
 1267 1268 8 1.0 1.0 ; static
 1267 1269 8 1.0 1.0 ; static
 1268 1269 8 1.0 1.0 ; static
@@ -3456,11 +3456,11 @@ MOL 3
 1276 1277 8 1.0 1.0 ; static
 1276 1278 8 1.0 1.0 ; static
 1277 1278 8 1.0 1.0 ; static
-1278 1279 8 ; chem MISSING params type: A-A
+1278 1279 8 1.0 1.0 ; chem
 1279 1280 8 1.0 1.0 ; static
 1279 1281 8 1.0 1.0 ; static
 1280 1281 8 1.0 1.0 ; static
-1280 1438 8 ; chem MISSING params type: A-A
+1280 1438 8 1.0 1.0 ; chem
 1282 1283 8 1.0 1.0 ; static
 1282 1284 8 1.0 1.0 ; static
 1283 1284 8 1.0 1.0 ; static
@@ -3470,14 +3470,14 @@ MOL 3
 1288 1289 8 1.0 1.0 ; static
 1288 1290 8 1.0 1.0 ; static
 1289 1290 8 1.0 1.0 ; static
-1289 1462 8 ; chem MISSING params type: A-A
+1289 1462 8 1.0 1.0 ; chem
 1291 1292 8 1.0 1.0 ; static
 1291 1293 8 1.0 1.0 ; static
 1292 1293 8 1.0 1.0 ; static
 1294 1295 8 1.0 1.0 ; static
 1294 1296 8 1.0 1.0 ; static
 1295 1296 8 1.0 1.0 ; static
-1295 1434 8 ; chem MISSING params type: A-A
+1295 1434 8 1.0 1.0 ; chem
 1297 1298 8 1.0 1.0 ; static
 1297 1299 8 1.0 1.0 ; static
 1298 1299 8 1.0 1.0 ; static
@@ -3493,7 +3493,7 @@ MOL 3
 1309 1310 8 1.0 1.0 ; static
 1309 1311 8 1.0 1.0 ; static
 1310 1311 8 1.0 1.0 ; static
-1310 1363 8 ; chem MISSING params type: A-A
+1310 1363 8 1.0 1.0 ; chem
 1312 1313 8 1.0 1.0 ; static
 1312 1314 8 1.0 1.0 ; static
 1313 1314 8 1.0 1.0 ; static
@@ -3512,7 +3512,7 @@ MOL 3
 1327 1328 8 1.0 1.0 ; static
 1327 1329 8 1.0 1.0 ; static
 1328 1329 8 1.0 1.0 ; static
-1329 1413 8 ; chem MISSING params type: A-A
+1329 1413 8 1.0 1.0 ; chem
 1330 1331 8 1.0 1.0 ; static
 1330 1332 8 1.0 1.0 ; static
 1331 1332 8 1.0 1.0 ; static
@@ -3531,7 +3531,7 @@ MOL 3
 1345 1346 8 1.0 1.0 ; static
 1345 1347 8 1.0 1.0 ; static
 1346 1347 8 1.0 1.0 ; static
-1347 1475 8 ; chem MISSING params type: A-A
+1347 1475 8 1.0 1.0 ; chem
 1348 1349 8 1.0 1.0 ; static
 1348 1350 8 1.0 1.0 ; static
 1349 1350 8 1.0 1.0 ; static
@@ -3543,34 +3543,34 @@ MOL 3
 1355 1356 8 1.0 1.0 ; static
 1357 1358 8 1.0 1.0 ; static
 1357 1359 8 1.0 1.0 ; static
-1357 1400 8 ; chem MISSING params type: A-A
+1357 1400 8 1.0 1.0 ; chem
 1358 1359 8 1.0 1.0 ; static
 1360 1361 8 1.0 1.0 ; static
 1360 1362 8 1.0 1.0 ; static
 1361 1362 8 1.0 1.0 ; static
-1362 1428 8 ; chem MISSING params type: A-A
+1362 1428 8 1.0 1.0 ; chem
 1363 1364 8 1.0 1.0 ; static
 1363 1365 8 1.0 1.0 ; static
 1364 1365 8 1.0 1.0 ; static
-1365 1384 8 ; chem MISSING params type: A-A
+1365 1384 8 1.0 1.0 ; chem
 1366 1367 8 1.0 1.0 ; static
 1366 1368 8 1.0 1.0 ; static
 1367 1368 8 1.0 1.0 ; static
 1369 1370 8 1.0 1.0 ; static
 1369 1371 8 1.0 1.0 ; static
 1370 1371 8 1.0 1.0 ; static
-1371 1500 8 ; chem MISSING params type: A-A
+1371 1500 8 1.0 1.0 ; chem
 1372 1373 8 1.0 1.0 ; static
 1372 1374 8 1.0 1.0 ; static
 1373 1374 8 1.0 1.0 ; static
-1374 1446 8 ; chem MISSING params type: A-A
+1374 1446 8 1.0 1.0 ; chem
 1375 1376 8 1.0 1.0 ; static
 1375 1377 8 1.0 1.0 ; static
 1376 1377 8 1.0 1.0 ; static
 1378 1379 8 1.0 1.0 ; static
 1378 1380 8 1.0 1.0 ; static
 1379 1380 8 1.0 1.0 ; static
-1379 1410 8 ; chem MISSING params type: A-A
+1379 1410 8 1.0 1.0 ; chem
 1381 1382 8 1.0 1.0 ; static
 1381 1383 8 1.0 1.0 ; static
 1382 1383 8 1.0 1.0 ; static
@@ -3598,7 +3598,7 @@ MOL 3
 1405 1406 8 1.0 1.0 ; static
 1405 1407 8 1.0 1.0 ; static
 1406 1407 8 1.0 1.0 ; static
-1406 1432 8 ; chem MISSING params type: A-A
+1406 1432 8 1.0 1.0 ; chem
 1408 1409 8 1.0 1.0 ; static
 1408 1410 8 1.0 1.0 ; static
 1409 1410 8 1.0 1.0 ; static

@@ -69,8 +69,7 @@ bond_coeff 6 backmap/harmonic at 340.000375 1.100000
 bond_coeff 7 backmap/harmonic at 553.000611 0.980000
 bond_coeff 8 backmap/harmonic at 553.000611 0.970000
 bond_coeff 9 backmap/table cg table_b1.table ENTRY
-bond_coeff 10 backmap/table cg None None
-bond_coeff 11 backmap/harmonic at 481.000531 1.360000
+bond_coeff 10 backmap/harmonic at 481.000531 1.360000
 
 angle_style backmap/harmonic
 angle_coeff 1 at 80.000088 115.9740
