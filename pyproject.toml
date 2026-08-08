@@ -69,6 +69,7 @@ ignore = ["E501"]
 "python/src/backmap_prep/schema.py" = ["UP038"]
 "python/tests/test_network.py" = ["PT018", "S101"]
 "python/tests/test_v2_loader.py" = ["TC003"]
+"examples/melamine/large/ring_angle_variance_check.py" = ["N806"]
 
 # --- mypy ---
 [tool.mypy]
