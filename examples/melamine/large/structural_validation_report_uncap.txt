@@ -1,0 +1,25 @@
+melamine Tier C structural validation
+RDF pair selection: all pairs (GROMACS g_rdf)
+
+--- C-C vs ref_C_C.xvg ---
+[bonded r=0.20-0.28 nm]
+PASS: C-C bonded peak position computed=0.233 nm ref=0.228 nm Δ=0.005 nm (tol=0.03)
+FAIL: C-C bonded peak height computed=12.610 ref=9.562 rel err=0.32 (tol=0.2)
+[melt shell r=0.35-0.55 nm]
+PASS: C-C melt shell peak position computed=0.489 nm ref=0.480 nm Δ=0.009 nm (tol=0.03)
+PASS: C-C melt shell peak height computed=2.772 ref=2.817 rel err=0.02 (tol=0.2)
+INFO: C-C g(r=1.0 nm) computed=0.882 ref=1.498 (GROMACS C*-C* self-RDF baseline ≠ 1)
+FAIL: C-C L2(g)=1.040 (tol=0.2)
+--- C-N vs ref_C_N.xvg ---
+PASS: C-N peak position computed=0.361 nm ref=0.354 nm Δ=0.007 nm (tol=0.03)
+FAIL: C-N peak height computed=4.926 ref=3.754 rel err=0.31 (tol=0.2)
+FAIL: C-N L2(g)=1.618 (tol=0.2)
+--- O-H vs ref_O_H.xvg ---
+FAIL: O-H peak position computed=0.809 nm ref=0.844 nm Δ=0.035 nm (tol=0.03)
+PASS: O-H peak height computed=1.251 ref=1.486 rel err=0.16 (tol=0.2)
+FAIL: O-H L2(g)=1.175 (tol=0.2)
+
+--- final structure checks (AT atoms only) ---
+total charge = -0.000000 e; max AT bond = 1.58 Å; density ≈ 0.644 g/cm³
+
+Summary: 5 PASS, 6 FAIL (RDF peak metrics)
