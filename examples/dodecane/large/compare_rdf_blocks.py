@@ -184,18 +184,19 @@ def plot(backmap: BlockedRDF, reference: BlockedRDF, skip_first: int, out: Path)
         ref_mean, ref_sem = mean_sem(reference.gr_blocks[i][skip_first:])
         r_bm, r_ref = backmap.r, reference.r
 
-        ax.plot(r_bm, bm_mean, color="C0", lw=1.5, label="backmapped (mean)")
+        ax.plot(r_bm, bm_mean, color="C0", lw=2.4, label="backmapped (mean)")
         ax.fill_between(
             r_bm, bm_mean - bm_sem, bm_mean + bm_sem, color="C0", alpha=0.25, label="±SEM"
         )
-        ax.plot(r_ref, ref_mean, "--", color="C1", lw=1.5, label="reference AT (mean)")
+        ax.plot(r_ref, ref_mean, "--", color="C1", lw=2.4, label="reference AT (mean)")
         ax.fill_between(r_ref, ref_mean - ref_sem, ref_mean + ref_sem, color="C1", alpha=0.25)
 
-        ax.set_xlabel("r (Å)")
-        ax.set_ylabel("g(r)")
-        ax.set_title(label)
+        ax.set_xlabel("r (Å)", fontsize=14)
+        ax.set_ylabel("g(r)", fontsize=14)
+        ax.set_title(label, fontsize=15)
         ax.set_xlim(0, min(r_bm[-1], r_ref[-1]))
-        ax.legend(fontsize=9)
+        ax.tick_params(axis="both", labelsize=12)
+        ax.legend(fontsize=12)
 
     fig.tight_layout()
     fig.savefig(out, dpi=150)
