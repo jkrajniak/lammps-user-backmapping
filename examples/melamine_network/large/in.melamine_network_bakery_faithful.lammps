@@ -258,6 +258,24 @@ fix cap all backmap/capforce 1195.0300
 # header note): no counterpart in the uncrosslinked example.
 fix pairs all backmap/pairs at file pairs.dat cut 12.000000
 
+# SHAKE on the explicit-hydrogen (X-H) bond types, same fix as PET's
+# established resolution for the identical marginal-timestep failure mode
+# (research/experiments/20260724_pet-water-lj-root-cause-and-fix.md,
+# 20260723_pet-lambda0-shake-fix-order.md). Root-caused for this network
+# example in research/experiments/20260808_melamine-network-pilot-eq-instability.md:
+# bond type 4 (N-H, K=434.0 kcal/mol/A^2, r0=1.01 A) has a natural period
+# of 10.11 fs, leaving dt=1fs almost no accuracy margin (T/10=1.011 fs);
+# every crosslink-junction bead (90% of the system) additionally carries
+# newly-extrapolated angle/dihedral parameters immediately adjacent to
+# this bond (decisions/2026-08-06-mf-network-ether-ff-params.md) that
+# pump resonant energy into it over ~150-200 steps -- confirmed via a
+# fully deterministic (zero velocity, no Langevin, no CapForce) pure-NVE
+# rerun that still diverged, ruling out any noise-based explanation.
+# Declared AFTER bm/pairs/cap, matching PET's own established fix-order
+# finding: SHAKE must see the complete final force (post CG->AT
+# redistribution + CapForce clipping), not an incomplete picture.
+fix shake_xh at_atoms shake 0.0001 20 0 b 4 6 7 8
+
 fix_modify bm active no
 
 compute at_temp at_atoms temp
