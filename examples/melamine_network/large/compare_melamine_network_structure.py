@@ -496,18 +496,19 @@ def plot_rdgs(
     n = len(curves)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 4), squeeze=False)
     for ax, (calc, ref, title) in zip(axes[0], curves, strict=True):
-        ax.plot(calc.r_nm, calc.g, label="LAMMPS", linewidth=1.5)
-        ax.plot(ref.r_nm, ref.g, "--", label="paper ref", linewidth=1.5)
+        ax.plot(calc.r_nm, calc.g, label="LAMMPS", linewidth=2.4)
+        ax.plot(ref.r_nm, ref.g, "--", label="paper ref", linewidth=2.4)
         if cc_windows is not None and title == "C-C":
             for window, color in zip(cc_windows, ("#cccccc", "#e8e8ff"), strict=False):
                 ax.axvspan(
                     window.r_min_nm, window.r_max_nm, alpha=0.25, color=color, label=window.label
                 )
         ax.set_xlim(0, R_MAX_NM)
-        ax.set_xlabel("r (nm)")
-        ax.set_ylabel("g(r)")
-        ax.set_title(title)
-        ax.legend(fontsize=7)
+        ax.set_xlabel("r (nm)", fontsize=14)
+        ax.set_ylabel("g(r)", fontsize=14)
+        ax.set_title(title, fontsize=15)
+        ax.tick_params(axis="both", labelsize=12)
+        ax.legend(fontsize=12)
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     plt.close(fig)
@@ -521,6 +522,17 @@ def main() -> int:
     parser.add_argument("--final-data", type=Path, required=True)
     parser.add_argument("--ref-dir", type=Path, default=Path("ref"))
     parser.add_argument("--min-step", type=int, default=12000)
+    parser.add_argument(
+        "--stride",
+        type=int,
+        default=1,
+        help="Use every Nth frame (after --min-step) instead of all of them. "
+        "The per-frame pairwise-distance computation is O(n^2) and doesn't "
+        "scale comfortably past ~1000 frames x 11475 atoms (8h25m for the "
+        "full 996-frame, 1ns production run) -- use a stride for a faster, "
+        "visually-representative rerun (e.g. figure restyling) when the "
+        "full-precision numbers aren't being recomputed.",
+    )
     parser.add_argument(
         "--inter",
         action="store_true",
@@ -547,7 +559,12 @@ def main() -> int:
     if not frames:
         print("ERROR: no dump frames at or after min-step", file=sys.stderr)
         return 1
-    print(f"Dump: {len(frames)} frames from step {frames[0].step} to {frames[-1].step}")
+    if args.stride > 1:
+        frames = frames[:: args.stride]
+    print(
+        f"Dump: {len(frames)} frames from step {frames[0].step} to {frames[-1].step}"
+        + (f" (stride={args.stride})" if args.stride > 1 else "")
+    )
 
     computed_by_pair: dict[str, list[RDFCurve]] = {label: [] for _, _, label, _, _ in PAIR_REFS}
     for frame in frames:
