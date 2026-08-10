@@ -23,15 +23,15 @@ pair_coeff 3 4 atomistic 0.156387 3.826500
 pair_coeff 4 4 atomistic 0.117997 3.905000
 
 bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
-bond_coeff 1 harmonic 633.365900 1.530000
+bond_coeff 1 harmonic 316.682950 1.530000
 bond_coeff 2 backmap/table cg table_b2.table ENTRY
 bond_coeff 3 backmap/table cg table_b1.table ENTRY
-bond_coeff 4 backmap/harmonic at 633.365900 1.530000
+bond_coeff 4 backmap/harmonic at 316.682950 1.530000
 
 angle_style hybrid backmap/harmonic backmap/table linear 1000
 angle_coeff 1 backmap/table cg table_a1.table ENTRY
 angle_coeff 2 backmap/table cg table_a2.table ENTRY
-angle_coeff 3 backmap/harmonic at 124.283120 111.0000
+angle_coeff 3 backmap/harmonic at 62.141560 111.0000
 
 dihedral_style hybrid backmap/ryckaert backmap/table linear 1000
 dihedral_coeff 1 backmap/table cg table_d1.table ENTRY

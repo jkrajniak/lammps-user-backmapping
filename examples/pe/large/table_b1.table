@@ -1,5 +1,5 @@
 # Converted from table_b1.xvg by backmap-prep
-# GROMACS units → LAMMPS real (x=Å, kcal/mol)
+# GROMACS units → LAMMPS real (x=Å, kcal/mol); pair core extended to r_floor>0 if needed
 
 ENTRY
 N 501
