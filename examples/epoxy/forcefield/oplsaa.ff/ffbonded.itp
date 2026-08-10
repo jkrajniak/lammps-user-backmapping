@@ -1305,6 +1305,22 @@
 ; See. Patriksson et al. Int. J. Mass. Spectrom. 248 pp 124-135 (2006)
   OH     C      N       1   115.43     292.88
 
+; MF (melamine-formaldehyde) network crosslink-site angles, added for
+; examples/melamine_network (see research/decisions/2026-08-06-mf-network-ether-ff-params.md).
+; opls_157 (bridge C) = CT, opls_154 (ether/hydroxyl O) = OH, opls_901 (amine N) = NT
+; in this force field's own bond_type assignment (ffnonbonded.itp).
+  CT     OH     CT      1   109.500    502.080   ; MF ether-bridge crosslink C-O-C angle: copied
+                                                   ; from this file's own CT-OS-CT dialkyl-ether entry
+                                                   ; (see [ angletypes ], "CT OS CT" line above) --
+                                                   ; opls_154 carries bond_type OH (not OS) in this FF,
+                                                   ; approximation, see decision record
+  NT     CT     OH      1   109.500    418.400   ; MF crosslink O,N-disubstituted sp3 carbon (hemiaminal-
+                                                   ; ether C bonded to both ring N and bridge O): mirrors
+                                                   ; this file's own "N CT OS ; copy from CT-CT-OS" entry
+                                                   ; (see [ angletypes ] above, "lac" comment) applied in
+                                                   ; the reverse direction (borrows CT-CT-OH's own baseline
+                                                   ; value); approximation, see decision record
+
 
 [ dihedraltypes ]
 ;  i    j    k    l   func     coefficients
@@ -2541,6 +2557,39 @@
 ; C-CT-C-OH in dicarboxylic acid
 #define dih_dicarboxylicacid_CT_CT_C_OH      5.90781   0.00000  -5.90781   0.00000   0.00000   0.00000
 
+; MF (melamine-formaldehyde) network crosslink-site dihedrals, added for
+; examples/melamine_network (see research/decisions/2026-08-06-mf-network-ether-ff-params.md).
+; opls_157 (bridge C) = CT, opls_154 (ether/hydroxyl O) = OH, opls_901 (amine N) = NT,
+; opls_145 (ring C) = CA, opls_910 (amine H) = H, opls_156 (CH2 H) = HC.
+  CT     OH     CT     HC      3      1.58992   4.76976   0.00000  -6.35968   0.00000   0.00000 ; MF crosslink
+                                                   ; ether-bridge dihedral, C-side H: copied verbatim from
+                                                   ; this file's own "CT OS CT HC ; ethers AA" entry (see
+                                                   ; [ dihedraltypes ] above); approximation, see decision record
+  CT     OH     CT     NT      3      1.58992   4.76976   0.00000  -6.35968   0.00000   0.00000 ; MF crosslink
+                                                   ; ether-bridge dihedral, C-side amine N substituent: no
+                                                   ; aliphatic-amine-terminated ether-dihedral entry exists in
+                                                   ; this table (only aromatic "CT OS CT N"/"N*" for
+                                                   ; imidazoles/purines, wrong hybridization for our sp3 N);
+                                                   ; reused the same "ethers AA" CT-OS-CT-HC value above as the
+                                                   ; closest documented generic aliphatic-ether entry per plan
+                                                   ; guidance. WEAKEST of these six additions -- CT-OS-CT-N's
+                                                   ; own tabulated value differs substantially in magnitude/shape
+                                                   ; from CT-OS-CT-HC, so substituent identity clearly matters
+                                                   ; for this bond and this is a rough stand-in pending review,
+                                                   ; see decision record
+  OH     CT     NT     CA      3      1.78866   3.49154   0.53555  -5.81576   0.00000   0.00000 ; MF crosslink
+                                                   ; amine-N dihedral, N-side ring carbon: this file's own
+                                                   ; CT-NT central-bond family shows the C-side substituent is
+                                                   ; wildcarded in practice -- ~20 rows (comment "(From wildcard)
+                                                   ; amine all-atom") give this exact value for i in
+                                                   ; {C,C_2,C_3,C3,CA,CT} with l=CA/C/CT (see [ dihedraltypes ]
+                                                   ; above); substituting i=OH follows that same established
+                                                   ; pattern, see decision record
+  OH     CT     NT     H       3     -1.26775   3.02085   1.74473  -3.49782   0.00000   0.00000 ; MF crosslink
+                                                   ; amine-N dihedral, N-side amine H: same CT-NT wildcard
+                                                   ; pattern as above, l=H bucket (identical value for i=C and
+                                                   ; i=CT in "C CT NT H"/"CT CT NT H", both "; amine all-atom");
+                                                   ; see decision record
 
 
 

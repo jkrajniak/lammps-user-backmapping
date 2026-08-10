@@ -78,3 +78,19 @@ frames/
 # --- OS ---
 .DS_Store
 Thumbs.db
+
+# --- Subagent-driven-development scratch workspaces ---
+.superpowers/
+
+# --- bakery network-build regenerated outputs (examples/*_network/large/) ---
+# build_hybrid_gromacs() writes hyb_conf.gro/missing_definitions.txt/etc.
+# directly into the source dir on every run, including numbered backups on
+# repeat runs. hyb_topol.top is vendored (Task 1) and must stay committed;
+# everything else here is regenerable output, never source.
+examples/melamine_network/large/hyb_conf.gro
+examples/melamine_network/large/at_hyb_topol.top
+examples/melamine_network/large/cross_*_hyb_topol.dat
+examples/melamine_network/large/exclusion_hyb_topol.list
+examples/melamine_network/large/graph_before_cross_bonds.pck
+examples/melamine_network/large/missing_definitions.txt
+examples/melamine_network/large/_*_*

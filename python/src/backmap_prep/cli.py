@@ -17,7 +17,13 @@ from .network.finalize_cg import finalize_cg_from_equil, write_cg_gro
 from .network.lammps_builder import build_system_from_cg
 from .network.rebuild import rebuild_network_lammps
 from .parsers import parse_lammps_data
-from .schema import Settings, load_settings, resolve_data_dir, resolve_tables_dir
+from .schema import (
+    Settings,
+    load_settings,
+    resolve_bakery_xml,
+    resolve_data_dir,
+    resolve_tables_dir,
+)
 from .table_converter import convert_tables
 from .writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
 
@@ -357,21 +363,6 @@ _KNOWN_COMMANDS = {
 }
 
 
-def _resolve_bakery_xml(settings: Settings, settings_path: Path) -> Path:
-    """Resolve bakery XML path from settings or fall back to a sibling .xml file."""
-    if settings.prep.bakery_xml:
-        xml_path = (settings_path.parent / settings.prep.bakery_xml).resolve()
-        if not xml_path.is_file():
-            raise FileNotFoundError(f"bakery XML not found: {xml_path}")
-        return xml_path
-    sibling = settings_path.with_suffix(".xml")
-    if sibling.is_file():
-        return sibling.resolve()
-    raise ValueError(
-        f"network prep requires prep.bakery_xml in settings.yaml or a sibling file {sibling.name}"
-    )
-
-
 def _cmd_build_hybrid(args: argparse.Namespace) -> int:
     """Build GROMACS hybrid coordinate + topology (Phase 3 network prep)."""
     settings_path: Path = args.settings
@@ -382,7 +373,7 @@ def _cmd_build_hybrid(args: argparse.Namespace) -> int:
         chain_rng_seed = settings.prep.chain_rng_seed
         work_dir = resolve_data_dir(settings_path, settings)
         if settings.prep.bakery_xml:
-            xml_path = _resolve_bakery_xml(settings, settings_path)
+            xml_path = resolve_bakery_xml(settings_path, settings)
             result = build_hybrid_gromacs(
                 xml_path,
                 base_dir=xml_path.parent,

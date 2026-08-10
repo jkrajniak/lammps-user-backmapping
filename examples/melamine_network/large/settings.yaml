@@ -1,0 +1,270 @@
+# examples/melamine_network/large/settings.yaml
+# Crosslinked melamine (MF) network -- native Settings v2 (no bakery_xml
+# passthrough). Bead mapping, active sites, and remove rules below are a
+# direct translation of bakery's own vendored settings.xml (still present
+# as a passive, unread reference/provenance artifact -- see git history at
+# commit 88f0f61 for the source read during migration). cross_interactions
+# below carries real, sourced crosslink bond/angle/dihedral parameters
+# instead of bakery's bare atom-name patterns (which required a downstream
+# GROMACS grompp step to resolve against ffbonded.itp and, via the LAMMPS
+# conversion path, silently produced zero-force-constant crosslink terms --
+# see the Task 2b migration report for the full diagnosis).
+#
+# Run from repo root:
+#   uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+
+version: 2
+
+prep:
+  engine: network
+  data_dir: .
+  tables_dir: .
+  forcefield_dir: ../../epoxy/forcefield
+  chain_rng_seed: 42
+
+molecules:
+  - name: MF
+    ident: MF
+    source:
+      coordinates: single_mf.gro
+      topology: at_topol.top
+    beads:
+      # A1/A2/A3 degree=2 atom lists are identical to the uncrosslinked
+      # examples/melamine/large/settings.yaml's A1/A2/A3 beads (same 9 AT
+      # atoms per arm) -- this is bakery's own unreacted-arm mapping.
+      - name: A1
+        type: A
+        mapping:
+          - degree: 2
+            atoms: [N11, C11, N21, C1, O1, H01, H011, H012, H21]
+            charge_map:
+              [-0.407377, 0.682493, -0.299731, 0.024669, 0.0, 0.0, 0.0, 0.0, 0.0]
+          - degree: 3
+            base: 2
+            active_sites:
+              - { atom: O1, max_degree: 2 }
+              - { atom: C1, max_degree: 4 }
+            charge_map:
+              [-0.407377, 0.682493, -0.299731, 0.024669, 0.0, 0.0, 0.0, 0.0, 0.0]
+        # Dual leaving-group removal, gated by which active site actually
+        # reacted for a given crosslink instance (bakery's own scheme): if
+        # this arm's C1 is the one that bonded out, the whole hydroxyl
+        # (O1 + its H) leaves; if O1 is the one that bonded out, O1 stays
+        # as the bridging ether oxygen and only its H leaves.
+        remove:
+          - active_site: "MF:C1"
+            atoms: ["1:MF:O1", "1:MF:H01"]
+          - active_site: "MF:O1"
+            atoms: ["1:MF:H01"]
+      - name: A2
+        type: A
+        mapping:
+          - degree: 2
+            atoms: [N12, C12, N22, C2, O2, H02, H021, H022, H31]
+            charge_map:
+              [-0.407374, 0.682437, -0.299729, 0.024672, 0.0, 0.0, 0.0, 0.0, 0.0]
+          - degree: 3
+            base: 2
+            active_sites:
+              - { atom: O2, max_degree: 2 }
+              - { atom: C2, max_degree: 4 }
+            charge_map:
+              [-0.407374, 0.682437, -0.299729, 0.024672, 0.0, 0.0, 0.0, 0.0, 0.0]
+        remove:
+          - active_site: "MF:C2"
+            atoms: ["1:MF:O2", "1:MF:H02"]
+          - active_site: "MF:O2"
+            atoms: ["1:MF:H02"]
+      - name: A3
+        type: A
+        mapping:
+          - degree: 2
+            atoms: [N13, C13, N23, C3, O3, H03, H031, H032, H11]
+            charge_map:
+              [-0.407483, 0.682492, -0.299758, 0.024689, 0.0, 0.0, 0.0, 0.0, 0.0]
+          - degree: 3
+            base: 2
+            active_sites:
+              - { atom: O3, max_degree: 2 }
+              - { atom: C3, max_degree: 4 }
+            charge_map:
+              [-0.407483, 0.682492, -0.299758, 0.024689, 0.0, 0.0, 0.0, 0.0, 0.0]
+        remove:
+          - active_site: "MF:C3"
+            atoms: ["1:MF:O3", "1:MF:H03"]
+          - active_site: "MF:O3"
+            atoms: ["1:MF:H03"]
+
+cg_system:
+  coordinates: cg_conf.gro
+  topology: cg_topol.top
+
+hybrid:
+  coordinates: hyb_conf.gro
+  topology: hyb_topol.top
+  includes:
+    - /apps/leuven/thinking/2014a/software/GROMACS/5.0.4-intel-2014a-hybrid/share/gromacs/top/oplsaa.ff/forcefield.itp
+  molecule_type:
+    name: HYB
+    exclusion: 3
+
+cross_interactions:
+  bonds:
+    # MF ether-bridge crosslink C-O bond: same chemical bond type as the
+    # intramolecular C-O bond already present in at_topol.top (atom pairs
+    # 10-12, 16-18, 22-24, all identical: funct=1 b0=0.143 kb=267776.0),
+    # now spanning two molecules instead of one.
+    - params: 1 0.143 267776.0
+      pairs:
+        - [MF:O1, MF:C1]
+        - [MF:O1, MF:C2]
+        - [MF:O1, MF:C3]
+        - [MF:O2, MF:C1]
+        - [MF:O2, MF:C2]
+        - [MF:O2, MF:C3]
+        - [MF:O3, MF:C1]
+        - [MF:O3, MF:C2]
+        - [MF:O3, MF:C3]
+  angles:
+    # CT-OH-CT (bridge C-O-C angle around the ether oxygen): copied from
+    # examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp's CT-OH-CT entry
+    # (added Task 4; see research/decisions/2026-08-06-mf-network-ether-ff-params.md).
+    - params: 1 109.500 502.080
+      triples:
+        - [MF:C1, MF:O1, MF:C1]
+        - [MF:C1, MF:O2, MF:C2]
+        - [MF:C1, MF:O3, MF:C3]
+        - [MF:C2, MF:O1, MF:C1]
+        - [MF:C2, MF:O2, MF:C2]
+        - [MF:C2, MF:O3, MF:C3]
+        - [MF:C3, MF:O1, MF:C1]
+        - [MF:C3, MF:O2, MF:C2]
+        - [MF:C3, MF:O3, MF:C3]
+    # HC-CT-OH (O-C-H angle at the bridge carbon, methylene-H substituent):
+    # pre-existing ffbonded.itp entry (not a Task-4 addition), reused as-is.
+    - params: 1 109.500 292.880
+      triples:
+        - [MF:O1, MF:C1, MF:H011]
+        - [MF:O1, MF:C1, MF:H012]
+        - [MF:O1, MF:C2, MF:H021]
+        - [MF:O1, MF:C2, MF:H022]
+        - [MF:O1, MF:C3, MF:H031]
+        - [MF:O1, MF:C3, MF:H032]
+        - [MF:O2, MF:C1, MF:H011]
+        - [MF:O2, MF:C1, MF:H012]
+        - [MF:O2, MF:C2, MF:H021]
+        - [MF:O2, MF:C2, MF:H022]
+        - [MF:O2, MF:C3, MF:H031]
+        - [MF:O2, MF:C3, MF:H032]
+        - [MF:O3, MF:C1, MF:H011]
+        - [MF:O3, MF:C1, MF:H012]
+        - [MF:O3, MF:C2, MF:H021]
+        - [MF:O3, MF:C2, MF:H022]
+        - [MF:O3, MF:C3, MF:H031]
+        - [MF:O3, MF:C3, MF:H032]
+    # NT-CT-OH (O-C-N angle at the bridge carbon, ring-amine-N substituent):
+    # ffbonded.itp entry added Task 4, mirrors the file's own N-CT-OS entry.
+    - params: 1 109.500 418.400
+      triples:
+        - [MF:O1, MF:C1, MF:N21]
+        - [MF:O1, MF:C2, MF:N22]
+        - [MF:O1, MF:C3, MF:N23]
+        - [MF:O2, MF:C1, MF:N21]
+        - [MF:O2, MF:C2, MF:N22]
+        - [MF:O2, MF:C3, MF:N23]
+        - [MF:O3, MF:C1, MF:N21]
+        - [MF:O3, MF:C2, MF:N22]
+        - [MF:O3, MF:C3, MF:N23]
+  dihedrals:
+    # CT-OH-CT-HC (ether-bridge dihedral, C-side H substituent): copied
+    # verbatim from ffbonded.itp's own CT-OS-CT-HC 'ethers AA' entry.
+    - params: 3 1.58992 4.76976 0.00000 -6.35968 0.00000 0.00000
+      quadruples:
+        - [MF:C1, MF:O1, MF:C1, MF:H011]
+        - [MF:C1, MF:O1, MF:C1, MF:H012]
+        - [MF:C1, MF:O1, MF:C2, MF:H021]
+        - [MF:C1, MF:O1, MF:C2, MF:H022]
+        - [MF:C1, MF:O1, MF:C3, MF:H031]
+        - [MF:C1, MF:O1, MF:C3, MF:H032]
+        - [MF:C1, MF:O2, MF:C2, MF:H021]
+        - [MF:C1, MF:O2, MF:C2, MF:H022]
+        - [MF:C1, MF:O3, MF:C3, MF:H031]
+        - [MF:C1, MF:O3, MF:C3, MF:H032]
+        - [MF:C2, MF:O1, MF:C1, MF:H011]
+        - [MF:C2, MF:O1, MF:C1, MF:H012]
+        - [MF:C2, MF:O2, MF:C1, MF:H011]
+        - [MF:C2, MF:O2, MF:C1, MF:H012]
+        - [MF:C2, MF:O2, MF:C2, MF:H021]
+        - [MF:C2, MF:O2, MF:C2, MF:H022]
+        - [MF:C2, MF:O2, MF:C3, MF:H031]
+        - [MF:C2, MF:O2, MF:C3, MF:H032]
+        - [MF:C2, MF:O3, MF:C3, MF:H031]
+        - [MF:C2, MF:O3, MF:C3, MF:H032]
+        - [MF:C3, MF:O1, MF:C1, MF:H011]
+        - [MF:C3, MF:O1, MF:C1, MF:H012]
+        - [MF:C3, MF:O2, MF:C2, MF:H021]
+        - [MF:C3, MF:O2, MF:C2, MF:H022]
+        - [MF:C3, MF:O3, MF:C1, MF:H011]
+        - [MF:C3, MF:O3, MF:C1, MF:H012]
+        - [MF:C3, MF:O3, MF:C2, MF:H021]
+        - [MF:C3, MF:O3, MF:C2, MF:H022]
+        - [MF:C3, MF:O3, MF:C3, MF:H031]
+        - [MF:C3, MF:O3, MF:C3, MF:H032]
+    # CT-OH-CT-NT (ether-bridge dihedral, C-side amine-N substituent):
+    # WEAKEST of the six sourced additions -- no aliphatic-amine-terminated
+    # ether-dihedral entry exists in ffbonded.itp; reused the CT-OS-CT-HC
+    # 'ethers AA' value as the closest documented generic aliphatic-ether
+    # entry (same numeric value as CT-OH-CT-HC above). Flagged for review;
+    # see research/decisions/2026-08-06-mf-network-ether-ff-params.md.
+    - params: 3 1.58992 4.76976 0.00000 -6.35968 0.00000 0.00000
+      quadruples:
+        - [MF:C1, MF:O1, MF:C1, MF:N21]
+        - [MF:C1, MF:O1, MF:C2, MF:N22]
+        - [MF:C1, MF:O1, MF:C3, MF:N23]
+        - [MF:C1, MF:O2, MF:C2, MF:N22]
+        - [MF:C1, MF:O3, MF:C3, MF:N23]
+        - [MF:C2, MF:O1, MF:C1, MF:N21]
+        - [MF:C2, MF:O2, MF:C1, MF:N21]
+        - [MF:C2, MF:O2, MF:C2, MF:N22]
+        - [MF:C2, MF:O2, MF:C3, MF:N23]
+        - [MF:C2, MF:O3, MF:C3, MF:N23]
+        - [MF:C3, MF:O1, MF:C1, MF:N21]
+        - [MF:C3, MF:O2, MF:C2, MF:N22]
+        - [MF:C3, MF:O3, MF:C1, MF:N21]
+        - [MF:C3, MF:O3, MF:C2, MF:N22]
+        - [MF:C3, MF:O3, MF:C3, MF:N23]
+    # OH-CT-NT-CA (amine-N dihedral, N-side ring-carbon substituent):
+    # ffbonded.itp's CT-NT wildcard family gives this value for i in
+    # {C,C_2,C_3,C3,CA,CT} with l=CA/C/CT; substituting i=OH follows suit.
+    - params: 3 1.78866 3.49154 0.53555 -5.81576 0.00000 0.00000
+      quadruples:
+        - [MF:O1, MF:C1, MF:N21, MF:C11]
+        - [MF:O1, MF:C2, MF:N22, MF:C12]
+        - [MF:O1, MF:C3, MF:N23, MF:C13]
+        - [MF:O2, MF:C1, MF:N21, MF:C11]
+        - [MF:O2, MF:C2, MF:N22, MF:C12]
+        - [MF:O2, MF:C3, MF:N23, MF:C13]
+        - [MF:O3, MF:C1, MF:N21, MF:C11]
+        - [MF:O3, MF:C2, MF:N22, MF:C12]
+        - [MF:O3, MF:C3, MF:N23, MF:C13]
+    # OH-CT-NT-H (amine-N dihedral, N-side amine-H substituent): same
+    # ffbonded.itp CT-NT wildcard family, l=H bucket.
+    - params: 3 -1.26775 3.02085 1.74473 -3.49782 0.00000 0.00000
+      quadruples:
+        - [MF:O1, MF:C1, MF:N21, MF:H21]
+        - [MF:O1, MF:C2, MF:N22, MF:H31]
+        - [MF:O1, MF:C3, MF:N23, MF:H11]
+        - [MF:O2, MF:C1, MF:N21, MF:H21]
+        - [MF:O2, MF:C2, MF:N22, MF:H31]
+        - [MF:O2, MF:C3, MF:N23, MF:H11]
+        - [MF:O3, MF:C1, MF:N21, MF:H21]
+        - [MF:O3, MF:C2, MF:N22, MF:H31]
+        - [MF:O3, MF:C3, MF:N23, MF:H11]
+
+simulation:
+  table_groups: [A]
+
+output:
+  prefix: melamine_network
+  format: lammps
+  units: real

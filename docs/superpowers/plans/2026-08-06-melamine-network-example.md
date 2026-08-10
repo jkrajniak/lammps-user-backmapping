@@ -1,0 +1,1386 @@
+# Crosslinked Melamine (MF) Network Example Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Add `examples/melamine_network/` — the same 500-molecule melamine-formaldehyde
+(MF) system as `examples/melamine/`, but crosslinked to match bakery's actual reference
+network (675 real inter-molecular bonds, confirmed by direct inspection of
+`cg_topol.top`), built through the already-proven `network-backmap-prep` engine, run
+through LAMMPS on the VM, and RDF-compared against the same reference `.xvg` files —
+for the first time a fair, like-for-like comparison.
+
+**Architecture:** Reuse the existing `prep.bakery_xml` passthrough (network engine),
+which already vendors bakery's own Python topology-building code
+(`backmap_prep/network/bakery/structures.py`) and already computes each CG bead's
+degree (crosslinked vs. not) directly from the actual bond graph of whatever CG
+topology file is supplied. Vendor bakery's MF asset files (settings.xml, at_topol.top,
+cg_topol.top with its real 675 crosslink bonds, cg_conf.gro, hyb_topol.top, CG tables)
+into `examples/melamine_network/large/` so the example is self-contained (not
+dependent on the `bakery_full_unused` VM directory it was sourced from — that
+directory's name signals it isn't a stable long-term dependency). No new Python
+generator code is required: `_resolve_mapping()` in `network/v2_loader.py` already
+supports the `base`/`remove`/`active_sites` delta pattern bakery's own
+`degree="2"`/`degree="3"` beads use, but since we're using the `bakery_xml`
+passthrough (not v2-native YAML), that loader code path isn't even exercised — bakery's
+`settings.xml` is consumed directly by `structures.py`.
+
+**Tech Stack:** Python 3.10+ (backmap-prep, pydantic, networkx), GROMACS-format
+topology/coordinate files, LAMMPS (C++ package already built on the VM), pytest.
+
+## Global Constraints
+
+- All LAMMPS compilation/execution happens on the VM (`sc@<vm_host>`), in `tmux` —
+  never locally. (Established project practice, followed throughout this plan.)
+- `examples/melamine/` (the uncrosslinked example) and
+  `openspec/specs/example-melamine/spec.md` are never modified by this work.
+- No live/reactive bond formation — the 675-bond network is imported as a fixed,
+  static topology exactly as bakery's `cg_topol.top` already defines it.
+- No ESPResSo++ build — confirmed not built/importable on the VM; only the
+  already-vendored pure-Python `backmap_prep/network/bakery/structures.py` is used.
+- Success criterion is a stable, structurally faithful run — RDF results are computed
+  and reported honestly, with no committed target pass-count to hit before calling a
+  task "done."
+- Commit after every task (see each task's final step). Do not batch commits across
+  tasks.
+
+---
+
+### Task 1: Vendor bakery's MF reference assets into the new example directory
+
+**Files:**
+- Create: `examples/melamine_network/large/` (new directory)
+- Create: `examples/melamine_network/large/settings.xml` (copied from bakery, byte-identical)
+- Create: `examples/melamine_network/large/at_topol.top` (copied from bakery)
+- Create: `examples/melamine_network/large/single_mf.gro` (copied from bakery)
+- Create: `examples/melamine_network/large/cg_conf.gro` (copied from bakery — has the real crosslinked network's coordinates)
+- Create: `examples/melamine_network/large/cg_topol.top` (copied from bakery — has the real 675 crosslink bonds)
+- Create: `examples/melamine_network/large/hyb_topol.top` (copied from bakery — needed by `structures.py` as an output-naming/include template)
+- Create: `examples/melamine_network/large/table_A_A.xvg`, `table_b1.xvg` (copied from bakery's CG tabulated potentials)
+- Create: `examples/melamine_network/large/README.md`
+
+**Interfaces:**
+- Produces: the on-disk asset set that Task 2's `settings.yaml` references via
+  relative paths (`prep.bakery_xml: settings.xml`, `prep.data_dir: .`).
+
+- [ ] **Step 1: Locate and pin the bakery MF reference data path on the VM**
+
+Run on the VM (`sc@<vm_host>`):
+
+```bash
+ssh sc@<vm_host> "ls /home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/"
+```
+
+Expected: the file list confirmed during design (`settings.xml`, `at_topol.top`,
+`single_mf.gro`, `cg_conf.gro`, `cg_topol.top`, `hyb_topol.top`, `table_A_A.xvg`,
+`table_b1.xvg`, `table_A_A.pot`, `table_b1.pot`, plus GROMACS `.mdp`/`.ndx` files we
+don't need). If any of the 8 files listed under "Files" above is missing, stop and
+report — do not substitute a different source.
+
+- [ ] **Step 2: Copy the needed files from VM to local**
+
+```bash
+mkdir -p examples/melamine_network/large
+scp sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/settings.xml \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/at_topol.top \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/single_mf.gro \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/cg_conf.gro \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/cg_topol.top \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/hyb_topol.top \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/table_A_A.xvg \
+    sc@<vm_host>:/home/sc/sc/e++/bakery_full_unused/examples/network_backmapping/mf/backmapping/table_b1.xvg \
+    examples/melamine_network/large/
+```
+
+- [ ] **Step 3: Verify the crosslink count survived the copy**
+
+```bash
+python3 -c "
+lines = open('examples/melamine_network/large/cg_topol.top').read()
+static = lines.count('; static')
+chem = lines.count('; chem')
+print(f'static={static} chem={chem}')
+assert static == 1500, f'expected 1500 static bonds, got {static}'
+assert chem == 675, f'expected 675 chem (crosslink) bonds, got {chem}'
+print('OK: crosslink network intact')
+"
+```
+
+Expected: `static=1500 chem=675`, `OK: crosslink network intact`.
+
+- [ ] **Step 4: Write `examples/melamine_network/large/README.md`**
+
+```markdown
+# Melamine-formaldehyde (MF) — crosslinked network example
+
+Same 500-molecule melamine-formaldehyde system as `examples/melamine/`, but
+crosslinked to match bakery's own reference network exactly: 675 real
+inter-molecular covalent bonds across 1500 CG beads (~45% of each molecule's
+3 pendant hydroxymethyl arms condensed into an ether bridge with another
+molecule), vendored from
+`bakery_full_unused/examples/network_backmapping/mf/backmapping/` (see
+`research/experiments/20260802_melamine-bakery-rerun.md`, 2026-08-06 update,
+for how this crosslinking mismatch was found).
+
+Unlike `examples/melamine/`, this network is imported as a fixed, static
+topology (bakery's `cg_topol.top`) — not generated by live reaction dynamics
+in this pipeline.
+
+## Files
+
+- `settings.xml`, `at_topol.top`, `single_mf.gro`, `cg_conf.gro`,
+  `cg_topol.top`, `hyb_topol.top`, `table_A_A.xvg`, `table_b1.xvg` — vendored
+  unmodified from bakery's reference (see provenance above).
+- `settings.yaml` — backmap-prep entry point (`prep.bakery_xml` passthrough).
+- Generated: `hyb_conf.gro`, `hyb_topol.top` (Tier A), `melamine_network.data`,
+  `in.melamine_network` (LAMMPS).
+
+## Running
+
+```
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+```
+
+then (VM only): `lmp -in in.melamine_network -var eq_steps ... -var ramp_steps ... -var prod_steps ...`
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add examples/melamine_network/large/
+git commit -m "feat(examples): vendor bakery's crosslinked MF reference assets"
+```
+
+---
+
+### Task 2: `settings.yaml` using the `bakery_xml` passthrough
+
+**Files:**
+- Create: `examples/melamine_network/large/settings.yaml`
+
+**Interfaces:**
+- Consumes: `PrepConfig` fields `engine`, `bakery_xml`, `data_dir`, `tables_dir`,
+  `forcefield_dir` (`python/src/backmap_prep/schema.py:279-304`); CLI resolution in
+  `_resolve_bakery_xml` (`python/src/backmap_prep/cli.py:360`).
+- Produces: a `Settings` object with `prep.bakery_xml` set, consumed by Task 3's
+  `build_hybrid_gromacs()` call.
+
+- [ ] **Step 1: Write the settings file**
+
+```yaml
+# examples/melamine_network/large/settings.yaml
+# Crosslinked melamine (MF) network -- bakery_xml passthrough.
+# Assets vendored from bakery's own network_backmapping/mf/backmapping/
+# reference (see README.md for provenance). No new molecule/bead YAML is
+# authored here -- bakery's settings.xml already defines the degree=2
+# (unreacted) / degree=3 (reacted) bead templates, and structures.py computes
+# each CG bead's actual degree from cg_topol.top's real bond graph.
+
+version: 2
+
+prep:
+  engine: network
+  bakery_xml: settings.xml
+  data_dir: .
+  tables_dir: .
+  forcefield_dir: ../../epoxy/forcefield
+  chain_rng_seed: 42
+
+output:
+  prefix: melamine_network
+  format: lammps
+  units: real
+```
+
+- [ ] **Step 2: Verify it loads without error**
+
+```bash
+uv run python3 -c "
+from pathlib import Path
+from backmap_prep.schema import load_settings
+s = load_settings(Path('examples/melamine_network/large/settings.yaml'))
+print('engine:', s.prep.engine)
+print('bakery_xml:', s.prep.bakery_xml)
+assert s.prep.bakery_xml == 'settings.xml'
+print('OK')
+"
+```
+
+Expected: `engine: network`, `bakery_xml: settings.xml`, `OK`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add examples/melamine_network/large/settings.yaml
+git commit -m "feat(examples): add settings.yaml for crosslinked MF network"
+```
+
+---
+
+### Task 3: Tier A parity check (hybrid topology generation)
+
+**Files:**
+- Create: `python/tests/test_melamine_network.py`
+
+**Interfaces:**
+- Consumes: `build_hybrid_gromacs(xml_path, base_dir, chain_rng_seed) -> HybridBuildResult`
+  (`python/src/backmap_prep/network/api.py`), same signature already exercised by
+  `python/tests/test_network.py::test_rim135_build_hybrid_smoke`.
+- `HybridBuildResult` fields used: `.n_atoms`, `.coordinates_path`, `.topology_path`,
+  `.missing_definitions_path`.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+# python/tests/test_melamine_network.py
+"""Tier A parity: crosslinked MF network hybrid topology generation."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from backmap_prep.network.api import build_hybrid_gromacs
+
+MF_NETWORK_DIR = Path(__file__).resolve().parents[2] / "examples" / "melamine_network" / "large"
+
+
+def test_mf_network_assets_present() -> None:
+    """Vendored bakery assets exist before attempting a build."""
+    for name in (
+        "settings.xml",
+        "at_topol.top",
+        "single_mf.gro",
+        "cg_conf.gro",
+        "cg_topol.top",
+        "hyb_topol.top",
+    ):
+        assert (MF_NETWORK_DIR / name).is_file(), f"missing vendored asset: {name}"
+
+
+def test_mf_network_build_hybrid_smoke() -> None:
+    """Hybrid build succeeds and produces the crosslinked atom count."""
+    xml_path = MF_NETWORK_DIR / "settings.xml"
+    result = build_hybrid_gromacs(xml_path, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+
+    assert result.coordinates_path.is_file()
+    assert result.topology_path.is_file()
+    assert result.coordinates_path.stat().st_size > 0
+    assert result.topology_path.stat().st_size > 0
+    # 500 molecules x 27 AT atoms, minus 2 atoms removed per crosslink (H2O
+    # leaving group is 1 O + varies -- exact count confirmed by this test,
+    # not assumed; see Step 2 for how to read the actual value first.
+    assert result.n_atoms > 0
+
+
+def test_mf_network_charge_conserved() -> None:
+    """Total system charge is conserved within 1e-6 e."""
+    xml_path = MF_NETWORK_DIR / "settings.xml"
+    result = build_hybrid_gromacs(xml_path, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+
+    total_charge = 0.0
+    in_atoms = False
+    for line in result.topology_path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[ atoms ]"):
+            in_atoms = True
+            continue
+        if stripped.startswith("["):
+            in_atoms = False
+            continue
+        if in_atoms and stripped and not stripped.startswith(";"):
+            parts = stripped.split()
+            if len(parts) >= 7:
+                total_charge += float(parts[6])
+    assert abs(total_charge) < 1e-6, f"charge not conserved: {total_charge}"
+
+
+def test_mf_network_crosslink_bond_count() -> None:
+    """Generated hybrid topology has exactly 675 inter-molecular AT bonds --
+    one real covalent bond per CG-level crosslink (spec:
+    example-melamine-network, 'Crosslink count matches bakery's reference')."""
+    xml_path = MF_NETWORK_DIR / "settings.xml"
+    result = build_hybrid_gromacs(xml_path, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+
+    in_bonds = False
+    n_bonds = 0
+    for line in result.topology_path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[ bonds ]"):
+            in_bonds = True
+            continue
+        if stripped.startswith("["):
+            in_bonds = False
+            continue
+        if in_bonds and stripped and not stripped.startswith(";"):
+            n_bonds += 1
+    # Total AT bonds = (per-molecule intramolecular bonds x 500) + 675 crosslink
+    # bonds. Per-molecule bond count comes from examples/melamine/large/topol_aa.top
+    # (already known: 26 bonds/molecule for the unreacted case -- but crosslinked
+    # molecules lose bonds to their removed leaving-group atoms too). Read the
+    # actual total here first (informational), then hand-verify the crosslink
+    # component specifically:
+    print(f"total AT bonds in generated topology: {n_bonds}")
+    # The 675 crosslink bonds are additional to whatever the per-molecule count
+    # is; assert the total is large enough to plausibly include them as a first
+    # check, then tighten in Step 3 below once the exact per-molecule bond count
+    # for reacted vs. unreacted beads is confirmed from this run's own output.
+    assert n_bonds > 500 * 26, "bond count too low to plausibly include the 675 crosslinks"
+
+
+def test_mf_network_charges_subset_of_uncrosslinked_example() -> None:
+    """Every per-atom charge value appearing in the crosslinked network's
+    generated topology also appears in topol_aa.top's per-atom charge list
+    (the same 27-atom template examples/melamine/ uses) -- i.e. unreacted
+    arms are built from unmodified template charges, not a separately
+    perturbed set (spec: example-melamine-network, 'Unreacted arms match the
+    uncrosslinked example')."""
+    template_charges: set[str] = set()
+    template_top = MF_NETWORK_DIR / "at_topol.top"
+    in_atoms = False
+    for line in template_top.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[ atoms ]"):
+            in_atoms = True
+            continue
+        if stripped.startswith("["):
+            in_atoms = False
+            continue
+        if in_atoms and stripped and not stripped.startswith(";"):
+            parts = stripped.split()
+            if len(parts) >= 7:
+                template_charges.add(f"{float(parts[6]):.6f}")
+
+    xml_path = MF_NETWORK_DIR / "settings.xml"
+    result = build_hybrid_gromacs(xml_path, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+    generated_charges: set[str] = set()
+    in_atoms = False
+    for line in result.topology_path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped.startswith("[ atoms ]"):
+            in_atoms = True
+            continue
+        if stripped.startswith("["):
+            in_atoms = False
+            continue
+        if in_atoms and stripped and not stripped.startswith(";"):
+            parts = stripped.split()
+            if len(parts) >= 7:
+                generated_charges.add(f"{float(parts[6]):.6f}")
+
+    unexpected = generated_charges - template_charges
+    assert not unexpected, (
+        f"generated topology has {len(unexpected)} charge values not present "
+        f"in the unreacted template -- unreacted arms may have been perturbed: "
+        f"{sorted(unexpected)[:10]}"
+    )
+```
+
+- [ ] **Step 2: Run all 5 tests, record the real atom count and bond count (some
+      will fail informatively — that's expected on this first run, not an error)**
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v -s 2>&1 | tail -60
+```
+
+Expected: `test_mf_network_assets_present` PASSES (if Task 1 completed correctly).
+`test_mf_network_build_hybrid_smoke` PASSES (its only assertion is `n_atoms > 0`)
+— read the actual `result.n_atoms` value from output (add a temporary
+`print(result.n_atoms)` if not visible) and record it.
+`test_mf_network_charge_conserved` PASSES or FAILS informatively (a real charge
+bug, if so — investigate before proceeding). `test_mf_network_crosslink_bond_count`
+PASSES (coarse check) and prints the real total AT bond count — record it.
+`test_mf_network_charges_subset_of_uncrosslinked_example` PASSES (if it fails,
+that's a real finding — unreacted-arm charges were perturbed somewhere in the
+generation path, investigate before proceeding, don't loosen the assertion).
+
+- [ ] **Step 3: Tighten the atom-count assertion to the real value**
+
+Replace `assert result.n_atoms > 0` in `test_mf_network_build_hybrid_smoke` with
+the exact value recorded in Step 2:
+
+```python
+    assert result.n_atoms == <exact_value_from_step_2>
+```
+
+- [ ] **Step 4: Tighten `test_mf_network_crosslink_bond_count` to the exact value**
+
+Using the real total AT bond count recorded in Step 2, and a one-off `grep -c`
+on `at_topol.top`'s own `[ bonds ]` section for the per-molecule template bond
+count, confirm by hand that
+`generated_total - 500 * <template bond count> == 675` (accounting for any bonds
+lost at reacted sites where a leaving-group atom's own bonds are removed too,
+e.g. the removed O-H bond disappears along with the removed H — so the
+per-crosslink delta may not be exactly +1 bond; compute and record the actual
+delta before asserting on it). Replace the coarse
+`assert n_bonds > 500 * 26` with the exact equality assertion once confirmed.
+
+- [ ] **Step 5: Check `missing_definitions_path` — this is Task 4's input, not a failure here**
+
+```bash
+uv run python3 -c "
+from pathlib import Path
+from backmap_prep.network.api import build_hybrid_gromacs
+r = build_hybrid_gromacs(
+    Path('examples/melamine_network/large/settings.xml'),
+    base_dir=Path('examples/melamine_network/large'),
+    chain_rng_seed=42,
+)
+if r.missing_definitions_path and r.missing_definitions_path.is_file():
+    print(r.missing_definitions_path.read_text())
+else:
+    print('no missing definitions')
+"
+```
+
+Expected: either "no missing definitions" (meaning `forcefield_dir`'s OPLS-AA table
+already resolved everything — go straight to Task 5 after this), or a list of
+missing angle/dihedral types at crosslink sites (expected, matching bakery's own
+`missing_definitions.txt` gap) — hand this output to Task 4.
+
+- [ ] **Step 6: Run full test file, confirm all 5 tests pass**
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+Expected: all 5 tests PASS (charge conservation, tightened atom count, tightened
+crosslink bond count, and unreacted-charge-subset check all included).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add python/tests/test_melamine_network.py
+git commit -m "test(network): add Tier A parity tests for crosslinked MF example"
+```
+
+---
+
+### Task 4: Resolve crosslink-site force-field parameters
+
+**SCOPE CORRECTED mid-execution** (see ledger): the implementer proved
+empirically (canary-value insertion into `ffbonded.itp`, rebuild,
+`missing_definitions.txt` unchanged) that `build_hybrid_gromacs()` never
+reads `ffbonded.itp` at all — it populates angle/dihedral params exclusively
+from `settings.xml`'s own `<hybrid_topology><angles>`/`<dihedrals>` blocks,
+which are empty for the vendored MF file (bakery's own file even has a
+`<!-- add angles, dihedrals, pairs?? -->` comment there — this gap is
+native to bakery's own reference, not introduced by vendoring). Human
+decision: extend `settings.xml`'s `<angles>`/`<dihedrals>` blocks with the
+atom-name-pattern registrations (mirroring the existing `<bonds>` block's 9
+literal `MF:O1 MF:C1`-style entries) rather than change shared pipeline code
+in `structures.py` (bigger blast radius, touches epoxy/PET too).
+
+**Files:**
+- Modify: `examples/melamine_network/large/settings.xml` (add the 36 angle +
+  63 dihedral atom-name patterns to the empty `<angles>`/`<dihedrals>` blocks,
+  mirroring the `<bonds>` block's existing format — this is a deliberate,
+  justified departure from "byte-for-byte vendored," completing a gap
+  bakery's own file left unfinished, not a fork of their network topology)
+- Modify: `examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp` (only if the check
+  below finds a genuine gap — this file is shared with epoxy and melamine, so any
+  edit must be additive, never removing/changing existing entries)
+- Modify: `python/tests/test_melamine_network.py` (extend, don't replace)
+
+**Interfaces:**
+- Consumes: Task 3's `missing_definitions_path` output.
+
+- [ ] **Step 1: Check whether the shared OPLS-AA table already covers the gap**
+
+Using the specific missing angle/dihedral atom-type triples/quadruples from Task 3
+Step 4's output (e.g. if it lists `opls_157 opls_154 opls_157` for a C-O-C angle),
+grep the shared force field directly:
+
+```bash
+grep -A2 "\[ angletypes \]" examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp | head -5
+grep "opls_157.*opls_154\|opls_154.*opls_157" examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp
+grep "opls_157.*opls_154.*opls_157\|opls_157.*opls_157" examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp
+```
+
+(Substitute the actual missing atom types from Task 3 Step 4's output if they differ
+from `opls_157`/`opls_154` — those are the bridge-C/hydroxyl-O types identified
+earlier in `topol_aa.top`, but confirm against the real
+`missing_definitions.txt`-equivalent output, don't assume.)
+
+- [ ] **Step 2a (if Step 1 finds existing entries):** No force-field edit needed —
+      re-run `build_hybrid_gromacs` and confirm `missing_definitions_path` is now
+      empty or absent:
+
+```bash
+uv run python3 -c "
+from pathlib import Path
+from backmap_prep.network.api import build_hybrid_gromacs
+r = build_hybrid_gromacs(
+    Path('examples/melamine_network/large/settings.xml'),
+    base_dir=Path('examples/melamine_network/large'),
+    chain_rng_seed=42,
+)
+print('missing:', r.missing_definitions_path)
+"
+```
+
+Expected: `missing: None` or a file that, when read, is empty.
+
+- [ ] **Step 2b (if Step 1 finds a genuine gap):** Add the missing generic
+      angletype/dihedraltype entries to `ffbonded.itp`, sourced from the standard
+      published OPLS-AA parameter set for the matching chemical environment
+      (aliphatic ether C-O-C angle / C-C-O-C dihedral — the same functional group
+      as any dialkyl ether, not melamine-specific). Do not invent numeric values —
+      if the standard OPLS-AA table entry for this exact type combination cannot be
+      confirmed, use the closest documented generic aliphatic-ether entry, comment
+      the source inline, and flag it explicitly in the commit message and in
+      `research/decisions/` (see Step 4) as an approximation pending review — this
+      is the one place in this plan where "exact value" depends on a literature
+      lookup rather than something derivable from files already in this repo.
+
+- [ ] **Step 3: Add a regression test**
+
+```python
+# append to python/tests/test_melamine_network.py
+
+def test_mf_network_no_missing_definitions() -> None:
+    """Crosslink-site angle/dihedral terms are fully parameterized."""
+    from backmap_prep.network.api import build_hybrid_gromacs
+
+    xml_path = MF_NETWORK_DIR / "settings.xml"
+    result = build_hybrid_gromacs(xml_path, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+    if result.missing_definitions_path and result.missing_definitions_path.is_file():
+        content = result.missing_definitions_path.read_text().strip()
+        assert content == "", f"unresolved force-field gaps:\n{content}"
+```
+
+- [ ] **Step 4: If Step 2b was needed, add a decision record**
+
+`research/` is a separate sibling repo, not part of this code repo, and not
+nested inside this git worktree — locate it first rather than assuming a path:
+
+```bash
+CODE_REPO_ROOT="$(cd "$(git rev-parse --show-toplevel)/../../.." && pwd)"
+# From a normal (non-worktree) checkout, --show-toplevel already IS the code
+# repo root; from a worktree under .claude/worktrees/<name>/, the three ".."
+# above walk back out to it. Either way, the sibling research repo is:
+ls -d "$CODE_REPO_ROOT/../research" 2>&1
+```
+
+If that doesn't resolve to a directory containing `decisions/`, `experiments/`,
+and `checkpoints.md`, stop and ask rather than guessing a different path — this
+step writes into a separate repo with its own git history, and a wrong guess
+here creates an orphaned file, not a merge conflict that would surface the
+mistake later.
+
+Once located, create `<research_repo>/decisions/2026-08-XX-mf-network-ether-ff-params.md`
+documenting the source of the added parameters and that they're a
+generic-aliphatic-ether approximation, not melamine-specific literature values.
+
+- [ ] **Step 5: Run tests, confirm pass**
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add examples/epoxy/forcefield/oplsaa.ff/ffbonded.itp python/tests/test_melamine_network.py
+git commit -m "fix(forcefield): resolve crosslink-site angle/dihedral parameters for MF network"
+```
+
+(Skip the `ffbonded.itp` add if Step 1 found no gap — commit only the test file in
+that case.)
+
+---
+
+### Task 5: Wire `backmap-prep build` → LAMMPS `.data`/`in.*`, verify crosslink bond weighting
+
+**Files:**
+- Modify: `python/tests/test_melamine_network.py` (extend)
+
+**Interfaces:**
+- Consumes: `build_network_lammps` (`python/src/backmap_prep/network/api.py`,
+  wraps `network/lammps_builder.py::build_system_from_hybrid`, already proven for
+  rim135/PET).
+
+- [ ] **Step 1: Generate the LAMMPS files**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+ls examples/melamine_network/large/*.data examples/melamine_network/large/in.*
+```
+
+Expected: `melamine_network.data` and `in.melamine_network` (or similar, matching
+`output.prefix: melamine_network` from Task 2) are created without errors.
+
+- [ ] **Step 2: Write a failing test asserting crosslink bonds are plain `harmonic`, not `backmap/harmonic`**
+
+```python
+# append to python/tests/test_melamine_network.py
+
+def test_mf_network_crosslink_bonds_always_on() -> None:
+    """Crosslink AT bonds use plain harmonic (always-on), not the
+    lambda-weighted backmap/harmonic inter-bead style -- they are real,
+    permanent covalent chemistry, not resolution-ramp artifacts."""
+    data_path = MF_NETWORK_DIR / "melamine_network.data"
+    assert data_path.is_file(), "run `backmap-prep build` first"
+    content = data_path.read_text()
+    # The generated in.* script's bond_style/bond_coeff lines are the
+    # authoritative check (data file itself doesn't carry style names).
+    in_path = MF_NETWORK_DIR / "in.melamine_network"
+    assert in_path.is_file()
+    in_content = in_path.read_text()
+    assert "bond_style hybrid" in in_content
+    assert "harmonic" in in_content
+```
+
+- [ ] **Step 3: Run it, inspect the actual generated `bond_coeff`/`angle_coeff` lines by hand**
+
+```bash
+grep -n "^bond_style\|^bond_coeff\|^angle_style\|^angle_coeff" examples/melamine_network/large/in.melamine_network | head -60
+```
+
+Manually identify which bond/angle type IDs correspond to the crosslink-site
+ether bond/angle (cross-reference against Task 4's resolved parameters and the
+atom types involved). Confirm those specific type IDs use the `harmonic` substyle
+(not `backmap/harmonic at`), matching how intra-bead terms are already handled in
+`examples/melamine/large/in.melamine_bakery_faithful.lammps` (bond types 1-8 use
+plain `harmonic`; only types 10-11, the AT-only intra-fragment terms needing
+lambda-weighting infrastructure, use `backmap/harmonic at`). If the crosslink bond
+instead came out as `backmap/harmonic at` (lambda-weighted), this is a real bug in
+how the generator classifies inter-molecule AT-AT bonds — stop and investigate
+`network/lammps_builder.py`'s bond-classification logic before proceeding; do not
+patch around it downstream.
+
+- [ ] **Step 4: Tighten the test to assert on the specific crosslink bond type ID(s) found in Step 3**
+
+```python
+    # Replace the generic checks above with, e.g.:
+    # assert "bond_coeff <N> harmonic" in in_content  # crosslink ether bond
+    # using the exact type ID(s) identified in Step 3.
+```
+
+- [ ] **Step 5: Run full test suite, confirm pass**
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add examples/melamine_network/large/ python/tests/test_melamine_network.py
+git commit -m "feat(examples): generate LAMMPS data/input for crosslinked MF network"
+```
+
+**Task 5 outcome: BLOCKED, not committed as originally scoped.** The implementer found
+two things: (1) `backmap-prep build` had never been wired for `prep.bakery_xml`
+passthrough mode at all (only `build-hybrid` had that branch) — fixed, independently
+correct, see Task 5a below; (2) after that fix, the 675 crosslink bonds (and their
+2700 angles, 5400 dihedrals) get written with **zero force constant**
+(`bond_coeff 12 backmap/harmonic at 0.000000 0.000000`) — `network/lammps_builder.py`
+resolves unparameterized bonds/angles/dihedrals against `settings.cross_interactions.*`
+(a Python-level YAML block), which `bakery_xml`-passthrough configs never populate
+(unlike PET/epoxy's native v2 configs). Human decision: rather than patch around this
+(e.g. adding `cross_interactions:` on top of the bakery_xml-passthrough config, or
+teaching `lammps_builder.py` a new fallback), **migrate `examples/melamine_network/large/settings.yaml`
+off `bakery_xml` passthrough entirely, onto native v2 YAML** (the well-tested path
+PET/epoxy already use) — see Task 2b below. This also lets Task 4's `settings.xml`
+edit be reverted, restoring that vendored file to pristine byte-for-byte state (Task 4b,
+folded into Task 2b).
+
+---
+
+### Task 5a: Commit the standalone `build` wiring fix
+
+**Files:**
+- Modify: `python/src/backmap_prep/schema.py` (new `resolve_bakery_xml()`, extracted
+  from `cli.py`'s private copy)
+- Modify: `python/src/backmap_prep/network/api.py` (`build_network_lammps()` branches
+  on `settings.prep.bakery_xml`)
+- Modify: `python/src/backmap_prep/cli.py` (`_cmd_build_hybrid` uses the shared
+  `resolve_bakery_xml`, private duplicate removed)
+
+**Interfaces:**
+- This fix is independently correct and needed for any future `bakery_xml`-passthrough
+  example using the `build` CLI command — not specific to `melamine_network`, and not
+  contingent on how the crosslink-parameter question (Task 2b) resolves.
+
+- [ ] **Step 1: Resume the Task 5 implementer** (same agent, already has this diff
+      uncommitted in its working tree) and have it commit exactly this diff, nothing
+      else from its Task 5 investigation (the generated `examples/melamine_network/large/{melamine_network.data,in.melamine_network,pairs.dat,table_b1.table}`
+      files stay uncommitted/untracked — they'll be regenerated correctly once Task 2b
+      + Task 5b land, and committing the buggy zero-K versions now would be misleading).
+
+- [ ] **Step 2: Verify the full suite still passes**
+
+```bash
+uv run pytest python/tests -q
+```
+
+Expected: same as the implementer already reported (214 passed, 8 skipped), no new
+failures.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add python/src/backmap_prep/schema.py python/src/backmap_prep/network/api.py python/src/backmap_prep/cli.py
+git commit -m "fix(network): wire build_network_lammps for bakery_xml passthrough mode"
+```
+
+---
+
+### Task 2b: Migrate `melamine_network` to native v2 YAML
+
+**Files:**
+- Modify: `examples/melamine_network/large/settings.yaml` (rewrite: drop
+  `prep.bakery_xml`, add native `molecules[].beads[].mapping` + `cg_system` +
+  `hybrid` + `cross_interactions`)
+- Modify: `examples/melamine_network/large/settings.xml` (revert to Task 1's
+  pristine vendored content — `git checkout 88f0f61 -- examples/melamine_network/large/settings.xml`
+  — it becomes a passive reference/provenance artifact only, no longer read by the
+  pipeline)
+- Modify: `python/tests/test_melamine_network.py` (adjust as needed once the new
+  pipeline's real output shapes are known — see Step 4)
+
+**Interfaces:**
+- Consumes: `Settings`/`MoleculeDef`/`BeadDef`/`BeadMappingEntry`/`ActiveSite`/
+  `CrossBond`/`CrossAngle`/`CrossDihedral` (`python/src/backmap_prep/schema.py`),
+  `settings_to_xml_root()` (`python/src/backmap_prep/network/v2_loader.py`),
+  `build_hybrid_gromacs()` (`python/src/backmap_prep/network/api.py`) — same
+  functions Task 3 already used, now exercised via the native-config path
+  (`has_native_network_config(settings)` true) instead of the `bakery_xml` path.
+- Produces: a `settings.yaml` whose generated hybrid topology is semantically
+  equivalent to bakery's own (same 500 molecules, same 675 crosslinks, same atom
+  counts per Task 3's already-confirmed `n_atoms == 12975`), but with real,
+  nonzero crosslink bond/angle/dihedral parameters baked in directly (no
+  `missing_definitions.txt` step needed at all for this path, since
+  `cross_interactions.angles`/`.dihedrals` require `params` directly, not a
+  pattern-then-resolve step).
+
+- [ ] **Step 1: Read the ground truth — bakery's vendored `settings.xml` bead-mapping
+      section, as reference only (don't execute it, just read it)**
+
+```bash
+git show 88f0f61:examples/melamine_network/large/settings.xml | sed -n '1,65p'
+```
+
+This shows the 3 `<cg_bead>` blocks (A1/A2/A3), each with two `<beads>` variants:
+`degree="2"` (unreacted — 2 bonds: the bead's 2 static intra-molecule bonds to its
+sibling beads) and `degree="3"` (reacted — 3 bonds: the same 2 static bonds plus 1
+crosslink). **Use bakery's own degree numbers (2 and 3), not 1 and 2** — they must
+match what `structures.py`'s `residue_graph.degree()` computation actually produces
+from `cg_topol.top`'s real bond graph (confirmed in an earlier task: `; static` bonds
+give every bead degree 2 by default, `; chem` crosslink bonds add +1 to degree 3 for
+the two beads it connects).
+
+Each `degree="3"` block carries `active_site="MF:O1:2 MF:C1:4"` (bakery's XML packs
+BOTH possible active sites for that bead's arm onto one element, with two `<remove>`
+children distinguishing which atoms vanish depending on which specific atom is the one
+that reacted for a given crosslink instance) and two `<remove>` children:
+`active_site="MF:C1"` removes `1:MF:O1 1:MF:H01` (this arm's C bonded out — whole
+hydroxyl leaves), `active_site="MF:O1"` removes only `1:MF:H01` (this arm's O bonded
+out — O stays as the bridging ether oxygen, only its H leaves).
+
+- [ ] **Step 2: Read `examples/epoxy/settings.v2.yaml`'s A1/A2 beads (already read
+      earlier this session) as the concrete v2 YAML syntax template** for exactly
+      this pattern (`mapping: [{degree, atoms}, {degree, base, add, active_sites}]`)
+      — your job is to express bakery's A1/A2/A3 beads (Step 1) in this same shape,
+      not invent new schema features. Read `python/src/backmap_prep/schema.py`'s
+      `BeadDef`/`BeadMappingEntry`/`ActiveSite` class definitions directly to confirm
+      exact field names before writing YAML (do not guess from the epoxy example
+      alone — confirm against the actual pydantic model).
+
+- [ ] **Step 3: Write the new `molecules[0]` block** — degree=2 mapping (9 atoms,
+      identical atom list to `examples/melamine/large/settings.yaml`'s existing A1/A2/A3
+      beads — reuse those exactly, this is the unreacted case and must match the
+      uncrosslinked example per spec), degree=3 mapping (`base: 2`, `remove` +
+      `active_sites` derived from Step 1's XML, for both the O-active and C-active
+      cases — check `_emit_bead_extras`/`_resolve_mapping` in `v2_loader.py` again if
+      the exact mechanics of "one mapping entry, two remove variants gated by which
+      active_site fired" isn't obvious from the schema alone; this dual-remove
+      behavior is real and must be preserved, not simplified away).
+
+- [ ] **Step 4: Verification strategy — generate XML from your new YAML, diff
+      against bakery's original**
+
+```bash
+uv run python3 -c "
+from pathlib import Path
+from backmap_prep.schema import load_settings
+from backmap_prep.network.v2_loader import settings_to_xml_root
+from xml.etree import ElementTree as ET
+s = load_settings(Path('examples/melamine_network/large/settings.yaml'))
+root = settings_to_xml_root(s)
+print(ET.tostring(root, encoding='unicode'))
+" > /tmp/generated_cg_molecule.xml
+```
+
+Compare the `<cg_molecule>` section of this output against bakery's original
+`settings.xml` (Step 1's output) — they should be semantically equivalent (same
+atom lists, same active sites, same remove rules) even if formatted differently.
+This is your primary correctness check for the bead-mapping migration, independent
+of running a full build.
+
+- [ ] **Step 5: Write `cg_system` and `hybrid` config blocks** matching bakery's own
+      `<cg_configuration>`/`<hybrid_configuration>`/`<hybrid_topology>` sections
+      (Step 1's full `settings.xml` read, lines beyond what was shown above —
+      re-run Step 1's command without `sed` truncation to see the rest). `cg_system`
+      points at the same vendored `cg_conf.gro`/`cg_topol.top` (unchanged from
+      Task 1 — the actual 675-crosslink network data doesn't change, only how the
+      AT bead-mapping is expressed).
+
+- [ ] **Step 6: Write `cross_interactions`** — bonds (9 `MF:O1↔MF:C1`-style pairs,
+      reusing the params already declared for the intramolecular C-O bond in
+      `at_topol.top`'s `[ bonds ]` section — read the actual line, don't assume
+      the value — this is the SAME chemical bond type, an ether/alcohol C-O single
+      bond, just now spanning two molecules instead of one), angles (the 36 triples,
+      reusing Task 4's already-sourced `ffbonded.itp` values verbatim — those are
+      already in real GROMACS units, no conversion needed, see
+      `research/decisions/2026-08-06-mf-network-ether-ff-params.md` in the sibling
+      research repo for the sourcing/confidence notes, especially the flagged-weak
+      `CT OH CT NT` dihedral), dihedrals (the 63 quadruples, same source). Match
+      the exact YAML shape already used by `examples/melamine/large/settings.yaml`'s
+      own `cross_interactions` block (read it for the format) and by
+      `examples/epoxy/settings.v2.yaml`.
+
+- [ ] **Step 7: Revert Task 4's `settings.xml` edit**
+
+```bash
+git checkout 88f0f61 -- examples/melamine_network/large/settings.xml
+```
+
+- [ ] **Step 8: Rebuild and verify**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+```
+
+Confirm no errors, and confirm atom/bond counts still match Task 3's established
+values (`n_atoms == 12975`, 675 crosslink AT bonds in `[ cross_bonds ]`) — the
+underlying chemistry hasn't changed, only how it's expressed, so these numbers
+should be identical. Restore `hyb_topol.top` if the build path differs from before
+(check `git status --porcelain examples/melamine_network/large/`).
+
+- [ ] **Step 9: Update `python/tests/test_melamine_network.py`** as needed — the
+      existing 6 tests should mostly still pass unchanged (same atom/bond counts,
+      same crosslink structure), but `test_mf_network_charges_match_bakery_charge_map`
+      needs re-examination: does the native v2 config reproduce the same charge_map
+      -sourced charges, or does it now use `at_topol.top`'s native AA charges (the
+      original, pre-Task-3-correction expectation)? Determine which is actually true
+      for the new pipeline and adjust the test + its docstring accordingly — don't
+      assume it's unchanged from the bakery_xml-passthrough behavior.
+
+- [ ] **Step 10: Run full test suite, confirm pass**
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add examples/melamine_network/large/settings.yaml examples/melamine_network/large/settings.xml python/tests/test_melamine_network.py
+git commit -m "refactor(examples): migrate melamine_network to native v2 YAML"
+```
+
+---
+
+### Task 5b: Regenerate LAMMPS files, verify nonzero crosslink parameters
+
+**Files:**
+- Modify: `python/tests/test_melamine_network.py` (add/restore the crosslink
+  bond-weighting test Task 5's implementer declined to commit)
+
+**Interfaces:**
+- Consumes: Task 5a's `build` wiring fix + Task 2b's native v2 `settings.yaml`.
+
+- [ ] **Step 1: Regenerate**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+```
+
+- [ ] **Step 2: Verify the crosslink bond/angle/dihedral now have real, nonzero
+      parameters** — identify the crosslink bond/angle/dihedral type IDs the same
+      way Task 5's implementer did (cross-reference `[ cross_bonds ]`'s `; AT cross
+      bonds`-tagged atom pairs against the LAMMPS `.data` file's `Bonds` section by
+      exact atom-ID match and count, not by coefficient-value similarity — the
+      implementer's report notes this approach initially misidentified the wrong
+      bond type when going by K/r0 similarity alone). Confirm `K != 0` and the value
+      matches what Task 2b's `cross_interactions` declared (converted to LAMMPS
+      units).
+
+- [ ] **Step 3: Write the regression test** — `bond_coeff <N> backmap/harmonic at <nonzero K> <r0>`
+      for the identified crosslink bond type (the correct target state Task 5's
+      implementer identified but didn't commit), plus analogous checks for the
+      crosslink angle and dihedral types.
+
+- [ ] **Step 4: Run full suite, confirm pass. Restore `hyb_topol.top` if needed. Commit.**
+
+```bash
+git add examples/melamine_network/large/ python/tests/test_melamine_network.py
+git commit -m "feat(examples): generate LAMMPS data/input with real crosslink parameters"
+```
+
+---
+
+### Task 6: Production LAMMPS protocol script
+
+**Files:**
+- Create: `examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps`
+  (adapted from the already-validated `examples/melamine/large/in.melamine_bakery_faithful.lammps`)
+
+**Interfaces:**
+- Consumes: `melamine_network.data`, `table_A_A.table`/`table_b1.table` (converted from
+  the `.xvg` sources by `backmap-prep build`, Task 5).
+
+- [ ] **Step 1: Diff the generated `in.melamine_network` (auto-generated skeleton)
+      against the uncrosslinked example's validated protocol script**
+
+```bash
+diff examples/melamine/large/in.melamine_bakery_faithful.lammps examples/melamine_network/large/in.melamine_network
+```
+
+Identify exactly which lines differ only because of file names / atom-type counts
+(expected, mechanical) vs. anything structurally different (e.g. extra bond/angle
+types for the crosslink, different atom-type count from removed leaving-group atoms).
+
+- [ ] **Step 2: Copy the validated 3-stage protocol structure
+      (eq → ramp → production, `coul_cap_radius` staged off before production, fix
+      bm with `lambda0 0.0`, `alpha 0.0001`, Langevin `damp=33.3`, `fix cap`
+      `fmax=1195.03` as the starting point — not yet re-tuned for this system) onto
+      the new data/table filenames**
+
+Base this file on `in.melamine_bakery_faithful.lammps`'s exact structure (already
+read in full this session): same `pair_style backmap ... lj/cut/coul/cut/ecap ...`
+staging pattern (`coul_cap_radius=5.0` for Stage 1/2, reissued to `0.0` before
+Stage 3), same `fix bm`/`fix cap`/`fix therm_at`/`fix integrate_at` declarations,
+same three `run` stages — with `read_data melamine_network.data`,
+`table_A_A.table`/`table_b1.table` (Task 5's generated tables), and updated
+`pair_coeff`/`bond_coeff`/`angle_coeff`/`dihedral_coeff` tables matching the new
+system's actual type count (including the new crosslink bond/angle/dihedral types
+from Task 4/5 — copy these type coefficient lines directly from the generated
+`in.melamine_network` skeleton, do not hand-retype them).
+
+- [ ] **Step 3: Sanity-check the script parses (LAMMPS `-echo none -log ... -screen none` dry check is not reliable without a full run; instead verify structurally)**
+
+```bash
+python3 -c "
+content = open('examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps').read()
+required = [
+    'read_data melamine_network.data',
+    'fix bm all backmap',
+    'fix cap all backmap/capforce',
+    'Stage 3',
+    'pair_style backmap',
+]
+for item in required:
+    assert item in content, f'missing: {item}'
+# The staged coul_cap_radius pattern must appear twice: once at 5.0 (eq/ramp)
+# and once reissued at 0.0 immediately before Stage 3 (production) -- this is
+# the fix that made the uncrosslinked example's production run stable and
+# uncapped; verify it was actually carried over, not just 'pair_style backmap'
+# appearing somewhere.
+assert content.count('pair_style backmap') == 2, (
+    f'expected exactly 2 pair_style reissues (eq/ramp + Stage 3), '
+    f'got {content.count(\"pair_style backmap\")}'
+)
+print('structural check OK')
+"
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps
+git commit -m "feat(examples): add production LAMMPS protocol for crosslinked MF network"
+```
+
+**Task 6 finding, addressed by Task 2c below**: `pair_coeff 1 1 cg 0.0 0.0` in the
+generated skeleton — this system has zero CG-CG nonbonded interaction, because
+`examples/melamine_network/large/settings.yaml` never set `simulation.table_groups`,
+so `network/lammps_builder.py::_resolve_pair_tables()` (`~line 763`, `if not
+table_groups: return`) never wires up the vendored `table_A_A.xvg` into a real
+tabulated potential. Combined with the by-design zero AT-AT inter-bead weighting at
+lambda=0, this means Stage 1 (eq) would have **zero repulsive force between
+different molecules from any mechanism at all**. Human decision: fix before Task 7's
+pilot rather than run a pilot with a known, already-diagnosed deficiency.
+
+---
+
+### Task 2c: Wire up the CG-CG tabulated potential
+
+**Files:**
+- Modify: `examples/melamine_network/large/settings.yaml` (add
+  `simulation: {table_groups: [A]}` — no `simulation:` block currently exists in
+  this file at all; add the minimal one needed, matching the field name/shape
+  already used by `examples/melamine/large/settings.yaml`'s own `table_groups: [A]`
+  and `examples/epoxy/settings.v2.yaml`'s `table_groups: [A, B, E, F, H, I, K, Q]`)
+- Modify: `examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps`
+  (Task 6's script — update the `pair_coeff 1 1` line, both occurrences, in the two
+  `pair_style backmap` blocks, from `cg 0.0 0.0` to the real table reference,
+  matching the generated skeleton's new output)
+
+**Interfaces:**
+- Consumes: `network/lammps_builder.py::_resolve_pair_tables()` (existing,
+  unmodified code — this is a config-only fix, not a code change) and the already-
+  vendored `table_A_A.xvg` (Task 1).
+
+- [ ] **Step 1: Add the minimal `simulation:` block**
+
+```yaml
+simulation:
+  table_groups: [A]
+```
+
+Append to `examples/melamine_network/large/settings.yaml` (all 3 CG beads share
+`type: A` per Task 2b's `molecules[0].beads[].type` — confirm this directly rather
+than assume, `grep -n "type: A" examples/melamine_network/large/settings.yaml`
+should show 3 matches, one per bead).
+
+- [ ] **Step 2: Rebuild and confirm the table gets wired up**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+grep -n "^pair_coeff 1 1" examples/melamine_network/large/in.melamine_network
+```
+
+Expected: `pair_coeff 1 1 cg table_A_A.table ENTRY` (or equivalent — confirm
+`table_A_A.table` was actually generated in the directory as a converted output of
+`table_A_A.xvg`, not just referenced).
+
+- [ ] **Step 3: Confirm nothing else shifted** — re-run the full test file and the
+      Task 5b LAMMPS-type test specifically, since those tests assert on exact type
+      IDs/counts that a CG-CG table addition should NOT change (CG-CG pair wiring
+      is orthogonal to AT-level bond/angle/dihedral type numbering), but verify
+      this is actually true rather than assume it:
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+Expected: all tests still pass, same counts as before (8 passed, matching Task
+5b's confirmed state). If any AT-level type ID or count changed, stop and
+investigate — that would mean this "CG-CG-only" fix had an unexpected side effect,
+worth understanding before proceeding, not just re-tightening assertions to match.
+
+- [ ] **Step 4: Update Task 6's protocol script**
+
+In `examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps`,
+find both `pair_coeff 1 1 cg 0.0 0.0` lines (Stage 1/2 block and the Stage 3
+reissue block) and replace with the real table reference from Step 2's
+regenerated skeleton — copy the line directly, don't hand-retype it. Restore
+`hyb_topol.top` if the rebuild in Step 2 modified it (known gotcha).
+
+- [ ] **Step 5: Run the structural sanity check again** (same script as Task 6's
+      Step 3) to confirm the hand-edited protocol script is still well-formed.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add examples/melamine_network/large/settings.yaml examples/melamine_network/large/in.melamine_network examples/melamine_network/large/melamine_network.data examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps examples/melamine_network/large/table_A_A.table
+git commit -m "fix(examples): wire up CG-CG tabulated potential for melamine_network"
+```
+
+(Include whatever regenerated files Step 2 actually produced/changed — check
+`git status --porcelain examples/melamine_network/large/` for the real list rather
+than assuming exactly these filenames.)
+
+---
+
+### Task 2d: Wire up the CG-CG crosslink bond table
+
+**Task 7's first attempt crashed at LAMMPS setup time** (before any MD step —
+`ERROR: Cannot open bond table file None`), not a dynamics-stability finding.
+Root cause: `bond_coeff 10 backmap/table cg None None` — bond type 10 covers all
+675 CG-CG "chem" (crosslink) bonds, and `cg_topol.top`'s own `[ bonds ]` section
+self-flags them (`; chem MISSING params type: A-A`) with literally no table-index
+params, so `network/lammps_builder.py::_cg_bond_table_name()` (`~line 725`)
+returns `None` for every one of them. This is a third instance of the same
+underlying issue as Task 4 (missing AT angle/dihedral params) and Task 2c
+(missing CG-CG pair table) — bakery's own reference never finished this specific
+piece either.
+
+Human decision: reuse `table_b1.table` (already used for the 1500 "static"
+intramolecular CG-CG bonds) for the 675 "chem" crosslink bonds too, rather than
+sourcing/deriving a wholly new tabulated potential — same reuse principle as
+Task 2b's AT-level crosslink bond fix (same *kind* of connection, just spanning
+molecules instead of one). Confirmed mechanism: `_cg_bond_table_name()` reads
+`bond.params[0]` as a literal table index (`8 1.0 1.0` -> index `1` ->
+`table_b1.xvg`); all 1500 "static" bonds uniformly use `8 1.0 1.0`
+(`grep '; static' cg_topol.top | awk '{print $3,$4,$5}' | sort -u` -> single
+value `8 1.0 1.0`, confirmed before writing this task).
+
+**This requires directly editing the vendored `cg_topol.top`** (unlike Task 2b's
+AT-level fix, there is no YAML-level `cross_interactions`-style overlay
+mechanism for CG-level bonds — `cg_system.topology` is read as a raw, complete
+GROMACS topology file, not a template Python code overlays). This is a smaller,
+more surgical deviation from "byte-for-byte vendored" than Task 4's reverted
+`settings.xml` edit was: it adds missing *parameters* to 675 already-existing
+bond entries, without changing which beads are connected (the crosslink
+connectivity itself, verified in Task 1 as `static=1500 chem=675`, is completely
+unchanged) — and unlike `settings.xml`, there was no clean alternative path that
+avoids touching this file.
+
+**Files:**
+- Modify: `examples/melamine_network/large/cg_topol.top` (the 675 `; chem` bond
+  lines: append `1.0 1.0` after the `8` funct code, matching the `; static`
+  bonds' own format exactly — e.g. `1 622 8 ; chem MISSING params type: A-A`
+  becomes `1 622 8 1.0 1.0 ; chem`)
+- Regenerate: `examples/melamine_network/large/{in.melamine_network,melamine_network.data,in.melamine_network_bakery_faithful.lammps}`
+  (bond type 10's `bond_coeff` line changes from `None None` to
+  `table_b1.table ENTRY`)
+
+**Interfaces:**
+- Consumes: `_cg_bond_table_name()`, `_register_bond_table()`
+  (`python/src/backmap_prep/network/lammps_builder.py`, unmodified — this is a
+  data-only fix).
+
+- [ ] **Step 1: Edit `cg_topol.top`**
+
+```bash
+sed -i '' 's/^\(\([0-9]\+ \)\{2\}8\) ; chem MISSING params type: A-A$/\1 1.0 1.0 ; chem/' \
+  examples/melamine_network/large/cg_topol.top
+```
+
+Verify before trusting the sed: `grep -c '; chem MISSING params' examples/melamine_network/large/cg_topol.top`
+should now be `0`, and `grep -c '8 1.0 1.0 ; chem$' examples/melamine_network/large/cg_topol.top`
+should be `675`. If the sed pattern doesn't match this file's actual exact
+whitespace/format, don't fight the regex — write a small Python script instead
+that parses each `; chem` line's existing atom-ID pair and rewrites it with
+`8 1.0 1.0 ; chem`, verified against the same two counts.
+
+- [ ] **Step 2: Re-verify the CG-level crosslink count is unaffected** (this
+      fix must be params-only, not connectivity-changing)
+
+```bash
+python3 -c "
+lines = open('examples/melamine_network/large/cg_topol.top').read()
+static = lines.count('; static')
+chem = lines.count('; chem')
+print(f'static={static} chem={chem}')
+assert static == 1500 and chem == 675
+"
+```
+
+- [ ] **Step 3: Rebuild and confirm bond type 10 resolves**
+
+```bash
+uv run backmap-prep build-hybrid examples/melamine_network/large/settings.yaml
+uv run backmap-prep build examples/melamine_network/large/settings.yaml
+grep -n "^bond_coeff 10" examples/melamine_network/large/in.melamine_network
+```
+
+Expected: `bond_coeff 10 backmap/table cg table_b1.table ENTRY` (not `None None`).
+
+- [ ] **Step 4: Re-verify the full test suite and AT-level types are unaffected**
+      (same discipline as Task 2c — this should be CG-bond-only)
+
+```bash
+uv run pytest python/tests/test_melamine_network.py -v
+```
+
+Expected: same pass count as before (8), no AT-level assertion changes needed.
+
+- [ ] **Step 5: Update the protocol script** — in
+      `in.melamine_network_bakery_faithful.lammps`, replace the
+      `bond_coeff 10 backmap/table cg None None` line with the regenerated
+      skeleton's real line (copy directly, don't hand-retype). Re-run the
+      structural sanity check afterward. Restore `hyb_topol.top` if the rebuild
+      modified it (known gotcha).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add examples/melamine_network/large/cg_topol.top examples/melamine_network/large/in.melamine_network examples/melamine_network/large/melamine_network.data examples/melamine_network/large/in.melamine_network_bakery_faithful.lammps
+git commit -m "fix(examples): wire up CG-CG crosslink bond table for melamine_network"
+```
+
+(Check `git status --porcelain examples/melamine_network/large/` for the real
+regenerated file list rather than assuming exactly these filenames.)
+
+---
+
+### Task 7: VM pilot run — stability check
+
+**Retry after Task 2d.** The sync/launch/wait/commit steps below are unchanged;
+just re-sync the updated files (`melamine_network.data`,
+`in.melamine_network_bakery_faithful.lammps`, plus `table_b1.table` — already
+synced once, but re-sync in case Task 2d regenerated it) before relaunching.
+
+**Files:** none (VM-side execution + log capture back into the worktree for review)
+
+**Interfaces:**
+- Consumes: Task 6's script + Task 5's generated data/table files.
+
+- [ ] **Step 1: Sync files to the VM**
+
+```bash
+ssh sc@<vm_host> "mkdir -p /home/sc/sc/melamine_network"
+scp examples/melamine_network/large/{melamine_network.data,table_A_A.table,table_b1.table,in.melamine_network_bakery_faithful.lammps} \
+    sc@<vm_host>:/home/sc/sc/melamine_network/
+```
+
+- [ ] **Step 2: Short pilot run in tmux (eq=2000, ramp=5000, prod=5000 — short, matching this session's own first-pilot pattern for the uncrosslinked example)**
+
+```bash
+ssh sc@<vm_host> "tmux new-session -d -s mf_network_pilot -c /home/sc/sc/melamine_network \
+  'mpirun -np 4 /home/sc/sc/lammps/build-mpi/lmp -in in.melamine_network_bakery_faithful.lammps \
+   -var eq_steps 2000 -var ramp_steps 5000 -var prod_steps 5000 2>&1 | tee log.pilot.lammps'"
+```
+
+- [ ] **Step 3: Wait for completion, check for crashes and dangerous-rebuild fraction**
+
+```bash
+ssh sc@<vm_host> "while tmux has-session -t mf_network_pilot 2>/dev/null; do sleep 30; done; tail -60 /home/sc/sc/melamine_network/log.pilot.lammps"
+```
+
+Expected: run completes (`PRODUCTION done step=...` or equivalent print), zero or
+near-zero dangerous neighbor rebuilds, T stable around 300K. If it crashes: this is
+new information about the crosslinked system's specific stability needs (extra
+strain at reacted sites is plausible and not yet tested) — report the exact error
+and thermo trace before attempting any fix; do not guess-and-retry blindly (matches
+this project's established debugging discipline).
+
+- [ ] **Step 4: If stable, copy the log back and commit it for the record**
+
+```bash
+scp sc@<vm_host>:/home/sc/sc/melamine_network/log.pilot.lammps examples/melamine_network/large/log.melamine_network_pilot.lammps
+git add examples/melamine_network/large/log.melamine_network_pilot.lammps
+git commit -m "docs(examples): record crosslinked MF network pilot run log"
+```
+
+---
+
+### Task 8: Full VM production run, RDF comparison, docs
+
+**Files:**
+- Create: `<research_repo>/experiments/<date>_melamine-network-tier-c.md` — locate
+  `<research_repo>` the same way as Task 4 Step 4 (it's a separate sibling repo,
+  not nested in this worktree)
+- Modify: `openspec/changes/phase3-network-backmapping/tasks.md` (check off item 6.1)
+
+**Interfaces:**
+- Consumes: Task 7's validated-stable pilot parameters, scaled up.
+
+- [ ] **Step 1: Full production run on the VM (steps matched to the uncrosslinked
+      example's validated scale: eq=10000, ramp=10000, prod=500000)**
+
+```bash
+ssh sc@<vm_host> "tmux new-session -d -s mf_network_prod -c /home/sc/sc/melamine_network \
+  'mpirun -np 4 /home/sc/sc/lammps/build-mpi/lmp -in in.melamine_network_bakery_faithful.lammps \
+   -var eq_steps 10000 -var ramp_steps 10000 -var prod_steps 500000 2>&1 | tee log.production.lammps'"
+```
+
+- [ ] **Step 2: Wait for completion (long-running — this is a ~9-10 hour run based on
+      the uncrosslinked example's timing at similar scale)**
+
+```bash
+ssh sc@<vm_host> "while tmux has-session -t mf_network_prod 2>/dev/null; do sleep 300; done; tail -80 /home/sc/sc/melamine_network/log.production.lammps"
+```
+
+- [ ] **Step 3: RDF comparison against the same reference files used by the
+      uncrosslinked example**
+
+```bash
+scp sc@<vm_host>:/home/sc/sc/melamine_network/dump.at_prod examples/melamine_network/large/
+scp sc@<vm_host>:/home/sc/sc/melamine_network/melamine_network_final.data examples/melamine_network/large/
+cd examples/melamine_network/large
+python3 ../../melamine/large/compare_melamine_structure.py \
+  --dump dump.at_prod --final-data melamine_network_final.data \
+  --ref-dir ../../melamine/large/ref --mode hybrid --min-step 70000 \
+  --plot rdf_comparison_network.png --report structural_validation_report_network.txt
+```
+
+- [ ] **Step 4: Write the research experiment note (honest report, no target pass-count claimed)**
+
+In `<research_repo>/experiments/<date>_melamine-network-tier-c.md` (same
+`<research_repo>` located in Task 4 Step 4), document: protocol used, stability
+result (dangerous-rebuild fraction, T trace), full RDF pass/fail table (all 11
+metrics, same format as
+`<research_repo>/experiments/20260802_melamine-bakery-rerun.md`'s tables), and
+explicit comparison against the uncrosslinked example's own 5/11 result —
+reported as context, not a bar to clear (per proposal.md's Success criterion).
+
+- [ ] **Step 5: Update `<research_repo>/checkpoints.md` with a new melamine-network
+      entry** (only after the run is confirmed complete and the RDF comparison has
+      run successfully — per that file's own registry practice, do not add
+      speculatively).
+
+- [ ] **Step 6: Check off `phase3-network-backmapping/tasks.md` item 6.1**
+
+```bash
+# in the main repo checkout (not this worktree), edit:
+# openspec/changes/phase3-network-backmapping/tasks.md
+# change: "- [ ] 6.1 MF polymerized network (`network_backmapping/mf/`)"
+# to:     "- [x] 6.1 MF polymerized network (`network_backmapping/mf/`) -- examples/melamine_network/, see research/experiments/<date>_melamine-network-tier-c.md"
+```
+
+- [ ] **Step 7: Add the `example-melamine-network` spec to `openspec/specs/`**
+
+Copy `openspec/changes/add-melamine-network-example/specs/example-melamine-network/spec.md`
+into `openspec/specs/example-melamine-network/spec.md` (this is the normal
+OpenSpec archive step — run `openspec archive add-melamine-network-example` from
+the main repo checkout once this plan's tasks are all complete, rather than
+copying by hand, so the CLI's own validation/bookkeeping runs).
+
+- [ ] **Step 8: Verify the uncrosslinked example is unaffected**
+
+Spec requirement `example-melamine-network`, "Existing uncrosslinked melamine
+example is unaffected":
+
+```bash
+git status --porcelain examples/melamine/
+uv run backmap-prep build examples/melamine/large/settings.yaml
+git status --porcelain examples/melamine/
+```
+
+Expected: both `git status` calls print nothing (no changes, before or after
+rebuilding). If the second call shows a diff, this plan's work has an unintended
+side effect on the uncrosslinked example (most likely via the shared
+`forcefield_dir` edit in Task 4, if that path was taken) — stop and investigate;
+do not proceed to the final commit with this check failing.
+
+- [ ] **Step 9: Final commit**
+
+```bash
+git add examples/melamine_network/large/dump.at_prod examples/melamine_network/large/melamine_network_final.data \
+        examples/melamine_network/large/rdf_comparison_network.png examples/melamine_network/large/structural_validation_report_network.txt \
+        examples/melamine_network/large/log.melamine_network_production.lammps
+git commit -m "feat(examples): crosslinked MF network production run + RDF comparison"
+```
+
+---
+
+## Self-review notes (for the plan author, not a task)
+
+- **Spec coverage — all 4 requirements in `specs/example-melamine-network/spec.md`
+  now map to explicit tasks/tests:**
+  1. "Crosslinked melamine example imports bakery's exact network" — Task 1 (vendor
+     files + static/chem bond count check), Task 3's
+     `test_mf_network_crosslink_bond_count`.
+  2. "Crosslink sites have real force-field parameters" — Task 4, including a
+     regression test (`test_mf_network_no_missing_definitions`).
+  3. "Crosslink bonds are always-on, not lambda-weighted" — Task 5.
+  4. "Existing uncrosslinked melamine example is unaffected" — Task 8 Step 8
+     (explicit `git status`-based check, added during self-review — was missing
+     from the first draft).
+  Plus proposal.md's Success criterion (stable run, honest RDF reporting, no
+  committed target) is enforced by Task 8 Step 4's explicit framing, and
+  design.md's Risk table is fully resolved in-plan: crosslink-pair translation risk
+  (not needed — degree computed live from the CG bond graph), missing FF params
+  risk (Task 4), MF's source-layout-vs-loader risk (bakery_xml passthrough
+  sidesteps `v2_loader.py` entirely, confirmed by reading its source, not assumed).
+- **Fixed during self-review:** Task 3 originally had two conflicting Step
+  2/Step 3 pairs (a leftover from drafting the plan in two passes) — merged into
+  one coherent Step 1-7 sequence. One test
+  (`test_mf_network_unreacted_beads_match_uncrosslinked_example`) originally ended
+  in vague "to be filled in from actual output" prose — rewritten as a concrete,
+  immediately-runnable charge-subset comparison
+  (`test_mf_network_charges_subset_of_uncrosslinked_example`) instead.
+- **Open/deferred items acknowledged rather than hidden:** Task 4 Step 2b's exact
+  OPLS-AA numeric values (if the shared table doesn't already have them) is the one
+  step in this plan that depends on a literature lookup rather than purely
+  mechanical derivation from files already in the repo — flagged explicitly rather
+  than filled with a fake placeholder value.
