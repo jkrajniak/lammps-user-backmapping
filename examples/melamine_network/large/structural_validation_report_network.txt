@@ -1,0 +1,25 @@
+melamine_network Tier C structural validation vs bakery crosslinked reference
+RDF pair selection: all pairs (GROMACS g_rdf)
+
+--- C-C vs ref_C_C.xvg ---
+[bonded r=0.20-0.28 nm]
+PASS: C-C bonded peak position computed=0.231 nm ref=0.228 nm Δ=0.003 nm (tol=0.03)
+FAIL: C-C bonded peak height computed=15.941 ref=9.562 rel err=0.67 (tol=0.2)
+[melt shell r=0.35-0.55 nm]
+PASS: C-C melt shell peak position computed=0.485 nm ref=0.480 nm Δ=0.005 nm (tol=0.03)
+FAIL: C-C melt shell peak height computed=3.575 ref=2.817 rel err=0.27 (tol=0.2)
+INFO: C-C g(r=1.0 nm) computed=1.424 ref=1.498 (GROMACS C*-C* self-RDF baseline ≠ 1)
+FAIL: C-C L2(g)=1.040 (tol=0.2)
+--- C-N vs ref_C_N.xvg ---
+PASS: C-N peak position computed=0.357 nm ref=0.354 nm Δ=0.003 nm (tol=0.03)
+FAIL: C-N peak height computed=5.566 ref=3.754 rel err=0.48 (tol=0.2)
+FAIL: C-N L2(g)=1.422 (tol=0.2)
+--- O-H vs ref_O_H.xvg ---
+FAIL: O-H peak position computed=0.685 nm ref=0.844 nm Δ=0.159 nm (tol=0.03)
+PASS: O-H peak height computed=1.717 ref=1.486 rel err=0.16 (tol=0.2)
+FAIL: O-H L2(g)=1.852 (tol=0.2)
+
+--- final structure checks (AT atoms only) ---
+total charge = -0.000000 e; max AT bond = 3.00 Å; density ≈ 0.571 g/cm³
+
+Summary: 4 PASS, 7 FAIL (RDF peak metrics)
