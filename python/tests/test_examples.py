@@ -13,7 +13,16 @@ from backmap_prep.cli import main
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 
-EXAMPLES = ["dodecane", "dodecane-lammps-cg", "pe", "pe4", "pe_10", "pe_aa", "melamine"]
+EXAMPLES = [
+    "dodecane",
+    "dodecane-lammps-cg",
+    "pe",
+    "pe-lammps",
+    "pe4",
+    "pe_10",
+    "pe_aa",
+    "melamine",
+]
 
 
 @pytest.fixture(params=EXAMPLES)
@@ -169,4 +178,96 @@ class TestLammpsNativeCgParity:
 
         gromacs_in = self._normalize((gromacs_dir / "in.dodecane").read_text())
         lammps_in = (lammps_dir / "in.dodecane").read_text()
+        assert gromacs_in == lammps_in
+
+
+def _split_data_sections(text: str) -> dict[str, list[str]]:
+    """Split a LAMMPS data file into {section_name: [content lines]}, plus "header"."""
+    sections: dict[str, list[str]] = {"header": []}
+    current = "header"
+    for line in text.splitlines():
+        stripped = line.strip()
+        if (
+            stripped
+            and not stripped[0].isdigit()
+            and not any(kw in stripped for kw in ("xlo", "ylo", "zlo"))
+        ):
+            current = stripped.split("#", 1)[0].strip()
+            sections.setdefault(current, [])
+            continue
+        if stripped:
+            sections[current].append(stripped)
+    return sections
+
+
+def _atom_lines_without_image_flags(lines: list[str]) -> list[str]:
+    """Drop trailing ix/iy/iz tokens (fields 8-10) from each Atoms line."""
+    return [" ".join(line.split()[:7]) for line in lines]
+
+
+class TestLammpsNativeAtFragmentParity:
+    """pe-lammps must build to the same hybrid system as pe.
+
+    pe-lammps/pe_at.data + in.pe_at were converted directly from pe/'s
+    pe_single.gro + topol_aa.top (not extracted from a built hybrid — see
+    openspec/changes/lammps-native-at-fragment-input/design.md), and
+    pe-lammps/pe_cg.data from a fresh pe/ hybrid build via prepare_cg.py.
+    A fresh build of both examples should differ only in the cosmetic
+    type-name convention and per-atom PBC image-flag bookkeeping (positions
+    are identical either way — see the design doc's Risks section for why
+    the image-flag difference is a benign canonicalization artifact, not a
+    correctness issue).
+    """
+
+    _NAME_SUBS: ClassVar[dict[str, str]] = {
+        "# A (CG)": "# 1 (CG)",
+        "# B (CG)": "# 2 (CG)",
+        "# CH3": "# AT1",
+        "# CH2": "# AT2",
+        "table_A_A": "table_1_1",
+        "table_A_B": "table_1_2",
+        "table_B_B": "table_2_2",
+    }
+
+    def _normalize(self, text: str) -> str:
+        for old, new in self._NAME_SUBS.items():
+            text = text.replace(old, new)
+        return text
+
+    def _build(self, name: str, tmp_path: Path) -> Path:
+        src = EXAMPLES_DIR / name
+        dst = tmp_path / name
+        shutil.copytree(src, dst)
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(dst)
+            main([str(dst / "settings.yaml")])
+        finally:
+            os.chdir(old_cwd)
+        return dst
+
+    def test_hybrid_data_matches_ignoring_image_flags(self, tmp_path: Path) -> None:
+        gromacs_dir = self._build("pe", tmp_path)
+        lammps_dir = self._build("pe-lammps", tmp_path)
+
+        gromacs_sections = _split_data_sections(
+            self._normalize((gromacs_dir / "pe.data").read_text())
+        )
+        lammps_sections = _split_data_sections((lammps_dir / "pe.data").read_text())
+
+        assert set(gromacs_sections) == set(lammps_sections)
+        for name in gromacs_sections:
+            if name == "Atoms":
+                assert _atom_lines_without_image_flags(
+                    gromacs_sections[name]
+                ) == _atom_lines_without_image_flags(lammps_sections[name])
+            else:
+                assert gromacs_sections[name] == lammps_sections[name], f"section {name!r} differs"
+
+    def test_input_script_matches_after_type_name_normalization(self, tmp_path: Path) -> None:
+        gromacs_dir = self._build("pe", tmp_path)
+        lammps_dir = self._build("pe-lammps", tmp_path)
+
+        gromacs_in = self._normalize((gromacs_dir / "in.pe").read_text())
+        lammps_in = (lammps_dir / "in.pe").read_text()
         assert gromacs_in == lammps_in

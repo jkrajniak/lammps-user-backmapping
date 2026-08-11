@@ -52,11 +52,32 @@ molecules:
           - 1:DOD:C4
 ```
 
-Atom references use the bakery format: `chain_idx:molecule_name:atom_name`.
+or, for a LAMMPS-native AT fragment:
+
+```yaml
+molecules:
+  - name: DOD
+    ident: DOD
+    source:
+      format: lammps
+      data: dodecane_at.data          # LAMMPS data file: box, per-atom type/charge/mass,
+                                       # Bonds/Angles/Dihedrals connectivity by type ID
+      input_script: dodecane_at_ff.in # bond_coeff/angle_coeff/dihedral_coeff/pair_coeff
+    beads:
+      - name: A1
+        type: A
+        atoms:
+          - 1:DOD:1                   # LAMMPS numeric atom ID, as a string
+          - 1:DOD:2
+```
+
+Atom references use the bakery format: `chain_idx:molecule_name:atom_name`. When the owning molecule's `source.format: lammps`, `atom_name` SHALL be the LAMMPS numeric atom ID (as a string) from the `data` file's `Atoms` section, since a `data` file has no symbolic atom-name field — this mirrors the numeric-type-ID convention `cg_system.format: lammps` already uses for `beads[].type`.
 
 The bead order in the YAML defines the CG bead ordering. All AT atoms listed in a bead's `atoms` array belong to that CG bead (intra-CG). AT atoms in different beads that are bonded to each other form cross-CG connections.
 
 **Phase 1 (MVP):** Single molecule type, simple `atoms` list per bead, single source coordinate/topology file.
+
+**LAMMPS-native AT fragment source** — implemented for single-file (non-degree-dependent) sources on the linear engine (see "Source file parsing" requirement below). Not supported for degree-dependent sources (`atoms_by_degree`, below) or the network engine.
 
 **Deferred features** (spec'd for completeness, implemented in Phase 3):
 
@@ -119,6 +140,14 @@ The generator SHALL handle (Phase 3):
 #### Scenario: Dodecane molecule definition
 - **WHEN** the YAML defines a DOD molecule with 6 beads (A1, B1..B4, A2), each mapping 2 carbon atoms
 - **THEN** the generator SHALL create 6 CG beads + 12 AT atoms per molecule, with correct CG-AT mapping
+
+#### Scenario: LAMMPS-native AT fragment
+- **WHEN** `molecules[0].source.format: lammps` with a `data` file and `input_script`, and `beads[].atoms` entries reference numeric LAMMPS atom IDs
+- **THEN** the generator SHALL resolve bead membership by atom ID exactly as the GROMACS path resolves it by atom name
+
+#### Scenario: LAMMPS-native source rejected for degree-dependent mapping
+- **WHEN** `molecules[0].source.format: lammps` and `source.coordinates`/`source.topology` are given as degree-dependent lists (Phase 3 shape) instead of `data`/`input_script`
+- **THEN** the generator SHALL abort with an error naming the unsupported combination
 
 #### Scenario: Multiple molecule types (deferred)
 - **WHEN** the YAML defines EPO, HDD, and IPD molecules for a reactive network
@@ -360,22 +389,27 @@ The parsing logic SHALL handle:
 - `[ molecules ]` section for replication count
 - Combination rules for LJ parameters (rules 1, 2, 3)
 
-The parser SHALL be modular so that additional source formats (PDB, LAMMPS data, XYZ) can be added later, and so that additional CG-side formats can be added independently of AT-fragment formats.
+The parser SHALL be modular so that additional source formats (PDB, LAMMPS data, XYZ) can be added later, and so that additional CG-side and AT-fragment-side formats can be added independently of each other.
 
-**LAMMPS-native CG system** — implemented (see "CG system section" requirement above): a LAMMPS `data`-file parser producing the same internal shape (`GroFile`/`Topology`/`AtomType`/`TopAtom` equivalents) `builder.py` already consumes from the GROMACS `cg_gro`/`cg_top` path, so downstream molecule-replication, bead-mapping, and hybrid-build logic requires no changes.
+**LAMMPS-native CG system** — implemented (see "CG system section" requirement): a LAMMPS `data`-file parser producing the same internal shape (`GroFile`/`Topology`/`AtomType`/`TopAtom` equivalents) `builder.py` already consumes from the GROMACS `cg_gro`/`cg_top` path.
 
-**Still deferred** — non-GROMACS AT-fragment sources, and PDB/XYZ CG or AT input:
+**LAMMPS-native AT fragment** — implemented for single-file, linear-engine sources (see "Molecules section — CG-AT mapping" requirement): a LAMMPS `data`-file reader that, unlike the CG reader, DOES parse `Bonds`/`Angles`/`Dihedrals` sections (these are load-bearing for AT fragments — `at_mol.bonds`/`.angles`/`.dihedrals` drive the actual intra-bead bond/angle/dihedral coefficients, unlike the CG side's `cg_mol.bonds`/`.angles`, which are parsed but never consumed). Paired with a bounded input-script reader covering exactly `bond_coeff` (for `bond_style harmonic`), `angle_coeff` (`angle_style harmonic`), `dihedral_coeff` (`dihedral_style ryckaert`), and `pair_coeff i i` diagonal (self) entries — the only forms `builder.py` consumes for AT fragments. Cross-type (`i != j`) `pair_coeff` lines, if present, SHALL be ignored (cross-type LJ parameters are always computed in Python via mixing, never read from source). Any bond/angle func or dihedral func the GROMACS path itself would skip (non-harmonic bonds/angles, non-RB dihedrals) SHALL be skipped identically on the LAMMPS-native path — no new functional-form support is added by this requirement.
+
+**Still deferred** — PDB/XYZ CG or AT input, and degree-dependent (Phase 3) AT-fragment sources of any format:
 - **PDB files**: Atom positions, residue information, chain identifiers. Topology inferred from CONECT records or a separate topology file.
 - **LAMMPS data files as AT-fragment input**: blocked on an atom-identity naming design, since AT-fragment bead-mapping is matched by free-text atom name (`atoms: [C1, H1, ...]`), which a LAMMPS `data` file has no field for.
+- **GROMACS `[virtual_sites3]`-equivalent AT fragments**: not supported for `format: lammps` — no LAMMPS `data`-file construct maps onto a GROMACS virtual/dummy interaction site; such fragments must stay GROMACS-format.
 - **XYZ files**: Atom positions only. Requires a separate topology source.
 
 Format detection SHALL use the `format` field in the YAML settings:
 - `cg_system.format: gromacs` (default) → GROMACS `.gro`/`.top` CG system
 - `cg_system.format: lammps` → LAMMPS `data` CG system
+- `molecules[].source.format: gromacs` (default) → GROMACS `.gro`/`.top` AT fragment
+- `molecules[].source.format: lammps` → LAMMPS `data`/`input_script` AT fragment
 - `.pdb` → PDB coordinates (deferred)
 - `.xyz` → XYZ coordinates (deferred)
 
-**LAMMPS `.table` passthrough**: When a table file has `.table` extension (native LAMMPS format), the generator SHALL use it directly without conversion. The `table_groups` CG-CG pair-table lookup SHALL check for a `.table`-extension file (`table_<a>_<b>.table`) before falling back to the `.xvg`-extension naming convention (`table_<a>_<b>.xvg`, converted). This applies identically for both `cg_system.format` values, since `table_groups` is unrelated to CG-system format.
+**LAMMPS `.table` passthrough**: When a table file has `.table` extension (native LAMMPS format), the generator SHALL use it directly without conversion. The `table_groups` CG-CG pair-table lookup SHALL check for a `.table`-extension file (`table_<a>_<b>.table`) before falling back to the `.xvg`-extension naming convention (`table_<a>_<b>.xvg`, converted). This applies identically for both `cg_system.format` values, since `table_groups` is unrelated to CG-system format. AT fragments in this codebase are always analytic (never tabulated), so no AT-fragment table passthrough applies.
 
 #### Scenario: GROMACS AT topology
 - **WHEN** the source topology is a GROMACS `.top` file with `#include` directives
@@ -389,12 +423,28 @@ Format detection SHALL use the `format` field in the YAML settings:
 - **WHEN** `cg_system.format: lammps` and `cg_system.data: cg_system.data`
 - **THEN** the generator SHALL read CG positions and per-atom type/mass/charge directly from the LAMMPS data file without unit conversion
 
+#### Scenario: LAMMPS-native AT fragment, bonded coefficients
+- **WHEN** `molecules[0].source.format: lammps` with a `data` file whose `Bonds` section references bond type 1, and the paired `input_script` declares `bond_style harmonic` with `bond_coeff 1 <k> <r0>`
+- **THEN** the generator SHALL use k and r0 unchanged (no unit conversion) for that bond's intra-bead coefficient
+
+#### Scenario: LAMMPS-native AT fragment, dihedral coefficients
+- **WHEN** the `input_script` declares `dihedral_style ryckaert` with `dihedral_coeff <id> <C0> <C1> <C2> <C3> <C4> <C5>`
+- **THEN** the generator SHALL use the six coefficients unchanged as the intra-bead Ryckaert–Bellemans dihedral parameters, with no GROMACS RB→LAMMPS conversion applied
+
+#### Scenario: LAMMPS-native AT fragment, ignored cross pair-coeff
+- **WHEN** the `input_script` includes a `pair_coeff i j` line with `i != j`
+- **THEN** the generator SHALL ignore it and compute the corresponding cross-type LJ parameters via the existing arithmetic/geometric mixing, exactly as it does for the GROMACS path
+
+#### Scenario: Missing coefficient for a referenced type
+- **WHEN** the `data` file's `Bonds`/`Angles`/`Dihedrals` section references a type ID with no corresponding `bond_coeff`/`angle_coeff`/`dihedral_coeff` in the `input_script`
+- **THEN** the generator SHALL abort with an error naming the missing type ID
+
 #### Scenario: Native LAMMPS table passthrough for CG pair tables
 - **WHEN** `table_A_B.table` exists alongside the settings file and type names `A`/`B` (or, for a LAMMPS-native CG system, their numeric type-ID string equivalents) are listed in `simulation.table_groups`
 - **THEN** the generator SHALL use `table_A_B.table` directly without converting units or format, in preference to `table_A_B.xvg`
 
 #### Scenario: Unsupported format
-- **WHEN** the `cg_system.format` field specifies an unrecognized format
+- **WHEN** the `cg_system.format` or `molecules[].source.format` field specifies an unrecognized format
 - **THEN** the generator SHALL abort with: "Unsupported format 'X'. Supported formats: gromacs, lammps"
 
 ### Requirement: LAMMPS data file generation
@@ -732,8 +782,10 @@ The generator SHALL be implemented in phases. The YAML schema supports all featu
 
 **Phase 4** — Format flexibility:
 - LAMMPS-native CG system (`data` file: box, `Masses`, `Atoms # full`; `.table` pair passthrough) — **implemented**
-- Non-GROMACS AT-fragment source formats (LAMMPS, PDB, XYZ) — deferred; LAMMPS AT-fragment input additionally blocked on an atom-identity naming design (AT-fragment bead-mapping is name-keyed, unlike the CG side)
-- PDB/XYZ CG input formats — deferred
+- LAMMPS-native AT fragment (`data` file + bounded `input_script`; numeric atom-ID bead references), single-file/linear-engine sources only — **implemented**
+- PDB/XYZ CG or AT input formats — deferred
+- Degree-dependent (Phase 3) AT-fragment sources in LAMMPS format — deferred
+- GROMACS `[virtual_sites3]`-equivalent AT fragments in LAMMPS format — deferred (no direct LAMMPS construct)
 
 #### Scenario: Deferred feature used
 - **WHEN** the YAML contains `atoms_by_degree` (Phase 3 feature) in Phase 1
@@ -751,9 +803,13 @@ The generator SHALL be implemented in phases. The YAML schema supports all featu
 - **WHEN** `cg_system.format: lammps` is specified
 - **THEN** the generator SHALL process it as described in the "CG system section" requirement (no longer a deferred-feature error)
 
-#### Scenario: Phase 4 AT-fragment format before implementation
-- **WHEN** a `molecules[].source` entry specifies a non-GROMACS format
-- **THEN** the generator SHALL abort with: "Format 'X' is not yet supported for AT-fragment sources (planned for a future phase)"
+#### Scenario: Phase 4 AT-fragment format available
+- **WHEN** `molecules[0].source.format: lammps` is specified with `data`/`input_script` (single-file, linear engine)
+- **THEN** the generator SHALL process it as described in the "Molecules section — CG-AT mapping" and "Source file parsing" requirements (no longer a deferred-feature error)
+
+#### Scenario: Phase 4 AT-fragment format still deferred for network/degree-dependent use
+- **WHEN** `molecules[0].source.format: lammps` is combined with degree-dependent source files, or `prep.engine: network`
+- **THEN** the generator SHALL abort with: "cg_system/source format 'lammps' is not yet supported for degree-dependent or network-engine sources (planned for a future phase)"
 
 #### Scenario: PE validation in Phase 1
 - **WHEN** `backmap-prep` processes the PE example `settings.yaml` with 50 beads/chain, 2 atoms/bead, tabulated CG bonds and angles

@@ -121,15 +121,39 @@ class UnifiedSourceRow(BaseModel):
 class SourceFiles(BaseModel):
     """Source AT files for a molecule type."""
 
-    coordinates: str | list[DegreeSourceFile]
-    topology: str | list[DegreeSourceFile]
+    coordinates: str | list[DegreeSourceFile] | None = None
+    topology: str | list[DegreeSourceFile] | None = None
+    format: Literal["gromacs", "lammps"] = "gromacs"
+    data: str | None = None
+    input_script: str | None = None
 
     @field_validator("coordinates", "topology", mode="before")
     @classmethod
-    def normalize_source(cls, v: object) -> str | list[DegreeSourceFile]:
+    def normalize_source(cls, v: object) -> str | list[DegreeSourceFile] | None:
+        if v is None:
+            return None
         if isinstance(v, (str, list)):
             return _normalize_source_files(v)
         raise ValueError("coordinates and topology must be a path string or a list of file entries")
+
+    @model_validator(mode="after")
+    def check_format_requirements(self) -> SourceFiles:
+        if self.format == "gromacs":
+            if not self.coordinates or not self.topology:
+                raise ValueError(
+                    "molecules[].source format 'gromacs' requires 'coordinates' and 'topology'"
+                )
+        elif self.format == "lammps":
+            if not self.data or not self.input_script:
+                raise ValueError(
+                    "molecules[].source format 'lammps' requires 'data' and 'input_script'"
+                )
+            if isinstance(self.coordinates, list) or isinstance(self.topology, list):
+                raise ValueError(
+                    "molecules[].source format 'lammps' does not support degree-dependent "
+                    "(list) coordinates/topology"
+                )
+        return self
 
     @classmethod
     def from_unified_rows(cls, rows: list[UnifiedSourceRow]) -> SourceFiles:
@@ -455,6 +479,11 @@ class Settings(BaseModel):
                 raise ValueError(
                     "cg_system format 'lammps' is not yet supported for the network engine "
                     "(planned for a future phase; currently linear engine only)"
+                )
+            if any(mol.source.format == "lammps" for mol in self.molecules):
+                raise ValueError(
+                    "molecules[].source format 'lammps' is not yet supported for the network "
+                    "engine (planned for a future phase; currently linear engine only)"
                 )
         if self.simulation.two_phase:
             raise ValueError(

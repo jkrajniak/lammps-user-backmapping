@@ -112,10 +112,19 @@ def parse_data_file(path: Path) -> LAMMPSData:
     return data
 
 
+@dataclass
+class TypeMaps:
+    """Old (hybrid) -> new (AT-only) type ID maps, for recovering coefficients."""
+
+    bond: dict[int, int] = field(default_factory=dict)
+    angle: dict[int, int] = field(default_factory=dict)
+    dihedral: dict[int, int] = field(default_factory=dict)
+
+
 def extract_at(
     data: LAMMPSData,
     cg_types: set[int],
-) -> LAMMPSData:
+) -> tuple[LAMMPSData, TypeMaps]:
     """Filter out CG atoms and renumber everything."""
     out = LAMMPSData(header=data.header + " (AT-only, extracted from backmapped system)")
     out.box_bounds = list(data.box_bounds)
@@ -208,6 +217,32 @@ def extract_at(
         out.angles.append(new_line)
         n_angles += 1
 
+    # Remap dihedrals
+    n_dihedrals = 0
+    dihedral_type_map: dict[int, int] = {}
+    new_dihedral_type_id = 1
+    for dihedral_line in data.dihedrals:
+        dihedral_type = int(dihedral_line[1])
+        a1 = int(dihedral_line[2])
+        a2 = int(dihedral_line[3])
+        a3 = int(dihedral_line[4])
+        a4 = int(dihedral_line[5])
+        if any(a in cg_atom_ids for a in (a1, a2, a3, a4)):
+            continue
+        if dihedral_type not in dihedral_type_map:
+            dihedral_type_map[dihedral_type] = new_dihedral_type_id
+            new_dihedral_type_id += 1
+        new_line = [
+            str(n_dihedrals + 1),
+            str(dihedral_type_map[dihedral_type]),
+            str(old_to_new[a1]),
+            str(old_to_new[a2]),
+            str(old_to_new[a3]),
+            str(old_to_new[a4]),
+        ]
+        out.dihedrals.append(new_line)
+        n_dihedrals += 1
+
     # Update counts
     out.counts["atoms"] = len(out.atoms)
     out.counts["bonds"] = n_bonds
@@ -216,11 +251,12 @@ def extract_at(
     out.counts["bond types"] = len(bond_type_map)
     out.counts["angle types"] = len(angle_type_map)
     if "dihedrals" in data.counts:
-        out.counts["dihedrals"] = 0
+        out.counts["dihedrals"] = n_dihedrals
+        out.counts["dihedral types"] = len(dihedral_type_map)
     if "impropers" in data.counts:
         out.counts["impropers"] = 0
 
-    return out
+    return out, TypeMaps(bond=bond_type_map, angle=angle_type_map, dihedral=dihedral_type_map)
 
 
 def write_data_file(data: LAMMPSData, path: Path) -> None:
@@ -274,6 +310,14 @@ def write_data_file(data: LAMMPSData, path: Path) -> None:
             lines.append(" ".join(angle_line))
         lines.append("")
 
+    # Dihedrals
+    if data.dihedrals:
+        lines.append("Dihedrals")
+        lines.append("")
+        for dihedral_line in data.dihedrals:
+            lines.append(" ".join(dihedral_line))
+        lines.append("")
+
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -305,11 +349,15 @@ def main() -> int:
     )
     print(f"  CG types to remove: {cg_types}")
 
-    at_data = extract_at(data, cg_types)
+    at_data, type_maps = extract_at(data, cg_types)
     print(
         f"  AT-only: {at_data.counts['atoms']} atoms, "
-        f"{at_data.counts['bonds']} bonds, {at_data.counts['angles']} angles"
+        f"{at_data.counts['bonds']} bonds, {at_data.counts['angles']} angles, "
+        f"{at_data.counts.get('dihedrals', 0)} dihedrals"
     )
+    print(f"  bond type map (old->new): {type_maps.bond}")
+    print(f"  angle type map (old->new): {type_maps.angle}")
+    print(f"  dihedral type map (old->new): {type_maps.dihedral}")
 
     write_data_file(at_data, args.output)
     print(f"Wrote {args.output}")

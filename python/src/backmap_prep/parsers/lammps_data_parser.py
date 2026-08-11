@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from .gro_parser import GroAtom, GroFile
-from .top_parser import AtomType, MoleculeType, TopAtom, Topology
+from .lammps_script_parser import parse_at_fragment_script
+from .top_parser import AtomType, MoleculeType, TopAngle, TopAtom, TopBond, TopDihedral, Topology
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -127,7 +128,7 @@ def parse_lammps_data(path: Path) -> LammpsDataFile:
     return result
 
 
-_CG_SYSTEM_SECTIONS = frozenset(
+_DATA_FILE_SECTION_HEADERS = frozenset(
     {"Masses", "Atoms", "Bonds", "Angles", "Dihedrals", "Impropers", "Velocities"}
 )
 
@@ -162,7 +163,7 @@ def parse_cg_system(path: Path) -> tuple[GroFile, Topology]:
             continue
 
         header = stripped.split("#", 1)[0].strip()
-        if header in _CG_SYSTEM_SECTIONS:
+        if header in _DATA_FILE_SECTION_HEADERS:
             section = header
             continue
 
@@ -264,6 +265,205 @@ def parse_cg_system(path: Path) -> tuple[GroFile, Topology]:
         atom_types=atom_types,
         molecule_types={mol_name: MoleculeType(name=mol_name, nrexcl=0, atoms=template_atoms)},
         molecules=[(mol_name, n_molecules)],
+    )
+
+    return gro, top
+
+
+def parse_at_fragment(data_path: Path, script_path: Path) -> tuple[GroFile, Topology]:
+    """Parse a LAMMPS-native AT fragment (``molecules[].source.format: lammps``).
+
+    Unlike :func:`parse_cg_system`, the `data` file's ``Bonds``/``Angles``/
+    ``Dihedrals`` sections ARE read here: `builder.py` consumes
+    `at_mol.bonds`/`.angles`/`.dihedrals` directly to build the intra-bead
+    bond/angle/dihedral coefficients, unlike the CG side where the
+    equivalent sections are parsed but never consumed. Coefficients
+    themselves come from *script_path* (see
+    :func:`parsers.lammps_script_parser.parse_at_fragment_script`) — a
+    `data` file alone cannot supply them.
+
+    Each atom's LAMMPS atom ID (as a string) is used for ``TopAtom.name``,
+    mirroring how :func:`parse_cg_system` uses the numeric type ID for
+    ``TopAtom.type`` — this is what ``beads[].atoms`` entries reference for
+    a LAMMPS-native fragment, instead of a symbolic atom name.
+
+    Atom IDs SHALL be contiguous ``1..N`` with no gaps (matching how
+    ``at_mol.atoms[bond.i - 1]``-style indexing already assumes GROMACS
+    `.top` files number atoms 1..N via the ``nr`` column).
+
+    Coefficient values are used as-is, with no unit conversion (the
+    input script must declare ``units real``) and, for dihedrals, no
+    GROMACS RB-to-LAMMPS conversion (`dihedral_coeff` is already in this
+    package's native `dihedral_style ryckaert` form).
+    """
+    text = data_path.read_text()
+
+    masses: dict[int, float] = {}
+    # (atom_id, mol_id, type_id, charge, x, y, z)
+    atom_rows: list[tuple[int, int, int, float, float, float, float]] = []
+    bond_rows: list[tuple[int, int, int]] = []  # (type_id, i, j)
+    angle_rows: list[tuple[int, int, int, int]] = []  # (type_id, i, j, k)
+    dihedral_rows: list[tuple[int, int, int, int, int]] = []  # (type_id, i, j, k, l)
+    section: str | None = None
+
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+
+        header = stripped.split("#", 1)[0].strip()
+        if header in _DATA_FILE_SECTION_HEADERS:
+            section = header
+            continue
+
+        body = stripped.split("#", 1)[0].strip()
+        if not body:
+            continue
+
+        if section == "Masses":
+            parts = body.split()
+            masses[int(parts[0])] = float(parts[1])
+        elif section == "Atoms":
+            parts = body.split()
+            if len(parts) < 7:
+                raise ValueError(f"malformed 'Atoms' line in {data_path}: {raw_line!r}")
+            atom_rows.append(
+                (
+                    int(parts[0]),
+                    int(parts[1]),
+                    int(parts[2]),
+                    float(parts[3]),
+                    float(parts[4]),
+                    float(parts[5]),
+                    float(parts[6]),
+                )
+            )
+        elif section == "Bonds":
+            parts = body.split()
+            if len(parts) < 4:
+                raise ValueError(f"malformed 'Bonds' line in {data_path}: {raw_line!r}")
+            bond_rows.append((int(parts[1]), int(parts[2]), int(parts[3])))
+        elif section == "Angles":
+            parts = body.split()
+            if len(parts) < 5:
+                raise ValueError(f"malformed 'Angles' line in {data_path}: {raw_line!r}")
+            angle_rows.append((int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4])))
+        elif section == "Dihedrals":
+            parts = body.split()
+            if len(parts) < 6:
+                raise ValueError(f"malformed 'Dihedrals' line in {data_path}: {raw_line!r}")
+            dihedral_rows.append(
+                (int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5]))
+            )
+        # Impropers/Velocities: not read (builder.py has no AT-fragment improper handling).
+
+    if not masses:
+        raise ValueError(
+            f"LAMMPS data file {data_path} has no 'Masses' section "
+            "(required for molecules[].source.format: lammps)"
+        )
+    if not atom_rows:
+        raise ValueError(
+            f"LAMMPS data file {data_path} has no 'Atoms' section "
+            "(required for molecules[].source.format: lammps)"
+        )
+
+    atom_rows.sort(key=lambda r: r[0])
+    expected_ids = list(range(1, len(atom_rows) + 1))
+    if [row[0] for row in atom_rows] != expected_ids:
+        raise ValueError(
+            f"LAMMPS data file {data_path}: atom IDs must be contiguous 1..N with no gaps"
+        )
+
+    coeffs = parse_at_fragment_script(script_path)
+
+    # Namespaced distinctly from CG numeric type IDs ("1", "2", ...): builder.py
+    # keys its shared `type_map` dict by this string across CG and AT atoms in
+    # the same build, so an AT type and a CG type both named "1" would
+    # otherwise silently collide and merge into one type.
+    def _at_type_name(type_id: int) -> str:
+        return f"AT{type_id}"
+
+    gro_atoms = [
+        GroAtom(resid=mol_id, resname="AT", name=str(atom_id), index=i + 1, x=x, y=y, z=z)
+        for i, (atom_id, mol_id, _type_id, _charge, x, y, z) in enumerate(atom_rows)
+    ]
+    gro = GroFile(title=data_path.name, atoms=gro_atoms, box=(0.0, 0.0, 0.0))
+
+    top_atoms = [
+        TopAtom(
+            index=atom_id,
+            type=_at_type_name(type_id),
+            resid=mol_id,
+            resname="AT",
+            name=str(atom_id),
+            charge_group=mol_id,
+            charge=charge,
+            mass=masses.get(type_id, 0.0),
+        )
+        for (atom_id, mol_id, type_id, charge, _x, _y, _z) in atom_rows
+    ]
+
+    def _missing(kind: str, type_id: int) -> ValueError:
+        return ValueError(
+            f"LAMMPS data file {data_path} references {kind} type {type_id}, but "
+            f"{script_path} has no matching {kind}_coeff (required for "
+            "molecules[].source.format: lammps)"
+        )
+
+    top_bonds: list[TopBond] = []
+    for type_id, i, j in bond_rows:
+        if type_id not in coeffs.bond:
+            raise _missing("bond", type_id)
+        k, r0 = coeffs.bond[type_id]
+        top_bonds.append(TopBond(i=i, j=j, func=1, params=[r0, k]))
+
+    top_angles: list[TopAngle] = []
+    for type_id, i, j, k_idx in angle_rows:
+        if type_id not in coeffs.angle:
+            raise _missing("angle", type_id)
+        k, theta0 = coeffs.angle[type_id]
+        top_angles.append(TopAngle(i=i, j=j, k=k_idx, func=1, params=[theta0, k]))
+
+    top_dihedrals: list[TopDihedral] = []
+    for type_id, i, j, k_idx, l_idx in dihedral_rows:
+        if type_id not in coeffs.dihedral:
+            raise _missing("dihedral", type_id)
+        top_dihedrals.append(
+            TopDihedral(i=i, j=j, k=k_idx, atom_l=l_idx, func=3, params=coeffs.dihedral[type_id])
+        )
+
+    referenced_atom_types = {row[2] for row in atom_rows}
+    for type_id in referenced_atom_types:
+        if type_id not in coeffs.pair:
+            raise _missing("pair", type_id)
+
+    atom_types = {
+        _at_type_name(type_id): AtomType(
+            name=_at_type_name(type_id),
+            mass=masses.get(type_id, 0.0),
+            charge=0.0,
+            ptype="A",
+            sigma=coeffs.pair[type_id][1],
+            epsilon=coeffs.pair[type_id][0],
+        )
+        for type_id in referenced_atom_types
+    }
+
+    mol_name = "AT_FRAGMENT"
+    top = Topology(
+        atom_types=atom_types,
+        molecule_types={
+            mol_name: MoleculeType(
+                name=mol_name,
+                nrexcl=0,
+                atoms=top_atoms,
+                bonds=top_bonds,
+                angles=top_angles,
+                dihedrals=top_dihedrals,
+            )
+        },
+        molecules=[(mol_name, 1)],
     )
 
     return gro, top

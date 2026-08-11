@@ -71,11 +71,13 @@ Contains:
 - Complete bond, angle, and dihedral topology
 - Simulation box dimensions from the CG system
 
-The CG system itself can come from GROMACS `.gro`/`.top` (default) or a
-LAMMPS-native `data` file (`cg_system.format: lammps`) — see
-[Settings Reference: `cg_system`](../settings-reference.md#cg_system) and
-`examples/dodecane-lammps-cg/` for a worked example. AT fragments
-(`molecules[].source`) are GROMACS-only in either case.
+The CG system and the AT fragment (`molecules[].source`) can each
+independently come from GROMACS `.gro`/`.top` (default) or LAMMPS-native
+input (`format: lammps`) — a `data` file for the CG system, or a `data` +
+bounded input-script pair for the AT fragment. See [Settings Reference:
+`cg_system`](../settings-reference.md#cg_system) and [`molecules[].source`](../settings-reference.md#moleculessource).
+`examples/dodecane-lammps-cg/` demonstrates the CG-only case;
+`examples/pe-lammps/` demonstrates both at once (fully GROMACS-free).
 
 ### Input Script
 

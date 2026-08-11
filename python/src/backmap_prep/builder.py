@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from . import units
-from .parsers import parse_cg_system, parse_gro, parse_top
+from .parsers import parse_at_fragment, parse_cg_system, parse_gro, parse_top
 from .parsers.top_parser import resolve_dihedral_params, resolve_pair_lj_params
 from .schema import resolve_forcefield_dir
 
@@ -184,14 +184,38 @@ def build_system(
         if ff_dir is not None:
             forcefield_dirs.append(ff_dir)
 
-    assert isinstance(mol_def.source.coordinates, str)
-    assert isinstance(mol_def.source.topology, str)
-    at_gro = parse_gro(base_dir / mol_def.source.coordinates)
-    at_top = parse_top(
-        base_dir / mol_def.source.topology,
-        include_dirs=[base_dir],
-        forcefield_dirs=forcefield_dirs,
-    )
+    if mol_def.source.format == "lammps":
+        assert isinstance(mol_def.source.data, str)
+        assert isinstance(mol_def.source.input_script, str)
+        at_gro, at_top = parse_at_fragment(
+            base_dir / mol_def.source.data, base_dir / mol_def.source.input_script
+        )
+        # A LAMMPS-native AT fragment's data/script pair is already in `real`
+        # units, and dihedral_coeff is already in this package's native
+        # `dihedral_style ryckaert` form -- no conversion applied, unlike the
+        # GROMACS nm/kJ source (see the CG-side equivalent, cg_distance, for
+        # the same pattern applied to CG positions/box).
+        at_distance = lambda v: v  # noqa: E731
+        at_spring_bond = lambda v: v  # noqa: E731
+        at_spring_angle = lambda v: v  # noqa: E731
+        at_sigma = lambda v: v  # noqa: E731
+        at_epsilon = lambda v: v  # noqa: E731
+        at_rb_convert = lambda params: params  # noqa: E731
+    else:
+        assert isinstance(mol_def.source.coordinates, str)
+        assert isinstance(mol_def.source.topology, str)
+        at_gro = parse_gro(base_dir / mol_def.source.coordinates)
+        at_top = parse_top(
+            base_dir / mol_def.source.topology,
+            include_dirs=[base_dir],
+            forcefield_dirs=forcefield_dirs,
+        )
+        at_distance = units.distance
+        at_spring_bond = units.spring_bond
+        at_spring_angle = units.spring_angle
+        at_sigma = units.sigma
+        at_epsilon = units.epsilon
+        at_rb_convert = units.gromacs_rb_to_lammps
 
     if settings.cg_system.format == "lammps":
         assert isinstance(settings.cg_system.data, str)
@@ -282,8 +306,8 @@ def build_system(
             sig = 0.0
             eps = 0.0
             if atom.type in at_top.atom_types:
-                sig = units.sigma(at_top.atom_types[atom.type].sigma)
-                eps = units.epsilon(at_top.atom_types[atom.type].epsilon)
+                sig = at_sigma(at_top.atom_types[atom.type].sigma)
+                eps = at_epsilon(at_top.atom_types[atom.type].epsilon)
 
             sys.atom_types.append(
                 AtomTypeInfo(
@@ -354,8 +378,8 @@ def build_system(
         if not is_intra_cg_bond(ai.name, aj.name):
             continue
         if bond.func == 1 and len(bond.params) >= 2:
-            k_lammps = units.spring_bond(bond.params[1])
-            r0_lammps = units.distance(bond.params[0])
+            k_lammps = at_spring_bond(bond.params[1])
+            r0_lammps = at_distance(bond.params[0])
             key = ("harmonic", round(k_lammps, 6), round(r0_lammps, 6))
             if key not in intra_bond_params:
                 bond_type_counter += 1
@@ -471,7 +495,7 @@ def build_system(
         if not all_in_same:
             continue
         if angle.func == 1 and len(angle.params) >= 2:
-            k_lammps = units.spring_angle(angle.params[1])
+            k_lammps = at_spring_angle(angle.params[1])
             theta0 = angle.params[0]
             key = ("harmonic", round(k_lammps, 6), round(theta0, 4))
             if key not in intra_angle_params:
@@ -582,7 +606,7 @@ def build_system(
         )
         if func != 3:
             continue
-        rb = units.gromacs_rb_to_lammps(raw_params)
+        rb = at_rb_convert(raw_params)
         key = tuple(round(value, 8) for value in rb)
         if key not in intra_dihedral_params:
             dihedral_type_counter += 1
@@ -765,9 +789,9 @@ def build_system(
                         break
 
                 if at_gro_atom:
-                    dx = units.distance(at_gro_atom.x) - units.distance(at_gro.atoms[0].x)
-                    dy = units.distance(at_gro_atom.y) - units.distance(at_gro.atoms[0].y)
-                    dz = units.distance(at_gro_atom.z) - units.distance(at_gro.atoms[0].z)
+                    dx = at_distance(at_gro_atom.x) - at_distance(at_gro.atoms[0].x)
+                    dy = at_distance(at_gro_atom.y) - at_distance(at_gro.atoms[0].y)
+                    dz = at_distance(at_gro_atom.z) - at_distance(at_gro.atoms[0].z)
                     x = cx + dx
                     y = cy + dy
                     z = cz + dz
@@ -797,8 +821,8 @@ def build_system(
             if not is_intra_cg_bond(ai.name, aj.name):
                 continue
             if bond.func == 1 and len(bond.params) >= 2:
-                k_lammps = units.spring_bond(bond.params[1])
-                r0_lammps = units.distance(bond.params[0])
+                k_lammps = at_spring_bond(bond.params[1])
+                r0_lammps = at_distance(bond.params[0])
                 key = ("harmonic", round(k_lammps, 6), round(r0_lammps, 6))
                 bt_id = intra_bond_params.get(key)
                 if bt_id is None:
@@ -869,7 +893,7 @@ def build_system(
             if not all_in_same:
                 continue
             if angle.func == 1 and len(angle.params) >= 2:
-                k_lammps = units.spring_angle(angle.params[1])
+                k_lammps = at_spring_angle(angle.params[1])
                 theta0 = angle.params[0]
                 key = ("harmonic", round(k_lammps, 6), round(theta0, 4))
                 at_id = intra_angle_params.get(key)
@@ -934,7 +958,7 @@ def build_system(
             )
             if func != 3:
                 continue
-            rb = units.gromacs_rb_to_lammps(raw_params)
+            rb = at_rb_convert(raw_params)
             key = tuple(round(value, 8) for value in rb)
             dt_id = intra_dihedral_params.get(key)
             if dt_id is None:

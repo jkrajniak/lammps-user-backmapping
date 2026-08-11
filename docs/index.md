@@ -28,8 +28,9 @@ atomistic detail while maintaining thermodynamic consistency.
   proportional to mass
 - **Automated input generation** -- the `backmap-prep` CLI reads a YAML
   settings file and produces LAMMPS data files, input scripts, and interaction
-  tables from GROMACS topologies (the CG system can alternatively be supplied
-  as a native LAMMPS data file -- see [Settings Reference](settings-reference.md#cg_system))
+  tables from GROMACS topologies (the CG system and/or each molecule's AT
+  fragment can alternatively be supplied as native LAMMPS input -- see
+  [Settings Reference](settings-reference.md#cg_system))
 - **Restart support** -- per-atom lambda values are saved and restored across
   LAMMPS restarts
 

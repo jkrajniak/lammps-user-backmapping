@@ -14,10 +14,19 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   instead of GROMACS `.gro`/`.top`. No unit conversion is applied (the file
   is assumed to already be in `units real`); CG-CG bonded terms
   (`cross_interactions`) and nonbonded tables (`table_groups`) are
-  configured identically to the GROMACS path. AT fragments remain
-  GROMACS-only. The CG pair-table lookup also now prefers a `.table` file
-  over `.xvg` when both are present. See `examples/dodecane-lammps-cg/`
-  and [Settings Reference: `cg_system`](https://jkrajniak.github.io/lammps-user-backmapping/settings-reference/#cg_system).
+  configured identically to the GROMACS path. The CG pair-table lookup also
+  now prefers a `.table` file over `.xvg` when both are present. See
+  `examples/dodecane-lammps-cg/` and [Settings Reference: `cg_system`](https://jkrajniak.github.io/lammps-user-backmapping/settings-reference/#cg_system).
+- **`molecules[].source.format: lammps`**: each molecule's AT fragment can
+  now also be supplied as a native LAMMPS `data` file plus a bounded
+  input-script fragment (`bond_coeff`/`angle_coeff`/`dihedral_coeff`/
+  `pair_coeff`), instead of GROMACS `.gro`/`.top`. `beads[].atoms` then
+  reference the LAMMPS numeric atom ID (as a string) rather than a
+  symbolic atom name. Combined with `cg_system.format: lammps`, this makes
+  `backmap-prep` fully GROMACS-free. See `examples/pe-lammps/` and
+  [Settings Reference: `molecules[].source`](https://jkrajniak.github.io/lammps-user-backmapping/settings-reference/#moleculessource).
+  Not supported for degree-dependent (Phase 3) sources, the network engine,
+  or GROMACS-virtual-site AT fragments.
 
 ### Fixed
 
