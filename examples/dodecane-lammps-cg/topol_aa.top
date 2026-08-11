@@ -1,0 +1,65 @@
+; Self-contained dodecane AT topology (GROMOS-like united atom)
+; Explicit parameters — no external force field includes needed.
+
+[ defaults ]
+; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
+1         2          yes        1.0      1.0
+
+[ atomtypes ]
+; name    mass       charge  ptype  sigma(nm)   epsilon(kJ/mol)
+CH3       15.03500   0.000   A      0.3748      0.8672
+CH2       14.02700   0.000   A      0.3905      0.4937
+
+[ moleculetype ]
+; Name   nrexcl
+DOD      3
+
+[ atoms ]
+;  nr  type  resnr  residue  atom  cgnr  charge     mass
+   1   CH3   1      DOD      C1    1     0.00       15.03500
+   2   CH2   1      DOD      C2    2     0.00       14.02700
+   3   CH2   1      DOD      C3    3     0.00       14.02700
+   4   CH2   1      DOD      C4    4     0.00       14.02700
+   5   CH2   1      DOD      C5    5     0.00       14.02700
+   6   CH2   1      DOD      C6    6     0.00       14.02700
+   7   CH2   1      DOD      C7    7     0.00       14.02700
+   8   CH2   1      DOD      C8    8     0.00       14.02700
+   9   CH2   1      DOD      C9    9     0.00       14.02700
+  10   CH2   1      DOD      C10   10    0.00       14.02700
+  11   CH2   1      DOD      C11   11    0.00       14.02700
+  12   CH3   1      DOD      C12   12    0.00       15.03500
+
+[ bonds ]
+; i  j  func  r0(nm)    k(kJ/(mol*nm^2))
+1    2  1     0.1530    334720.0
+2    3  1     0.1530    334720.0
+3    4  1     0.1530    334720.0
+4    5  1     0.1530    334720.0
+5    6  1     0.1530    334720.0
+6    7  1     0.1530    334720.0
+7    8  1     0.1530    334720.0
+8    9  1     0.1530    334720.0
+9   10  1     0.1530    334720.0
+10  11  1     0.1530    334720.0
+11  12  1     0.1530    334720.0
+
+[ angles ]
+; i  j  k  func  theta0(deg)  k(kJ/(mol*rad^2))
+1    2  3  1     111.0        530.0
+2    3  4  1     111.0        530.0
+3    4  5  1     111.0        530.0
+4    5  6  1     111.0        530.0
+5    6  7  1     111.0        530.0
+6    7  8  1     111.0        530.0
+7    8  9  1     111.0        530.0
+8    9  10 1     111.0        530.0
+9   10  11 1     111.0        530.0
+10  11  12 1     111.0        530.0
+
+[ system ]
+; Name
+DOD
+
+[ molecules ]
+; Compound   #mols
+DOD          10

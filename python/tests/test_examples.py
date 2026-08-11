@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -12,7 +13,7 @@ from backmap_prep.cli import main
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 
-EXAMPLES = ["dodecane", "pe", "pe4", "pe_10", "pe_aa", "melamine"]
+EXAMPLES = ["dodecane", "dodecane-lammps-cg", "pe", "pe4", "pe_10", "pe_aa", "melamine"]
 
 
 @pytest.fixture(params=EXAMPLES)
@@ -118,3 +119,54 @@ class TestDeterministicOutput:
             assert f1.read_text() == f2.read_text(), (
                 f"Non-deterministic output for {example_name}/{f1.name}"
             )
+
+
+class TestLammpsNativeCgParity:
+    """dodecane-lammps-cg must build to the same hybrid system as dodecane.
+
+    dodecane-lammps-cg/dodecane_cg.data was derived (see its README) from a
+    hybrid build of dodecane/'s current cg_conf.gro/topol_cg.top, so a fresh
+    build of both examples should differ only in the cosmetic type-name
+    convention (A/B vs the LAMMPS numeric type IDs "1"/"2") documented there.
+    """
+
+    _NAME_SUBS: ClassVar[dict[str, str]] = {
+        "# A (CG)": "# 1 (CG)",
+        "# B (CG)": "# 2 (CG)",
+        "table_A_A": "table_1_1",
+        "table_A_B": "table_1_2",
+        "table_B_B": "table_2_2",
+    }
+
+    def _normalize(self, text: str) -> str:
+        for old, new in self._NAME_SUBS.items():
+            text = text.replace(old, new)
+        return text
+
+    def _build(self, name: str, tmp_path: Path) -> Path:
+        src = EXAMPLES_DIR / name
+        dst = tmp_path / name
+        shutil.copytree(src, dst)
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(dst)
+            main([str(dst / "settings.yaml")])
+        finally:
+            os.chdir(old_cwd)
+        return dst
+
+    def test_hybrid_data_matches_after_type_name_normalization(self, tmp_path: Path) -> None:
+        gromacs_dir = self._build("dodecane", tmp_path)
+        lammps_dir = self._build("dodecane-lammps-cg", tmp_path)
+
+        gromacs_data = self._normalize((gromacs_dir / "dodecane.data").read_text())
+        lammps_data = (lammps_dir / "dodecane.data").read_text()
+        assert gromacs_data == lammps_data
+
+    def test_input_script_matches_after_type_name_normalization(self, tmp_path: Path) -> None:
+        gromacs_dir = self._build("dodecane", tmp_path)
+        lammps_dir = self._build("dodecane-lammps-cg", tmp_path)
+
+        gromacs_in = self._normalize((gromacs_dir / "in.dodecane").read_text())
+        lammps_in = (lammps_dir / "in.dodecane").read_text()
+        assert gromacs_in == lammps_in
