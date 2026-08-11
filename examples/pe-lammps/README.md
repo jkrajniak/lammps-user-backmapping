@@ -58,14 +58,37 @@ exactly on molecule ID, type, charge, and position, and `in.pe`'s
 coefficients match exactly (aside from the expected `table_A_A.table` vs
 `table_1_1.table` filename difference from the numeric-ID convention).
 
-The one cosmetic difference is per-atom PBC image flags (`ix iy iz`) for
+The one textual difference is per-atom PBC image flags (`ix iy iz`) for
 atoms whose molecule crosses a periodic boundary: 79 of 1500 atoms get a
-different (but self-consistent) image-flag assignment, because the
-post-build image-flag canonicalization walks the bond graph in
-enumeration order, and this example's AT-fragment bond enumeration order
-differs slightly from the GROMACS path's. The *wrapped* position is
-identical either way, and image flags are bookkeeping for trajectory
-unwrapping, not something LAMMPS's force computation depends on.
+different assignment than the GROMACS path, because the post-build
+image-flag canonicalization walks the bond graph in enumeration order,
+and this example's AT-fragment bond enumeration order differs slightly
+from the GROMACS path's. The *wrapped* position is identical either way.
+
+> **IMPORTANT CORRECTION:** this section originally called the image-flag
+> difference "self-consistent" and "not something LAMMPS's force
+> computation depends on." That was wrong, and was not verified before
+> being written — see the debugging-discipline lesson below. Running this
+> example on a real LAMMPS build (the project's compute VM) crashes at step 2 with
+> `WARNING: Inconsistent image flags` followed by `ERROR: Bond atoms ...
+> missing`. Checking the unwrapped bond lengths directly (`x + ix*box`)
+> confirms 34/1480 bonds have a genuinely inconsistent image-flag pair
+> (one endpoint off by one box length from what its bonded partner
+> implies) — not a benign canonicalization choice.
+>
+> Critically: **running the unmodified `../pe/` GROMACS-path build on the
+> same LAMMPS binary reproduces the identical failure** (35/1480 bad
+> bonds, crashes with the same warning a few steps into the second `run`
+> block). This is a pre-existing bug in `network/pbc.py`'s image-flag
+> assignment (`prepare_network_coordinates`/`_assign_image_flags_by_bond_tree`),
+> not something this LAMMPS-native-input feature introduced or made
+> materially worse (34 vs 35 bad bonds) — it was simply never exercised by
+> a full, real LAMMPS run of `examples/pe/` before. Out of scope for this
+> change to fix; tracked separately. The lesson: "positions match" is not
+> the same claim as "image flags are self-consistent," and the original
+> text asserted the second without checking it — exactly the kind of
+> unverified, convenient-sounding conclusion the project's debugging
+> discipline warns against.
 
 ## AT-fragment dihedral coverage note
 
