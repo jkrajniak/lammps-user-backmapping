@@ -20,6 +20,17 @@ logger = logging.getLogger(__name__)
 # LAMMPS pair_table requires rlo > 0 ("Invalid pair table lower boundary" if rlo <= 0).
 _PAIR_CORE_POWER = 12.0
 _PAIR_R_FLOOR = 1.0e-4  # Å — smallest allowed table lower bound
+# Ceiling on the extrapolated wall energy. An uncapped (r_min/r)^12 power law,
+# extended all the way down to _PAIR_R_FLOOR, blows up for tables whose usable
+# data doesn't already start close to the floor (e.g. r_min=0.02 Å gives
+# (0.02/0.0001)**12 ~ 4e27, producing a ~1e31 kcal/mol table entry) -- a value
+# LAMMPS's pair_style table spline does not handle gracefully near a poisoned
+# entry, causing simulations to blow up if minimization or a lambda ramp ever
+# samples that close-contact region. 1e6 kcal/mol reuses this module's own
+# existing "sufficiently repulsive" convention (the e_ref fallback below) --
+# still many orders of magnitude past any physically meaningful MD energy
+# scale, but small enough to stay numerically well-behaved.
+_PAIR_WALL_ENERGY_CAP = 1.0e6  # kcal/mol
 
 
 def extend_pair_table_to_zero(
@@ -71,12 +82,28 @@ def extend_pair_table_to_zero(
         if k > 1_000_000:
             raise ValueError("pair table core extension produced too many points")
 
+    # Below r_cap, switch from the power-law wall to a constant-force (linear
+    # energy) wall, continuous in both E and F at r_cap, so the extrapolated
+    # energy saturates at _PAIR_WALL_ENERGY_CAP instead of diverging as
+    # r -> r_floor. r_cap is where the pure power law would cross the cap;
+    # clamped to [r_floor, r_min] so it's a no-op when the power law never
+    # reaches the cap before r_floor (r_min already close to r_floor) and
+    # never extends the linear segment above the table's own original data.
+    r_cap = r_min * (e_ref / _PAIR_WALL_ENERGY_CAP) ** (1.0 / power)
+    r_cap = min(max(r_cap, r_floor), r_min)
+    e_at_cap = e_ref * (r_min / r_cap) ** power
+    f_at_cap = power * e_ref * (r_min**power) / (r_cap ** (power + 1.0))
+
     def wall_e(r: float) -> float:
-        return float(e_ref * (r_min / r) ** power)
+        if r >= r_cap:
+            return float(e_ref * (r_min / r) ** power)
+        return float(e_at_cap + f_at_cap * (r_cap - r))
 
     def wall_f(r: float) -> float:
         # F = -dE/dr for E = e_ref * (r_min/r)^n  → positive (repulsive)
-        return float(power * e_ref * (r_min**power) / (r ** (power + 1.0)))
+        if r >= r_cap:
+            return float(power * e_ref * (r_min**power) / (r ** (power + 1.0)))
+        return float(f_at_cap)
 
     new_r = extra_r + list(r_vals)
     new_e = [wall_e(r) for r in extra_r] + list(e_vals)
@@ -157,21 +184,24 @@ def convert_tables(
                 _convert_xvg(src_path, dst_path, skip_zero=skip_zero, extend_core=(kind == "pair"))
             converted.append(dst_path)
         elif suffix == ".table":
-            if kind == "pair":
-                r_vals, e_vals, f_vals = parse_lammps_pair_table(src_path)
-                if r_vals[0] > _PAIR_R_FLOOR:
-                    logger.warning(
-                        "Pair table %s starts at r_min=%.4f Å. "
-                        "Extending down to r=%.1e Å with a steep repulsive wall "
-                        "so LAMMPS does not abort on 'Pair distance < table "
-                        "inner cutoff' (ESPResSo++ clamps; LAMMPS forbids rlo=0).",
-                        src_path.name,
-                        r_vals[0],
-                        _PAIR_R_FLOOR,
-                    )
-                r_vals, e_vals, f_vals = extend_pair_table_to_zero(r_vals, e_vals, f_vals)
-                write_lammps_pair_table(dst_path, r_vals, e_vals, f_vals, source=src_path.name)
-            elif src_path != dst_path:
+            # A .table file is already native LAMMPS format -- pass it through
+            # unchanged for every kind, including pair. Pair tables used to be
+            # re-parsed and run through extend_pair_table_to_zero() even when
+            # already in .table format, on the theory that this made a missing
+            # low-r wall safe to add. In practice, inserting a single
+            # extension point far below the table's existing r spacing (e.g.
+            # r_floor=1e-4 prepended to a table starting at r_min=0.02, a 200x
+            # gap versus its uniform 0.02 internal spacing) corrupts LAMMPS's
+            # cubic-spline fit for pair_style table badly enough to
+            # destabilize a real simulation within a few steps, independent
+            # of how large the extrapolated wall energy is (found running
+            # examples/pe-lammps/ on a real LAMMPS build: capping the wall
+            # energy at a sane ceiling did not fix the crash; using the
+            # untouched source .table file did). If a .table file's r_min is
+            # genuinely too large for the pair distances a run will sample,
+            # LAMMPS's own "Pair distance < table inner cutoff" error is a
+            # clearer, more actionable failure than a silently corrupted fit.
+            if src_path != dst_path:
                 import shutil
 
                 shutil.copy2(src_path, dst_path)
