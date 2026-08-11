@@ -13,8 +13,11 @@ Before starting, make sure you have:
 - A coarse-grained simulation of your system (coordinates + topology)
 - An atomistic reference for your molecule (coordinates + topology)
 
-Both coordinate and topology files must be in GROMACS format (`.gro` and
-`.top` files).
+The AT reference (coordinate and topology) must be in GROMACS format
+(`.gro` and `.top` files). The CG simulation's coordinate/topology can also
+be GROMACS format (used in this tutorial); a native LAMMPS `data` file is
+an alternative for the CG side only -- see the note in
+[Step 3](#step-3-specify-the-cg-system-files).
 
 ## Step 1: Prepare Your Input Files
 
@@ -111,6 +114,15 @@ cg_system:
   topology: topol_cg.top
   format: gromacs
 ```
+
+!!! note
+    If your CG system was equilibrated in LAMMPS rather than GROMACS, you
+    can supply it as a native LAMMPS `data` file instead: `cg_system: {format:
+    lammps, data: cg_system.data}`. Bead `type` values then reference the
+    LAMMPS numeric type IDs (as strings) rather than symbolic names -- see
+    [Settings Reference: `cg_system`](settings-reference.md#cg_system) and
+    `examples/dodecane-lammps-cg/` for a full worked example. The AT
+    reference above stays GROMACS-format either way.
 
 ## Step 4: Define Cross Interactions
 

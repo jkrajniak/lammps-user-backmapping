@@ -150,7 +150,7 @@ for details.
 The YAML settings file defines:
 
 - **molecules** — CG bead definitions and their constituent AT atoms
-- **cg_system** — paths to CG coordinate and topology files (GROMACS format)
+- **cg_system** — paths to CG coordinate and topology files (GROMACS `.gro`/`.top`, or a native LAMMPS `data` file)
 - **cross_interactions** — cross-CG bonds, angles, and dihedrals with parameters
 - **simulation** — backmapping parameters (alpha, timestep, temperature, cutoffs, …)
 - **output** — output prefix and format
