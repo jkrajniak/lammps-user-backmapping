@@ -9,7 +9,11 @@ if TYPE_CHECKING:
 
 import pytest
 
-from backmap_prep.parsers.lammps_data_parser import parse_cg_system, parse_lammps_data
+from backmap_prep.parsers.lammps_data_parser import (
+    parse_at_fragment,
+    parse_cg_system,
+    parse_lammps_data,
+)
 
 SAMPLE_DATA = """\
 LAMMPS data file — test
@@ -207,3 +211,197 @@ class TestParseCgSystem:
         p.write_text(CG_SYSTEM_DATA_UNEVEN)
         with pytest.raises(ValueError, match="not a multiple"):
             parse_cg_system(p)
+
+
+AT_FRAGMENT_DATA = """\
+LAMMPS data file -- AT fragment test (4-atom chain)
+
+4 atoms
+3 bonds
+2 angles
+1 dihedrals
+
+2 atom types
+1 bond types
+1 angle types
+1 dihedral types
+
+0.0 50.0 xlo xhi
+0.0 50.0 ylo yhi
+0.0 50.0 zlo zhi
+
+Masses
+
+1 15.035
+2 14.027
+
+Atoms # full
+
+1 1 1 0.0 0.0 0.0 0.0
+2 1 2 0.0 1.5 0.0 0.0
+3 1 2 0.0 3.0 0.0 0.0
+4 1 1 0.0 4.5 0.0 0.0
+
+Bonds
+
+1 1 1 2
+2 1 2 3
+3 1 3 4
+
+Angles
+
+1 1 1 2 3
+2 1 2 3 4
+
+Dihedrals
+
+1 1 1 2 3 4
+"""
+
+AT_FRAGMENT_SCRIPT = """\
+units real
+pair_style lj/cut 14.0
+pair_coeff 1 1 0.207 3.748
+pair_coeff 2 2 0.118 3.905
+bond_style harmonic
+bond_coeff 1 800.0 1.53
+angle_style harmonic
+angle_coeff 1 126.6 111.0
+dihedral_style ryckaert
+dihedral_coeff 1 9.27 12.15 -13.12 -3.06 26.24 -13.49
+"""
+
+AT_FRAGMENT_DATA_NO_MASSES = AT_FRAGMENT_DATA.replace("Masses\n\n1 15.035\n2 14.027\n\n", "")
+
+AT_FRAGMENT_DATA_NO_ATOMS = """\
+LAMMPS data file -- no atoms section
+
+0.0 10.0 xlo xhi
+0.0 10.0 ylo yhi
+0.0 10.0 zlo zhi
+
+Masses
+
+1 15.035
+"""
+
+AT_FRAGMENT_DATA_GAP = AT_FRAGMENT_DATA.replace(
+    "4 1 1 0.0 4.5 0.0 0.0\n", "5 1 1 0.0 4.5 0.0 0.0\n"
+)
+
+
+class TestParseAtFragment:
+    def test_parses_atom_count(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        gro, top = parse_at_fragment(dp, sp)
+        assert len(gro.atoms) == 4
+        mol = next(iter(top.molecule_types.values()))
+        assert len(mol.atoms) == 4
+
+    def test_atom_name_is_numeric_id(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        _gro, top = parse_at_fragment(dp, sp)
+        mol = next(iter(top.molecule_types.values()))
+        assert [a.name for a in mol.atoms] == ["1", "2", "3", "4"]
+
+    def test_atom_types_namespaced_distinct_from_cg(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        _gro, top = parse_at_fragment(dp, sp)
+        # Must not collide with parse_cg_system's bare "1"/"2" type-name convention.
+        assert set(top.atom_types) == {"AT1", "AT2"}
+
+    def test_bond_params_are_r0_k_order(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        _gro, top = parse_at_fragment(dp, sp)
+        mol = next(iter(top.molecule_types.values()))
+        bond = mol.bonds[0]
+        assert bond.func == 1
+        assert bond.params == pytest.approx([1.53, 800.0])
+
+    def test_angle_params_are_theta0_k_order(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        _gro, top = parse_at_fragment(dp, sp)
+        mol = next(iter(top.molecule_types.values()))
+        angle = mol.angles[0]
+        assert angle.func == 1
+        assert angle.params == pytest.approx([111.0, 126.6])
+
+    def test_dihedral_params_passed_through_unconverted(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        _gro, top = parse_at_fragment(dp, sp)
+        mol = next(iter(top.molecule_types.values()))
+        dihedral = mol.dihedrals[0]
+        assert dihedral.func == 3
+        assert dihedral.params == pytest.approx([9.27, 12.15, -13.12, -3.06, 26.24, -13.49])
+
+    def test_pair_sigma_epsilon_from_diagonal_pair_coeff(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        _gro, top = parse_at_fragment(dp, sp)
+        assert top.atom_types["AT1"].sigma == pytest.approx(3.748)
+        assert top.atom_types["AT1"].epsilon == pytest.approx(0.207)
+
+    def test_missing_masses_section_raises(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA_NO_MASSES)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        with pytest.raises(ValueError, match="Masses"):
+            parse_at_fragment(dp, sp)
+
+    def test_missing_atoms_section_raises(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA_NO_ATOMS)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        with pytest.raises(ValueError, match="Atoms"):
+            parse_at_fragment(dp, sp)
+
+    def test_non_contiguous_atom_ids_raise(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA_GAP)
+        sp.write_text(AT_FRAGMENT_SCRIPT)
+        with pytest.raises(ValueError, match="contiguous"):
+            parse_at_fragment(dp, sp)
+
+    def test_missing_bond_coeff_raises(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text("units real\n")
+        with pytest.raises(ValueError, match="bond type 1"):
+            parse_at_fragment(dp, sp)
+
+    def test_missing_pair_coeff_raises(self, tmp_path: Path) -> None:
+        dp = tmp_path / "at.data"
+        sp = tmp_path / "at.in"
+        dp.write_text(AT_FRAGMENT_DATA)
+        sp.write_text(
+            "units real\n"
+            "bond_style harmonic\nbond_coeff 1 800.0 1.53\n"
+            "angle_style harmonic\nangle_coeff 1 126.6 111.0\n"
+            "dihedral_style ryckaert\ndihedral_coeff 1 9.27 12.15 -13.12 -3.06 26.24 -13.49\n"
+        )
+        with pytest.raises(ValueError, match="pair type"):
+            parse_at_fragment(dp, sp)

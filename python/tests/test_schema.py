@@ -45,6 +45,37 @@ class TestSourceFiles:
         assert len(sf.coordinates) == 2
         assert sf.coordinates[1].when == "A1"
 
+    def test_lammps_format(self) -> None:
+        sf = SourceFiles(format="lammps", data="at.data", input_script="in.at")
+        assert sf.format == "lammps"
+        assert sf.data == "at.data"
+        assert sf.input_script == "in.at"
+
+    def test_gromacs_missing_coordinates_raises(self) -> None:
+        with pytest.raises(ValidationError, match="coordinates"):
+            SourceFiles(topology="at.top")
+
+    def test_gromacs_missing_topology_raises(self) -> None:
+        with pytest.raises(ValidationError, match="topology"):
+            SourceFiles(coordinates="at.gro")
+
+    def test_lammps_missing_data_raises(self) -> None:
+        with pytest.raises(ValidationError, match="'data'"):
+            SourceFiles(format="lammps", input_script="in.at")
+
+    def test_lammps_missing_input_script_raises(self) -> None:
+        with pytest.raises(ValidationError, match="'input_script'"):
+            SourceFiles(format="lammps", data="at.data")
+
+    def test_lammps_rejects_degree_dependent_coordinates(self) -> None:
+        with pytest.raises(ValidationError, match="degree-dependent"):
+            SourceFiles(
+                format="lammps",
+                data="at.data",
+                input_script="in.at",
+                coordinates=[{"file": "a.gro", "molecule_degree": 0}],
+            )
+
 
 class TestPrepConfig:
     def test_network_engine_with_bakery_xml(self) -> None:
@@ -148,6 +179,16 @@ class TestSettings:
         assert len(s.molecules) == 1
         assert s.molecules[0].name == "TestMol"
         assert isinstance(s.cross_interactions, CrossInteractions)
+
+    def test_network_engine_rejects_lammps_at_fragment(self, minimal_settings_dict: dict) -> None:
+        minimal_settings_dict["prep"] = {"engine": "network", "bakery_xml": "settings.xml"}
+        minimal_settings_dict["molecules"][0]["source"] = {
+            "format": "lammps",
+            "data": "at.data",
+            "input_script": "in.at",
+        }
+        with pytest.raises(ValidationError, match="network"):
+            Settings(**minimal_settings_dict)
 
     def test_atoms_by_degree_accepted(self, minimal_settings_dict: dict) -> None:
         minimal_settings_dict["molecules"][0]["beads"][0]["atoms_by_degree"] = [

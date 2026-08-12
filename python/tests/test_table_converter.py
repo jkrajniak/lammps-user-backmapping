@@ -57,6 +57,26 @@ class TestExtendPairTableToZero:
         assert e2[idx] == pytest.approx(1000.0)
         assert f2[idx] == pytest.approx(5000.0)
 
+    def test_wall_energy_capped_for_large_rmin_to_rfloor_gap(self) -> None:
+        # Regression test: table_A_A.table-shaped input (r_min=0.02, far from
+        # r_floor=1e-4) previously produced an uncapped (r_min/r)**12 wall of
+        # ~1.4e31 kcal/mol at the floor -- large enough to poison LAMMPS's
+        # pair_style table spline and destabilize a real simulation within a
+        # few steps (found running examples/pe-lammps/ on a real LAMMPS
+        # build). The wall must now saturate at a bounded ceiling instead.
+        r = [0.02, 0.04, 0.06]
+        e = [3334.63867905, 3213.94571597, 3097.24728647]
+        f = [6129.10296633, 5934.78481442, 5729.64978872]
+        r2, e2, f2 = extend_pair_table_to_zero(r, e, f)
+        assert r2[0] == pytest.approx(1.0e-4)
+        assert e2[0] < 1.0e8, f"wall energy {e2[0]:.3e} not bounded (was ~1.4e31 before the fix)"
+        assert e2[0] > e[0]  # still a real repulsive wall, just not exploding
+        assert f2[0] > 0.0
+        # Continuity at original r_min (the cap only changes the region below r_cap)
+        idx = r2.index(0.02)
+        assert e2[idx] == pytest.approx(3334.63867905)
+        assert f2[idx] == pytest.approx(6129.10296633)
+
     def test_roundtrip_parse_write(self, tmp_path: Path) -> None:
         path = tmp_path / "t.table"
         write_lammps_pair_table(path, [1.0e-4, 0.1], [1e6, 10.0], [1e7, 5.0], source="test")
@@ -295,3 +315,35 @@ class TestConvertTables:
         result = convert_tables(system, settings, tmp_path)
         assert len(result) == 1
         assert (tmp_path / "copy.table").read_text() == src.read_text()
+
+    def test_pair_table_format_is_pure_passthrough(self, tmp_path: Path) -> None:
+        # Regression test: pair .table sources used to be re-parsed and run
+        # through extend_pair_table_to_zero() even when already native
+        # format, which corrupted LAMMPS's pair_style table spline enough to
+        # crash a real simulation (see extend_pair_table_to_zero's docs and
+        # openspec history). A .table source is already native LAMMPS
+        # format -- copy it unchanged, exactly like bond/angle/dihedral
+        # .table sources already do, not re-extend it.
+        from backmap_prep.builder import System
+        from backmap_prep.schema import Settings
+
+        src = tmp_path / "table_A_A.table"
+        src.write_text("ENTRY\nN 3\n\n1 0.02 1000.0 5000.0\n2 0.04 100.0 400.0\n3 0.06 10.0 20.0\n")
+
+        settings_dict = {
+            "molecules": [
+                {
+                    "name": "M",
+                    "source": {"coordinates": "a.gro", "topology": "a.top"},
+                    "beads": [{"name": "B", "type": "C", "atoms": ["X"]}],
+                }
+            ],
+            "cg_system": {"coordinates": "c.gro", "topology": "c.top"},
+        }
+        settings = Settings(**settings_dict)
+        system = System()
+        system.pair_table_files = [("table_A_A.table", "table_1_1.table")]
+
+        result = convert_tables(system, settings, tmp_path)
+        assert len(result) == 1
+        assert (tmp_path / "table_1_1.table").read_text() == src.read_text()

@@ -1,0 +1,606 @@
+# PE backmapping settings -- fully LAMMPS-native variant.
+#
+# Identical to ../pe/settings.yaml except: cg_system and molecules[].source
+# both use format: lammps (a LAMMPS data file for cg_system, and a data +
+# bounded input_script pair for the AT fragment) instead of GROMACS
+# .gro/.top for either. Bead type and atom-reference values are LAMMPS
+# numeric type/atom IDs (as strings) rather than symbolic GROMACS names,
+# per the numeric-ID convention documented in
+# openspec/changes/lammps-native-at-fragment-input/design.md. See
+# ../pe/README.md for the physical system description.
+
+molecules:
+- name: PE
+  ident: PE
+  source: {format: lammps, data: pe_at.data, input_script: in.pe_at}
+  beads:
+  - name: A1
+    type: '1'
+    atoms: ['1:PE:1', '1:PE:2']
+  - name: B1
+    type: '2'
+    atoms: ['1:PE:3', '1:PE:4']
+  - name: B2
+    type: '2'
+    atoms: ['1:PE:5', '1:PE:6']
+  - name: B3
+    type: '2'
+    atoms: ['1:PE:7', '1:PE:8']
+  - name: B4
+    type: '2'
+    atoms: ['1:PE:9', '1:PE:10']
+  - name: B5
+    type: '2'
+    atoms: ['1:PE:11', '1:PE:12']
+  - name: B6
+    type: '2'
+    atoms: ['1:PE:13', '1:PE:14']
+  - name: B7
+    type: '2'
+    atoms: ['1:PE:15', '1:PE:16']
+  - name: B8
+    type: '2'
+    atoms: ['1:PE:17', '1:PE:18']
+  - name: B9
+    type: '2'
+    atoms: ['1:PE:19', '1:PE:20']
+  - name: B10
+    type: '2'
+    atoms: ['1:PE:21', '1:PE:22']
+  - name: B11
+    type: '2'
+    atoms: ['1:PE:23', '1:PE:24']
+  - name: B12
+    type: '2'
+    atoms: ['1:PE:25', '1:PE:26']
+  - name: B13
+    type: '2'
+    atoms: ['1:PE:27', '1:PE:28']
+  - name: B14
+    type: '2'
+    atoms: ['1:PE:29', '1:PE:30']
+  - name: B15
+    type: '2'
+    atoms: ['1:PE:31', '1:PE:32']
+  - name: B16
+    type: '2'
+    atoms: ['1:PE:33', '1:PE:34']
+  - name: B17
+    type: '2'
+    atoms: ['1:PE:35', '1:PE:36']
+  - name: B18
+    type: '2'
+    atoms: ['1:PE:37', '1:PE:38']
+  - name: B19
+    type: '2'
+    atoms: ['1:PE:39', '1:PE:40']
+  - name: B20
+    type: '2'
+    atoms: ['1:PE:41', '1:PE:42']
+  - name: B21
+    type: '2'
+    atoms: ['1:PE:43', '1:PE:44']
+  - name: B22
+    type: '2'
+    atoms: ['1:PE:45', '1:PE:46']
+  - name: B23
+    type: '2'
+    atoms: ['1:PE:47', '1:PE:48']
+  - name: B24
+    type: '2'
+    atoms: ['1:PE:49', '1:PE:50']
+  - name: B25
+    type: '2'
+    atoms: ['1:PE:51', '1:PE:52']
+  - name: B26
+    type: '2'
+    atoms: ['1:PE:53', '1:PE:54']
+  - name: B27
+    type: '2'
+    atoms: ['1:PE:55', '1:PE:56']
+  - name: B28
+    type: '2'
+    atoms: ['1:PE:57', '1:PE:58']
+  - name: B29
+    type: '2'
+    atoms: ['1:PE:59', '1:PE:60']
+  - name: B30
+    type: '2'
+    atoms: ['1:PE:61', '1:PE:62']
+  - name: B31
+    type: '2'
+    atoms: ['1:PE:63', '1:PE:64']
+  - name: B32
+    type: '2'
+    atoms: ['1:PE:65', '1:PE:66']
+  - name: B33
+    type: '2'
+    atoms: ['1:PE:67', '1:PE:68']
+  - name: B34
+    type: '2'
+    atoms: ['1:PE:69', '1:PE:70']
+  - name: B35
+    type: '2'
+    atoms: ['1:PE:71', '1:PE:72']
+  - name: B36
+    type: '2'
+    atoms: ['1:PE:73', '1:PE:74']
+  - name: B37
+    type: '2'
+    atoms: ['1:PE:75', '1:PE:76']
+  - name: B38
+    type: '2'
+    atoms: ['1:PE:77', '1:PE:78']
+  - name: B39
+    type: '2'
+    atoms: ['1:PE:79', '1:PE:80']
+  - name: B40
+    type: '2'
+    atoms: ['1:PE:81', '1:PE:82']
+  - name: B41
+    type: '2'
+    atoms: ['1:PE:83', '1:PE:84']
+  - name: B42
+    type: '2'
+    atoms: ['1:PE:85', '1:PE:86']
+  - name: B43
+    type: '2'
+    atoms: ['1:PE:87', '1:PE:88']
+  - name: B44
+    type: '2'
+    atoms: ['1:PE:89', '1:PE:90']
+  - name: B45
+    type: '2'
+    atoms: ['1:PE:91', '1:PE:92']
+  - name: B46
+    type: '2'
+    atoms: ['1:PE:93', '1:PE:94']
+  - name: B47
+    type: '2'
+    atoms: ['1:PE:95', '1:PE:96']
+  - name: B48
+    type: '2'
+    atoms: ['1:PE:97', '1:PE:98']
+  - name: A2
+    type: '1'
+    atoms: ['1:PE:99', '1:PE:100']
+cg_system: {format: lammps, data: pe_cg.data}
+cross_interactions:
+  bonds:
+  - params: 8 2 1.0
+    table: table_b2.xvg
+    pairs:
+    - ['PE:A1', 'PE:B1']
+    - ['PE:B48', 'PE:A2']
+    cg_bonded: true
+  - params: 8 1 1.0
+    table: table_b1.xvg
+    pairs:
+    - ['PE:B1', 'PE:B2']
+    - ['PE:B2', 'PE:B3']
+    - ['PE:B3', 'PE:B4']
+    - ['PE:B4', 'PE:B5']
+    - ['PE:B5', 'PE:B6']
+    - ['PE:B6', 'PE:B7']
+    - ['PE:B7', 'PE:B8']
+    - ['PE:B8', 'PE:B9']
+    - ['PE:B9', 'PE:B10']
+    - ['PE:B10', 'PE:B11']
+    - ['PE:B11', 'PE:B12']
+    - ['PE:B12', 'PE:B13']
+    - ['PE:B13', 'PE:B14']
+    - ['PE:B14', 'PE:B15']
+    - ['PE:B15', 'PE:B16']
+    - ['PE:B16', 'PE:B17']
+    - ['PE:B17', 'PE:B18']
+    - ['PE:B18', 'PE:B19']
+    - ['PE:B19', 'PE:B20']
+    - ['PE:B20', 'PE:B21']
+    - ['PE:B21', 'PE:B22']
+    - ['PE:B22', 'PE:B23']
+    - ['PE:B23', 'PE:B24']
+    - ['PE:B24', 'PE:B25']
+    - ['PE:B25', 'PE:B26']
+    - ['PE:B26', 'PE:B27']
+    - ['PE:B27', 'PE:B28']
+    - ['PE:B28', 'PE:B29']
+    - ['PE:B29', 'PE:B30']
+    - ['PE:B30', 'PE:B31']
+    - ['PE:B31', 'PE:B32']
+    - ['PE:B32', 'PE:B33']
+    - ['PE:B33', 'PE:B34']
+    - ['PE:B34', 'PE:B35']
+    - ['PE:B35', 'PE:B36']
+    - ['PE:B36', 'PE:B37']
+    - ['PE:B37', 'PE:B38']
+    - ['PE:B38', 'PE:B39']
+    - ['PE:B39', 'PE:B40']
+    - ['PE:B40', 'PE:B41']
+    - ['PE:B41', 'PE:B42']
+    - ['PE:B42', 'PE:B43']
+    - ['PE:B43', 'PE:B44']
+    - ['PE:B44', 'PE:B45']
+    - ['PE:B45', 'PE:B46']
+    - ['PE:B46', 'PE:B47']
+    - ['PE:B47', 'PE:B48']
+    cg_bonded: true
+  - params: 1 0.153 265000.0
+    pairs:
+    - ['PE:2', 'PE:3']
+    - ['PE:4', 'PE:5']
+    - ['PE:6', 'PE:7']
+    - ['PE:8', 'PE:9']
+    - ['PE:10', 'PE:11']
+    - ['PE:12', 'PE:13']
+    - ['PE:14', 'PE:15']
+    - ['PE:16', 'PE:17']
+    - ['PE:18', 'PE:19']
+    - ['PE:20', 'PE:21']
+    - ['PE:22', 'PE:23']
+    - ['PE:24', 'PE:25']
+    - ['PE:26', 'PE:27']
+    - ['PE:28', 'PE:29']
+    - ['PE:30', 'PE:31']
+    - ['PE:32', 'PE:33']
+    - ['PE:34', 'PE:35']
+    - ['PE:36', 'PE:37']
+    - ['PE:38', 'PE:39']
+    - ['PE:40', 'PE:41']
+    - ['PE:42', 'PE:43']
+    - ['PE:44', 'PE:45']
+    - ['PE:46', 'PE:47']
+    - ['PE:48', 'PE:49']
+    - ['PE:50', 'PE:51']
+    - ['PE:52', 'PE:53']
+    - ['PE:54', 'PE:55']
+    - ['PE:56', 'PE:57']
+    - ['PE:58', 'PE:59']
+    - ['PE:60', 'PE:61']
+    - ['PE:62', 'PE:63']
+    - ['PE:64', 'PE:65']
+    - ['PE:66', 'PE:67']
+    - ['PE:68', 'PE:69']
+    - ['PE:70', 'PE:71']
+    - ['PE:72', 'PE:73']
+    - ['PE:74', 'PE:75']
+    - ['PE:76', 'PE:77']
+    - ['PE:78', 'PE:79']
+    - ['PE:80', 'PE:81']
+    - ['PE:82', 'PE:83']
+    - ['PE:84', 'PE:85']
+    - ['PE:86', 'PE:87']
+    - ['PE:88', 'PE:89']
+    - ['PE:90', 'PE:91']
+    - ['PE:92', 'PE:93']
+    - ['PE:94', 'PE:95']
+    - ['PE:96', 'PE:97']
+    - ['PE:98', 'PE:99']
+  angles:
+  - params: 8 1 1.0
+    table: table_a1.xvg
+    triples:
+    - ['PE:A1', 'PE:B1', 'PE:B2']
+    - ['PE:B47', 'PE:B48', 'PE:A2']
+    cg_bonded: true
+  - params: 8 2 1.0
+    table: table_a2.xvg
+    triples:
+    - ['PE:B1', 'PE:B2', 'PE:B3']
+    - ['PE:B2', 'PE:B3', 'PE:B4']
+    - ['PE:B3', 'PE:B4', 'PE:B5']
+    - ['PE:B4', 'PE:B5', 'PE:B6']
+    - ['PE:B5', 'PE:B6', 'PE:B7']
+    - ['PE:B6', 'PE:B7', 'PE:B8']
+    - ['PE:B7', 'PE:B8', 'PE:B9']
+    - ['PE:B8', 'PE:B9', 'PE:B10']
+    - ['PE:B9', 'PE:B10', 'PE:B11']
+    - ['PE:B10', 'PE:B11', 'PE:B12']
+    - ['PE:B11', 'PE:B12', 'PE:B13']
+    - ['PE:B12', 'PE:B13', 'PE:B14']
+    - ['PE:B13', 'PE:B14', 'PE:B15']
+    - ['PE:B14', 'PE:B15', 'PE:B16']
+    - ['PE:B15', 'PE:B16', 'PE:B17']
+    - ['PE:B16', 'PE:B17', 'PE:B18']
+    - ['PE:B17', 'PE:B18', 'PE:B19']
+    - ['PE:B18', 'PE:B19', 'PE:B20']
+    - ['PE:B19', 'PE:B20', 'PE:B21']
+    - ['PE:B20', 'PE:B21', 'PE:B22']
+    - ['PE:B21', 'PE:B22', 'PE:B23']
+    - ['PE:B22', 'PE:B23', 'PE:B24']
+    - ['PE:B23', 'PE:B24', 'PE:B25']
+    - ['PE:B24', 'PE:B25', 'PE:B26']
+    - ['PE:B25', 'PE:B26', 'PE:B27']
+    - ['PE:B26', 'PE:B27', 'PE:B28']
+    - ['PE:B27', 'PE:B28', 'PE:B29']
+    - ['PE:B28', 'PE:B29', 'PE:B30']
+    - ['PE:B29', 'PE:B30', 'PE:B31']
+    - ['PE:B30', 'PE:B31', 'PE:B32']
+    - ['PE:B31', 'PE:B32', 'PE:B33']
+    - ['PE:B32', 'PE:B33', 'PE:B34']
+    - ['PE:B33', 'PE:B34', 'PE:B35']
+    - ['PE:B34', 'PE:B35', 'PE:B36']
+    - ['PE:B35', 'PE:B36', 'PE:B37']
+    - ['PE:B36', 'PE:B37', 'PE:B38']
+    - ['PE:B37', 'PE:B38', 'PE:B39']
+    - ['PE:B38', 'PE:B39', 'PE:B40']
+    - ['PE:B39', 'PE:B40', 'PE:B41']
+    - ['PE:B40', 'PE:B41', 'PE:B42']
+    - ['PE:B41', 'PE:B42', 'PE:B43']
+    - ['PE:B42', 'PE:B43', 'PE:B44']
+    - ['PE:B43', 'PE:B44', 'PE:B45']
+    - ['PE:B44', 'PE:B45', 'PE:B46']
+    - ['PE:B45', 'PE:B46', 'PE:B47']
+    - ['PE:B46', 'PE:B47', 'PE:B48']
+    cg_bonded: true
+  - params: 1 111.0 520.0
+    triples:
+    - ['PE:1', 'PE:2', 'PE:3']
+    - ['PE:2', 'PE:3', 'PE:4']
+    - ['PE:3', 'PE:4', 'PE:5']
+    - ['PE:4', 'PE:5', 'PE:6']
+    - ['PE:5', 'PE:6', 'PE:7']
+    - ['PE:6', 'PE:7', 'PE:8']
+    - ['PE:7', 'PE:8', 'PE:9']
+    - ['PE:8', 'PE:9', 'PE:10']
+    - ['PE:9', 'PE:10', 'PE:11']
+    - ['PE:10', 'PE:11', 'PE:12']
+    - ['PE:11', 'PE:12', 'PE:13']
+    - ['PE:12', 'PE:13', 'PE:14']
+    - ['PE:13', 'PE:14', 'PE:15']
+    - ['PE:14', 'PE:15', 'PE:16']
+    - ['PE:15', 'PE:16', 'PE:17']
+    - ['PE:16', 'PE:17', 'PE:18']
+    - ['PE:17', 'PE:18', 'PE:19']
+    - ['PE:18', 'PE:19', 'PE:20']
+    - ['PE:19', 'PE:20', 'PE:21']
+    - ['PE:20', 'PE:21', 'PE:22']
+    - ['PE:21', 'PE:22', 'PE:23']
+    - ['PE:22', 'PE:23', 'PE:24']
+    - ['PE:23', 'PE:24', 'PE:25']
+    - ['PE:24', 'PE:25', 'PE:26']
+    - ['PE:25', 'PE:26', 'PE:27']
+    - ['PE:26', 'PE:27', 'PE:28']
+    - ['PE:27', 'PE:28', 'PE:29']
+    - ['PE:28', 'PE:29', 'PE:30']
+    - ['PE:29', 'PE:30', 'PE:31']
+    - ['PE:30', 'PE:31', 'PE:32']
+    - ['PE:31', 'PE:32', 'PE:33']
+    - ['PE:32', 'PE:33', 'PE:34']
+    - ['PE:33', 'PE:34', 'PE:35']
+    - ['PE:34', 'PE:35', 'PE:36']
+    - ['PE:35', 'PE:36', 'PE:37']
+    - ['PE:36', 'PE:37', 'PE:38']
+    - ['PE:37', 'PE:38', 'PE:39']
+    - ['PE:38', 'PE:39', 'PE:40']
+    - ['PE:39', 'PE:40', 'PE:41']
+    - ['PE:40', 'PE:41', 'PE:42']
+    - ['PE:41', 'PE:42', 'PE:43']
+    - ['PE:42', 'PE:43', 'PE:44']
+    - ['PE:43', 'PE:44', 'PE:45']
+    - ['PE:44', 'PE:45', 'PE:46']
+    - ['PE:45', 'PE:46', 'PE:47']
+    - ['PE:46', 'PE:47', 'PE:48']
+    - ['PE:47', 'PE:48', 'PE:49']
+    - ['PE:48', 'PE:49', 'PE:50']
+    - ['PE:49', 'PE:50', 'PE:51']
+    - ['PE:50', 'PE:51', 'PE:52']
+    - ['PE:51', 'PE:52', 'PE:53']
+    - ['PE:52', 'PE:53', 'PE:54']
+    - ['PE:53', 'PE:54', 'PE:55']
+    - ['PE:54', 'PE:55', 'PE:56']
+    - ['PE:55', 'PE:56', 'PE:57']
+    - ['PE:56', 'PE:57', 'PE:58']
+    - ['PE:57', 'PE:58', 'PE:59']
+    - ['PE:58', 'PE:59', 'PE:60']
+    - ['PE:59', 'PE:60', 'PE:61']
+    - ['PE:60', 'PE:61', 'PE:62']
+    - ['PE:61', 'PE:62', 'PE:63']
+    - ['PE:62', 'PE:63', 'PE:64']
+    - ['PE:63', 'PE:64', 'PE:65']
+    - ['PE:64', 'PE:65', 'PE:66']
+    - ['PE:65', 'PE:66', 'PE:67']
+    - ['PE:66', 'PE:67', 'PE:68']
+    - ['PE:67', 'PE:68', 'PE:69']
+    - ['PE:68', 'PE:69', 'PE:70']
+    - ['PE:69', 'PE:70', 'PE:71']
+    - ['PE:70', 'PE:71', 'PE:72']
+    - ['PE:71', 'PE:72', 'PE:73']
+    - ['PE:72', 'PE:73', 'PE:74']
+    - ['PE:73', 'PE:74', 'PE:75']
+    - ['PE:74', 'PE:75', 'PE:76']
+    - ['PE:75', 'PE:76', 'PE:77']
+    - ['PE:76', 'PE:77', 'PE:78']
+    - ['PE:77', 'PE:78', 'PE:79']
+    - ['PE:78', 'PE:79', 'PE:80']
+    - ['PE:79', 'PE:80', 'PE:81']
+    - ['PE:80', 'PE:81', 'PE:82']
+    - ['PE:81', 'PE:82', 'PE:83']
+    - ['PE:82', 'PE:83', 'PE:84']
+    - ['PE:83', 'PE:84', 'PE:85']
+    - ['PE:84', 'PE:85', 'PE:86']
+    - ['PE:85', 'PE:86', 'PE:87']
+    - ['PE:86', 'PE:87', 'PE:88']
+    - ['PE:87', 'PE:88', 'PE:89']
+    - ['PE:88', 'PE:89', 'PE:90']
+    - ['PE:89', 'PE:90', 'PE:91']
+    - ['PE:90', 'PE:91', 'PE:92']
+    - ['PE:91', 'PE:92', 'PE:93']
+    - ['PE:92', 'PE:93', 'PE:94']
+    - ['PE:93', 'PE:94', 'PE:95']
+    - ['PE:94', 'PE:95', 'PE:96']
+    - ['PE:95', 'PE:96', 'PE:97']
+    - ['PE:96', 'PE:97', 'PE:98']
+    - ['PE:97', 'PE:98', 'PE:99']
+    - ['PE:98', 'PE:99', 'PE:100']
+  dihedrals:
+  - params: 8 1 1.0
+    table: table_d1.xvg
+    quadruples:
+    - ['PE:A1', 'PE:B1', 'PE:B2', 'PE:B3']
+    - ['PE:B1', 'PE:B2', 'PE:B3', 'PE:B4']
+    - ['PE:B2', 'PE:B3', 'PE:B4', 'PE:B5']
+    - ['PE:B3', 'PE:B4', 'PE:B5', 'PE:B6']
+    - ['PE:B4', 'PE:B5', 'PE:B6', 'PE:B7']
+    - ['PE:B5', 'PE:B6', 'PE:B7', 'PE:B8']
+    - ['PE:B6', 'PE:B7', 'PE:B8', 'PE:B9']
+    - ['PE:B7', 'PE:B8', 'PE:B9', 'PE:B10']
+    - ['PE:B8', 'PE:B9', 'PE:B10', 'PE:B11']
+    - ['PE:B9', 'PE:B10', 'PE:B11', 'PE:B12']
+    - ['PE:B10', 'PE:B11', 'PE:B12', 'PE:B13']
+    - ['PE:B11', 'PE:B12', 'PE:B13', 'PE:B14']
+    - ['PE:B12', 'PE:B13', 'PE:B14', 'PE:B15']
+    - ['PE:B13', 'PE:B14', 'PE:B15', 'PE:B16']
+    - ['PE:B14', 'PE:B15', 'PE:B16', 'PE:B17']
+    - ['PE:B15', 'PE:B16', 'PE:B17', 'PE:B18']
+    - ['PE:B16', 'PE:B17', 'PE:B18', 'PE:B19']
+    - ['PE:B17', 'PE:B18', 'PE:B19', 'PE:B20']
+    - ['PE:B18', 'PE:B19', 'PE:B20', 'PE:B21']
+    - ['PE:B19', 'PE:B20', 'PE:B21', 'PE:B22']
+    - ['PE:B20', 'PE:B21', 'PE:B22', 'PE:B23']
+    - ['PE:B21', 'PE:B22', 'PE:B23', 'PE:B24']
+    - ['PE:B22', 'PE:B23', 'PE:B24', 'PE:B25']
+    - ['PE:B23', 'PE:B24', 'PE:B25', 'PE:B26']
+    - ['PE:B24', 'PE:B25', 'PE:B26', 'PE:B27']
+    - ['PE:B25', 'PE:B26', 'PE:B27', 'PE:B28']
+    - ['PE:B26', 'PE:B27', 'PE:B28', 'PE:B29']
+    - ['PE:B27', 'PE:B28', 'PE:B29', 'PE:B30']
+    - ['PE:B28', 'PE:B29', 'PE:B30', 'PE:B31']
+    - ['PE:B29', 'PE:B30', 'PE:B31', 'PE:B32']
+    - ['PE:B30', 'PE:B31', 'PE:B32', 'PE:B33']
+    - ['PE:B31', 'PE:B32', 'PE:B33', 'PE:B34']
+    - ['PE:B32', 'PE:B33', 'PE:B34', 'PE:B35']
+    - ['PE:B33', 'PE:B34', 'PE:B35', 'PE:B36']
+    - ['PE:B34', 'PE:B35', 'PE:B36', 'PE:B37']
+    - ['PE:B35', 'PE:B36', 'PE:B37', 'PE:B38']
+    - ['PE:B36', 'PE:B37', 'PE:B38', 'PE:B39']
+    - ['PE:B37', 'PE:B38', 'PE:B39', 'PE:B40']
+    - ['PE:B38', 'PE:B39', 'PE:B40', 'PE:B41']
+    - ['PE:B39', 'PE:B40', 'PE:B41', 'PE:B42']
+    - ['PE:B40', 'PE:B41', 'PE:B42', 'PE:B43']
+    - ['PE:B41', 'PE:B42', 'PE:B43', 'PE:B44']
+    - ['PE:B42', 'PE:B43', 'PE:B44', 'PE:B45']
+    - ['PE:B43', 'PE:B44', 'PE:B45', 'PE:B46']
+    - ['PE:B44', 'PE:B45', 'PE:B46', 'PE:B47']
+    - ['PE:B45', 'PE:B46', 'PE:B47', 'PE:B48']
+    - ['PE:B46', 'PE:B47', 'PE:B48', 'PE:A2']
+    cg_bonded: true
+  - params: 3 9.2789 12.1557 -13.1201 -3.0597 26.2403 -13.4950
+    quadruples:
+    - ['PE:1', 'PE:2', 'PE:3', 'PE:4']
+    - ['PE:2', 'PE:3', 'PE:4', 'PE:5']
+    - ['PE:3', 'PE:4', 'PE:5', 'PE:6']
+    - ['PE:4', 'PE:5', 'PE:6', 'PE:7']
+    - ['PE:5', 'PE:6', 'PE:7', 'PE:8']
+    - ['PE:6', 'PE:7', 'PE:8', 'PE:9']
+    - ['PE:7', 'PE:8', 'PE:9', 'PE:10']
+    - ['PE:8', 'PE:9', 'PE:10', 'PE:11']
+    - ['PE:9', 'PE:10', 'PE:11', 'PE:12']
+    - ['PE:10', 'PE:11', 'PE:12', 'PE:13']
+    - ['PE:11', 'PE:12', 'PE:13', 'PE:14']
+    - ['PE:12', 'PE:13', 'PE:14', 'PE:15']
+    - ['PE:13', 'PE:14', 'PE:15', 'PE:16']
+    - ['PE:14', 'PE:15', 'PE:16', 'PE:17']
+    - ['PE:15', 'PE:16', 'PE:17', 'PE:18']
+    - ['PE:16', 'PE:17', 'PE:18', 'PE:19']
+    - ['PE:17', 'PE:18', 'PE:19', 'PE:20']
+    - ['PE:18', 'PE:19', 'PE:20', 'PE:21']
+    - ['PE:19', 'PE:20', 'PE:21', 'PE:22']
+    - ['PE:20', 'PE:21', 'PE:22', 'PE:23']
+    - ['PE:21', 'PE:22', 'PE:23', 'PE:24']
+    - ['PE:22', 'PE:23', 'PE:24', 'PE:25']
+    - ['PE:23', 'PE:24', 'PE:25', 'PE:26']
+    - ['PE:24', 'PE:25', 'PE:26', 'PE:27']
+    - ['PE:25', 'PE:26', 'PE:27', 'PE:28']
+    - ['PE:26', 'PE:27', 'PE:28', 'PE:29']
+    - ['PE:27', 'PE:28', 'PE:29', 'PE:30']
+    - ['PE:28', 'PE:29', 'PE:30', 'PE:31']
+    - ['PE:29', 'PE:30', 'PE:31', 'PE:32']
+    - ['PE:30', 'PE:31', 'PE:32', 'PE:33']
+    - ['PE:31', 'PE:32', 'PE:33', 'PE:34']
+    - ['PE:32', 'PE:33', 'PE:34', 'PE:35']
+    - ['PE:33', 'PE:34', 'PE:35', 'PE:36']
+    - ['PE:34', 'PE:35', 'PE:36', 'PE:37']
+    - ['PE:35', 'PE:36', 'PE:37', 'PE:38']
+    - ['PE:36', 'PE:37', 'PE:38', 'PE:39']
+    - ['PE:37', 'PE:38', 'PE:39', 'PE:40']
+    - ['PE:38', 'PE:39', 'PE:40', 'PE:41']
+    - ['PE:39', 'PE:40', 'PE:41', 'PE:42']
+    - ['PE:40', 'PE:41', 'PE:42', 'PE:43']
+    - ['PE:41', 'PE:42', 'PE:43', 'PE:44']
+    - ['PE:42', 'PE:43', 'PE:44', 'PE:45']
+    - ['PE:43', 'PE:44', 'PE:45', 'PE:46']
+    - ['PE:44', 'PE:45', 'PE:46', 'PE:47']
+    - ['PE:45', 'PE:46', 'PE:47', 'PE:48']
+    - ['PE:46', 'PE:47', 'PE:48', 'PE:49']
+    - ['PE:47', 'PE:48', 'PE:49', 'PE:50']
+    - ['PE:48', 'PE:49', 'PE:50', 'PE:51']
+    - ['PE:49', 'PE:50', 'PE:51', 'PE:52']
+    - ['PE:50', 'PE:51', 'PE:52', 'PE:53']
+    - ['PE:51', 'PE:52', 'PE:53', 'PE:54']
+    - ['PE:52', 'PE:53', 'PE:54', 'PE:55']
+    - ['PE:53', 'PE:54', 'PE:55', 'PE:56']
+    - ['PE:54', 'PE:55', 'PE:56', 'PE:57']
+    - ['PE:55', 'PE:56', 'PE:57', 'PE:58']
+    - ['PE:56', 'PE:57', 'PE:58', 'PE:59']
+    - ['PE:57', 'PE:58', 'PE:59', 'PE:60']
+    - ['PE:58', 'PE:59', 'PE:60', 'PE:61']
+    - ['PE:59', 'PE:60', 'PE:61', 'PE:62']
+    - ['PE:60', 'PE:61', 'PE:62', 'PE:63']
+    - ['PE:61', 'PE:62', 'PE:63', 'PE:64']
+    - ['PE:62', 'PE:63', 'PE:64', 'PE:65']
+    - ['PE:63', 'PE:64', 'PE:65', 'PE:66']
+    - ['PE:64', 'PE:65', 'PE:66', 'PE:67']
+    - ['PE:65', 'PE:66', 'PE:67', 'PE:68']
+    - ['PE:66', 'PE:67', 'PE:68', 'PE:69']
+    - ['PE:67', 'PE:68', 'PE:69', 'PE:70']
+    - ['PE:68', 'PE:69', 'PE:70', 'PE:71']
+    - ['PE:69', 'PE:70', 'PE:71', 'PE:72']
+    - ['PE:70', 'PE:71', 'PE:72', 'PE:73']
+    - ['PE:71', 'PE:72', 'PE:73', 'PE:74']
+    - ['PE:72', 'PE:73', 'PE:74', 'PE:75']
+    - ['PE:73', 'PE:74', 'PE:75', 'PE:76']
+    - ['PE:74', 'PE:75', 'PE:76', 'PE:77']
+    - ['PE:75', 'PE:76', 'PE:77', 'PE:78']
+    - ['PE:76', 'PE:77', 'PE:78', 'PE:79']
+    - ['PE:77', 'PE:78', 'PE:79', 'PE:80']
+    - ['PE:78', 'PE:79', 'PE:80', 'PE:81']
+    - ['PE:79', 'PE:80', 'PE:81', 'PE:82']
+    - ['PE:80', 'PE:81', 'PE:82', 'PE:83']
+    - ['PE:81', 'PE:82', 'PE:83', 'PE:84']
+    - ['PE:82', 'PE:83', 'PE:84', 'PE:85']
+    - ['PE:83', 'PE:84', 'PE:85', 'PE:86']
+    - ['PE:84', 'PE:85', 'PE:86', 'PE:87']
+    - ['PE:85', 'PE:86', 'PE:87', 'PE:88']
+    - ['PE:86', 'PE:87', 'PE:88', 'PE:89']
+    - ['PE:87', 'PE:88', 'PE:89', 'PE:90']
+    - ['PE:88', 'PE:89', 'PE:90', 'PE:91']
+    - ['PE:89', 'PE:90', 'PE:91', 'PE:92']
+    - ['PE:90', 'PE:91', 'PE:92', 'PE:93']
+    - ['PE:91', 'PE:92', 'PE:93', 'PE:94']
+    - ['PE:92', 'PE:93', 'PE:94', 'PE:95']
+    - ['PE:93', 'PE:94', 'PE:95', 'PE:96']
+    - ['PE:94', 'PE:95', 'PE:96', 'PE:97']
+    - ['PE:95', 'PE:96', 'PE:97', 'PE:98']
+    - ['PE:96', 'PE:97', 'PE:98', 'PE:99']
+    - ['PE:97', 'PE:98', 'PE:99', 'PE:100']
+simulation:
+  alpha: 0.0001
+  initial_resolution: 0.0
+  nonuniform_lambda: false
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  equilibration_steps: 10000
+  production_steps: 10000
+  temperature: 423.0
+  thermostat: langevin
+  thermostat_gamma: 30.0
+  thermostat_target: atomistic
+  lj_cutoff: 1.4
+  cg_cutoff: 1.4
+  coulomb_cutoff: 0.9
+  table_groups: ['1', '2']
+  exclusion_nrexcl: 3
+  energy_interval: 1000
+  trajectory_interval: 1000
+  rng_seed: 12345
+output: {prefix: pe, format: lammps, units: real}

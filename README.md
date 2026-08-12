@@ -149,7 +149,7 @@ for details.
 
 The YAML settings file defines:
 
-- **molecules** — CG bead definitions and their constituent AT atoms
+- **molecules** — CG bead definitions and their constituent AT atoms; each molecule's AT reference is GROMACS `.gro`/`.top` (default) or a native LAMMPS `data` file + input script
 - **cg_system** — paths to CG coordinate and topology files (GROMACS `.gro`/`.top`, or a native LAMMPS `data` file)
 - **cross_interactions** — cross-CG bonds, angles, and dihedrals with parameters
 - **simulation** — backmapping parameters (alpha, timestep, temperature, cutoffs, …)

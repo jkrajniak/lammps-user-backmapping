@@ -46,28 +46,88 @@ match residue names in topology files.
 
 ### `molecules[].source`
 
-Paths to the atomistic coordinate and topology files for this molecule type.
+The atomistic reference for this molecule type: a single-molecule template
+used to place AT atoms relative to each CG bead. Two formats are supported,
+selected by `molecules[].source.format`: `gromacs` (default) reads
+coordinates and topology from GROMACS `.gro`/`.top`; `lammps` reads a
+self-contained LAMMPS `data` file plus a bounded input-script fragment.
 
 #### `molecules[].source.coordinates`
 
 Path to the atomistic coordinate file (GROMACS `.gro` format). Relative paths
-are resolved from the settings file directory.
+are resolved from the settings file directory. Required when `format: gromacs`.
 
 | | |
 |---|---|
 | **Type** | `string` |
-| **Required** | yes |
+| **Required** | when `format: gromacs` |
 | **Example** | `dodecane_single.gro` |
 
 #### `molecules[].source.topology`
 
-Path to the atomistic topology file (GROMACS `.top` format).
+Path to the atomistic topology file (GROMACS `.top` format). Required when
+`format: gromacs`.
 
 | | |
 |---|---|
 | **Type** | `string` |
-| **Required** | yes |
+| **Required** | when `format: gromacs` |
 | **Example** | `topol_aa.top` |
+
+#### `molecules[].source.format`
+
+Input file format for the AT fragment.
+
+| | |
+|---|---|
+| **Type** | `"gromacs"` \| `"lammps"` |
+| **Default** | `"gromacs"` |
+
+#### `molecules[].source.data`
+
+Path to a LAMMPS `data` file supplying the AT fragment: box (unused),
+per-atom type/charge/mass (`Masses`, `Atoms # full`), and `Bonds`/`Angles`/
+`Dihedrals` connectivity by type ID — unlike `cg_system.data`, these
+sections **are** read (they drive intra-bead bond/angle/dihedral
+coefficients). Required when `format: lammps`. Atom IDs must be contiguous
+`1..N`. Values are read as-is, with no unit conversion — the file is
+assumed to already be in LAMMPS `real` units.
+
+| | |
+|---|---|
+| **Type** | `string` |
+| **Required** | when `format: lammps` |
+| **Example** | `pe_at.data` |
+
+#### `molecules[].source.input_script`
+
+Path to a bounded LAMMPS input-script fragment supplying the AT fragment's
+force-field coefficients: `bond_coeff` (`bond_style harmonic` only),
+`angle_coeff` (`angle_style harmonic` only), `dihedral_coeff`
+(`dihedral_style ryckaert` only — the package's own native style, so
+values are used as-is with no GROMACS RB conversion), and `pair_coeff i i`
+diagonal (self) entries (cross-type LJ is always computed via mixing, never
+read — a `pair_coeff i j` line with `i != j` is tolerated and ignored, so a
+real production script like an AT-only reference input can be reused
+as-is). Must declare `units real`. Any other `*_style` directive (e.g.
+`bond_style morse`) aborts with a named error; unrelated commands (`run`,
+`thermo`, `fix`, `neighbor`, ...) are ignored. Required when `format: lammps`.
+
+| | |
+|---|---|
+| **Type** | `string` |
+| **Required** | when `format: lammps` |
+| **Example** | `in.pe_at` |
+
+Not supported for `format: lammps`: degree-dependent (Phase 3,
+`atoms_by_degree`) sources, and GROMACS `[virtual_sites3]`-equivalent
+fragments (e.g. explicit-hydrogen water models) — no LAMMPS `data`-file
+construct maps onto a virtual/dummy interaction site, so such fragments
+must stay GROMACS-format.
+
+See `examples/pe-lammps/` for a complete worked example (both `cg_system`
+and `molecules[].source` in LAMMPS-native format, verified to build to a
+physically identical hybrid system as `examples/pe/`).
 
 ### `molecules[].beads`
 
@@ -103,13 +163,19 @@ identifier. `simulation.table_groups` must reference the same strings.
 #### `molecules[].beads[].atoms`
 
 List of AT atoms belonging to this bead. Each entry is a string in
-`RESID:RESNAME:ATOMNAME` format matching the topology file.
+`RESID:RESNAME:ATOMNAME` format matching the topology file. When the
+owning molecule's `source.format: lammps`, `ATOMNAME` MUST be the LAMMPS
+numeric atom ID (as a string) from the AT fragment `data` file's `Atoms`
+section, since a `data` file has no symbolic atom-name field — this
+mirrors the numeric-type-ID convention `cg_system.format: lammps` uses for
+`beads[].type`. `cross_interactions` entries that reference individual AT
+atoms (not bead names) use the same convention.
 
 | | |
 |---|---|
 | **Type** | `list[string]` |
 | **Required** | yes |
-| **Example** | `["1:DOD:C1", "1:DOD:C2"]` |
+| **Example** | `["1:DOD:C1", "1:DOD:C2"]` (GROMACS AT fragment) or `["1:DOD:1", "1:DOD:2"]` (LAMMPS-native AT fragment) |
 
 ### Example
 

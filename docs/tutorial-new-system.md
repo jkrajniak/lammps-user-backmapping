@@ -13,11 +13,11 @@ Before starting, make sure you have:
 - A coarse-grained simulation of your system (coordinates + topology)
 - An atomistic reference for your molecule (coordinates + topology)
 
-The AT reference (coordinate and topology) must be in GROMACS format
-(`.gro` and `.top` files). The CG simulation's coordinate/topology can also
-be GROMACS format (used in this tutorial); a native LAMMPS `data` file is
-an alternative for the CG side only -- see the note in
-[Step 3](#step-3-specify-the-cg-system-files).
+Both the AT reference and the CG simulation's coordinate/topology are
+GROMACS format in this tutorial (`.gro` and `.top` files). A native LAMMPS
+`data` file is an alternative for either side independently -- see the
+notes in [Step 2](#step-2-define-the-cg-to-at-mapping) (AT fragment) and
+[Step 3](#step-3-specify-the-cg-system-files) (CG system).
 
 ## Step 1: Prepare Your Input Files
 
@@ -98,6 +98,16 @@ molecules:
 
 Each bead entry maps a CG bead name to the AT atoms it contains. The `type`
 field groups beads that share the same non-bonded CG interactions.
+
+!!! note
+    If your AT reference comes from a LAMMPS-native workflow rather than
+    GROMACS, supply it as a `data` file plus a bounded force-field input
+    script instead: `source: {format: lammps, data: dodecane_at.data,
+    input_script: in.dodecane_at}`. `beads[].atoms` then reference the
+    LAMMPS numeric atom ID (as a string) rather than a symbolic atom name
+    -- see [Settings Reference: `molecules[].source`](settings-reference.md#moleculessource)
+    and `examples/pe-lammps/` for a full worked example (both CG system
+    and AT fragment in LAMMPS-native format).
 
 **Key decisions:**
 
