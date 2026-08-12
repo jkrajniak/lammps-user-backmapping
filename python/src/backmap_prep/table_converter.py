@@ -31,6 +31,21 @@ _PAIR_R_FLOOR = 1.0e-4  # Å — smallest allowed table lower bound
 # still many orders of magnitude past any physically meaningful MD energy
 # scale, but small enough to stay numerically well-behaved.
 _PAIR_WALL_ENERGY_CAP = 1.0e6  # kcal/mol
+# Maximum allowed r[i+1]/r[i] ratio for the extension points prepended below
+# r_min. A table whose real data is uniformly spaced (e.g. delta=0.02 Å) but
+# whose r_min sits far above r_floor (e.g. 0.02 Å vs. a 1e-4 Å floor, a 200x
+# gap) used to get exactly one extension point at r_floor, stepped by the
+# table's own uniform delta -- i.e. a single point 200x further from r_min
+# than any other adjacent pair in the table. Even with the energy cap above,
+# that one badly-conditioned knot is enough to corrupt LAMMPS's cubic-spline
+# fit for pair_style table near the low-r region (confirmed by reconstructing
+# the spline directly: the corruption is confined to roughly r_floor..0.2 Å,
+# but a real run's energy minimizer resolving an initial bad contact can
+# land exactly there -- examples/pe-lammps/README.md has the full trail).
+# Filling the gap with several log-spaced points instead, each within this
+# ratio of its neighbor, keeps the extension smooth enough for LAMMPS's
+# spline fit regardless of how large r_min/r_floor is.
+_PAIR_EXT_MAX_RATIO = 1.2
 
 
 def extend_pair_table_to_zero(
@@ -66,21 +81,16 @@ def extend_pair_table_to_zero(
     # Prefer a positive (repulsive) core; if e0 is tiny/negative, use a floor.
     e_ref = e0 if e0 > 1.0 else 1.0e6
 
-    delta = r_vals[1] - r_vals[0] if len(r_vals) >= 2 else r_min - r_floor
-    if delta <= 0.0:
-        delta = max(r_min - r_floor, r_floor)
-
-    # r_floor, then r_floor+delta, ... strictly below r_min
-    extra_r = [r_floor]
-    k = 1
-    while True:
-        rk = r_floor + k * delta
-        if rk >= r_min - 1e-15:
-            break
-        extra_r.append(rk)
-        k += 1
-        if k > 1_000_000:
-            raise ValueError("pair table core extension produced too many points")
+    # Log-spaced extension points from r_floor up to (but excluding) r_min, so
+    # that no two consecutive r values -- including the seam between the last
+    # extension point and r_min itself -- differ by more than
+    # _PAIR_EXT_MAX_RATIO. See the constant's docstring for why a single
+    # far-spaced knot is a problem even with the energy cap.
+    ratio_needed = r_min / r_floor
+    n_extra = max(1, math.ceil(math.log(ratio_needed) / math.log(_PAIR_EXT_MAX_RATIO)))
+    if n_extra > 100_000:
+        raise ValueError("pair table core extension produced too many points")
+    extra_r = [r_floor * (ratio_needed ** (i / n_extra)) for i in range(n_extra)]
 
     # Below r_cap, switch from the power-law wall to a constant-force (linear
     # energy) wall, continuous in both E and F at r_cap, so the extrapolated
