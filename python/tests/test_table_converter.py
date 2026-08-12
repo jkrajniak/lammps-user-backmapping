@@ -77,6 +77,30 @@ class TestExtendPairTableToZero:
         assert e2[idx] == pytest.approx(3334.63867905)
         assert f2[idx] == pytest.approx(6129.10296633)
 
+    def test_extension_points_are_log_spaced_not_one_far_knot(self) -> None:
+        # Regression test: a single extension point at r_floor=1e-4, jumping
+        # straight to r_min=0.02 (a 200x gap versus the table's own uniform
+        # 0.02 spacing), was found to corrupt LAMMPS's cubic-spline fit for
+        # pair_style table near the low-r region even with the energy cap in
+        # place (confirmed by reconstructing the spline directly against the
+        # melamine `table_A_A.table` evidence -- see
+        # examples/pe-lammps/README.md). Every consecutive pair of r values,
+        # including the seam into the table's real data, must now stay within
+        # a bounded ratio of each other.
+        r = [0.02, 0.04, 0.06]
+        e = [3334.63867905, 3213.94571597, 3097.24728647]
+        f = [6129.10296633, 5934.78481442, 5729.64978872]
+        r2, _e2, _f2 = extend_pair_table_to_zero(r, e, f)
+        assert r2[0] == pytest.approx(1.0e-4)
+        assert len(r2) > len(r) + 1, "expected more than one extension point for a 200x gap"
+        # Only the extension zone (up to and including the seam into r_min=0.02)
+        # is bounded by the ratio cap -- the original table's own point spacing
+        # beyond r_min (e.g. 0.02 -> 0.04, a 2x ratio near the origin) is
+        # untouched, pre-existing IBI data, not something this fix controls.
+        extension_zone = [r for r in r2 if r <= 0.02 + 1e-12]
+        ratios = [extension_zone[i + 1] / extension_zone[i] for i in range(len(extension_zone) - 1)]
+        assert max(ratios) <= 1.2 + 1e-9, f"largest consecutive ratio {max(ratios):.3f} exceeds cap"
+
     def test_roundtrip_parse_write(self, tmp_path: Path) -> None:
         path = tmp_path / "t.table"
         write_lammps_pair_table(path, [1.0e-4, 0.1], [1e6, 10.0], [1e7, 5.0], source="test")
