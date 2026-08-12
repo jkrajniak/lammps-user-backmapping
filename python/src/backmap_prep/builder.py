@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from . import units
-from .parsers import parse_gro, parse_top
+from .parsers import parse_cg_system, parse_gro, parse_top
 from .parsers.top_parser import resolve_dihedral_params, resolve_pair_lj_params
 from .schema import resolve_forcefield_dir
 
@@ -193,20 +193,31 @@ def build_system(
         forcefield_dirs=forcefield_dirs,
     )
 
-    cg_gro = parse_gro(base_dir / settings.cg_system.coordinates)
-    cg_top = parse_top(
-        base_dir / settings.cg_system.topology,
-        include_dirs=[base_dir],
-        forcefield_dirs=forcefield_dirs,
-    )
+    if settings.cg_system.format == "lammps":
+        assert isinstance(settings.cg_system.data, str)
+        cg_gro, cg_top = parse_cg_system(base_dir / settings.cg_system.data)
+        # A LAMMPS data file is already in `real` units (e.g. as written by
+        # `write_data` under `units real`); unlike the GROMACS nm/kJ source,
+        # no conversion is applied to CG positions/box read from it.
+        cg_distance = lambda v: v  # noqa: E731
+    else:
+        assert isinstance(settings.cg_system.coordinates, str)
+        assert isinstance(settings.cg_system.topology, str)
+        cg_gro = parse_gro(base_dir / settings.cg_system.coordinates)
+        cg_top = parse_top(
+            base_dir / settings.cg_system.topology,
+            include_dirs=[base_dir],
+            forcefield_dirs=forcefield_dirs,
+        )
+        cg_distance = units.distance
 
     if cg_override is not None:
         sys.box = cg_override.box
     else:
         sys.box = (
-            units.distance(cg_gro.box[0]),
-            units.distance(cg_gro.box[1]),
-            units.distance(cg_gro.box[2]),
+            cg_distance(cg_gro.box[0]),
+            cg_distance(cg_gro.box[1]),
+            cg_distance(cg_gro.box[2]),
         )
 
     # Determine molecule counts from CG topology
@@ -664,16 +675,23 @@ def build_system(
             if ti.name not in table_groups or tj.name not in table_groups:
                 continue
             name_a, name_b = sorted([ti.name, tj.name])
-            xvg_name = f"table_{name_a}_{name_b}.xvg"
-            if not (base_dir / xvg_name).exists():
-                xvg_name = f"table_{name_b}_{name_a}.xvg"
-                if not (base_dir / xvg_name).exists():
-                    continue
-            table_out = Path(xvg_name).stem + ".table"
+            src_name = None
+            for candidate in (
+                f"table_{name_a}_{name_b}.table",
+                f"table_{name_b}_{name_a}.table",
+                f"table_{name_a}_{name_b}.xvg",
+                f"table_{name_b}_{name_a}.xvg",
+            ):
+                if (base_dir / candidate).exists():
+                    src_name = candidate
+                    break
+            if src_name is None:
+                continue
+            table_out = Path(src_name).stem + ".table"
             pt.table_file = table_out
             pt.table_keyword = "ENTRY"
-            if (xvg_name, table_out) not in sys.pair_table_files:
-                sys.pair_table_files.append((xvg_name, table_out))
+            if (src_name, table_out) not in sys.pair_table_files:
+                sys.pair_table_files.append((src_name, table_out))
 
     # Build atoms and bonds for each molecule instance
     atom_id = 0
@@ -697,9 +715,9 @@ def build_system(
                 x, y, z = cg_override.positions[gro_idx]
             elif gro_idx < len(cg_gro.atoms):
                 ga = cg_gro.atoms[gro_idx]
-                x = units.distance(ga.x)
-                y = units.distance(ga.y)
-                z = units.distance(ga.z)
+                x = cg_distance(ga.x)
+                y = cg_distance(ga.y)
+                z = cg_distance(ga.z)
             else:
                 x = y = z = 0.0
 
@@ -725,9 +743,9 @@ def build_system(
             if cg_override is not None and cg_atom_gro_idx < len(cg_override.positions):
                 cx, cy, cz = cg_override.positions[cg_atom_gro_idx]
             elif cg_atom_gro_idx < len(cg_gro.atoms):
-                cx = units.distance(cg_gro.atoms[cg_atom_gro_idx].x)
-                cy = units.distance(cg_gro.atoms[cg_atom_gro_idx].y)
-                cz = units.distance(cg_gro.atoms[cg_atom_gro_idx].z)
+                cx = cg_distance(cg_gro.atoms[cg_atom_gro_idx].x)
+                cy = cg_distance(cg_gro.atoms[cg_atom_gro_idx].y)
+                cz = cg_distance(cg_gro.atoms[cg_atom_gro_idx].z)
             else:
                 cx = cy = cz = 0.0
 

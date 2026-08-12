@@ -179,10 +179,20 @@ class MoleculeDef(BaseModel):
 class CGSystem(BaseModel):
     """CG configuration files."""
 
-    coordinates: str
-    topology: str
-    format: Literal["gromacs"] = "gromacs"
+    coordinates: str | None = None
+    topology: str | None = None
+    data: str | None = None
+    format: Literal["gromacs", "lammps"] = "gromacs"
     predefined_active_sites: str | None = None
+
+    @model_validator(mode="after")
+    def check_format_requirements(self) -> CGSystem:
+        if self.format == "gromacs":
+            if not self.coordinates or not self.topology:
+                raise ValueError("cg_system format 'gromacs' requires 'coordinates' and 'topology'")
+        elif self.format == "lammps" and not self.data:
+            raise ValueError("cg_system format 'lammps' requires 'data'")
+        return self
 
 
 class CrossBond(BaseModel):
@@ -441,6 +451,11 @@ class Settings(BaseModel):
                     raise ValueError("network v2 prep requires cg_system")
                 if self.hybrid is None:
                     raise ValueError("network v2 prep requires hybrid output config")
+            if self.cg_system is not None and self.cg_system.format == "lammps":
+                raise ValueError(
+                    "cg_system format 'lammps' is not yet supported for the network engine "
+                    "(planned for a future phase; currently linear engine only)"
+                )
         if self.simulation.two_phase:
             raise ValueError(
                 "Feature 'two_phase' backmapping is not yet implemented (planned for Phase 2)"

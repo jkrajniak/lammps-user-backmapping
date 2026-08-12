@@ -7,6 +7,18 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Added
+
+- **`cg_system.format: lammps`**: the CG side of `backmap-prep` can now be
+  supplied as a native LAMMPS `data` file (box, `Masses`, `Atoms # full`)
+  instead of GROMACS `.gro`/`.top`. No unit conversion is applied (the file
+  is assumed to already be in `units real`); CG-CG bonded terms
+  (`cross_interactions`) and nonbonded tables (`table_groups`) are
+  configured identically to the GROMACS path. AT fragments remain
+  GROMACS-only. The CG pair-table lookup also now prefers a `.table` file
+  over `.xvg` when both are present. See `examples/dodecane-lammps-cg/`
+  and [Settings Reference: `cg_system`](https://jkrajniak.github.io/lammps-user-backmapping/settings-reference/#cg_system).
+
 ### Fixed
 
 - **`build_network_lammps` under-sized `comm_modify cutoff` for crosslinked

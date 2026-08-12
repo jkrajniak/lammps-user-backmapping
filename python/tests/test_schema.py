@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -122,6 +123,23 @@ class TestCGSystem:
         cg = CGSystem(coordinates="cg.gro", topology="cg.top")
         assert cg.format == "gromacs"
         assert cg.predefined_active_sites is None
+
+    def test_lammps_format(self) -> None:
+        cg = CGSystem(format="lammps", data="cg_system.data")
+        assert cg.format == "lammps"
+        assert cg.data == "cg_system.data"
+
+    def test_gromacs_missing_coordinates_raises(self) -> None:
+        with pytest.raises(ValidationError, match="coordinates"):
+            CGSystem(topology="cg.top")
+
+    def test_gromacs_missing_topology_raises(self) -> None:
+        with pytest.raises(ValidationError, match="topology"):
+            CGSystem(coordinates="cg.gro")
+
+    def test_lammps_missing_data_raises(self) -> None:
+        with pytest.raises(ValidationError, match="'data'"):
+            CGSystem(format="lammps")
 
 
 class TestSettings:

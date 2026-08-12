@@ -330,6 +330,12 @@ def _cmd_finalize_cg(args: argparse.Namespace) -> int:
     if not args.no_gro:
         if settings.cg_system is None:
             print("Warning: cg_system missing; skipped GRO export", file=sys.stderr)
+        elif settings.cg_system.coordinates is None:
+            print(
+                "Warning: cg_system has no GROMACS 'coordinates' template "
+                "(cg_system.format != 'gromacs'); skipped GRO export",
+                file=sys.stderr,
+            )
         else:
             template_gro = (out_dir / settings.cg_system.coordinates).resolve()
             gro_name = (

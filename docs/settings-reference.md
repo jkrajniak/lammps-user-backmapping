@@ -89,13 +89,16 @@ Used in cross-interaction references as `MOLECULE:BEAD` (e.g., `DOD:A1`).
 #### `molecules[].beads[].type`
 
 CG bead type identifier. Beads with the same type share non-bonded interaction
-parameters.
+parameters. When `cg_system.format: lammps`, this MUST be the LAMMPS numeric
+atom type ID from the CG `data` file's `Masses` section, as a string (e.g.
+`"1"`) — a `data` file has no symbolic type name, so the numeric ID is the
+identifier. `simulation.table_groups` must reference the same strings.
 
 | | |
 |---|---|
 | **Type** | `string` |
 | **Required** | yes |
-| **Example** | `A` |
+| **Example** | `A` (GROMACS CG system) or `"1"` (LAMMPS-native CG system) |
 
 #### `molecules[].beads[].atoms`
 
@@ -134,35 +137,66 @@ molecules:
 
 ## `cg_system`
 
-Specifies the coarse-grained system files.
+Specifies the coarse-grained system files. Two formats are supported,
+selected by `cg_system.format`: `gromacs` (default) reads coordinates and
+topology from GROMACS `.gro`/`.top`; `lammps` reads a self-contained LAMMPS
+`data` file instead.
+
+CG-CG bonded interactions (bonds/angles between beads) and nonbonded
+tabulated interactions are configured via `cross_interactions` and
+`simulation.table_groups` respectively, identically for both `cg_system`
+formats — neither is read from `cg_system` itself in either format.
 
 ### `cg_system.coordinates`
 
-Path to the CG coordinate file (GROMACS `.gro` format).
+Path to the CG coordinate file (GROMACS `.gro` format). Required when
+`format: gromacs`.
 
 | | |
 |---|---|
 | **Type** | `string` |
-| **Required** | yes |
+| **Required** | when `format: gromacs` |
 | **Example** | `cg_conf.gro` |
 
 ### `cg_system.topology`
 
-Path to the CG topology file (GROMACS `.top` format).
+Path to the CG topology file (GROMACS `.top` format). Required when
+`format: gromacs`.
 
 | | |
 |---|---|
 | **Type** | `string` |
-| **Required** | yes |
+| **Required** | when `format: gromacs` |
 | **Example** | `topol_cg.top` |
 
-### `cg_system.format`
+### `cg_system.data`
 
-Input file format. Currently only GROMACS format is supported.
+Path to a LAMMPS `data` file supplying the CG system: box bounds, a
+`Masses` section, and an `Atoms # full` section (atom ID, molecule ID,
+type ID, charge, x, y, z). Required when `format: lammps`.
+
+Values are read as-is, with **no unit conversion** — the file is assumed to
+already be in LAMMPS `real` units, e.g. as written by `write_data` under
+`units real`. Any `Bonds`/`Angles`/other sections in the file are tolerated
+but not read (see the note above `cg_system.coordinates`).
+
+Atoms must be ordered in contiguous per-molecule blocks (all of molecule
+1's atoms, then all of molecule 2's, ...) — the same ordering assumption
+`cg_system.coordinates` (`.gro`) already relies on.
 
 | | |
 |---|---|
-| **Type** | `"gromacs"` |
+| **Type** | `string` |
+| **Required** | when `format: lammps` |
+| **Example** | `cg_system.data` |
+
+### `cg_system.format`
+
+Input file format for the CG system.
+
+| | |
+|---|---|
+| **Type** | `"gromacs"` \| `"lammps"` |
 | **Default** | `"gromacs"` |
 
 ### Example
@@ -173,6 +207,19 @@ cg_system:
   topology: topol_cg.top
   format: gromacs
 ```
+
+or, for a LAMMPS-native CG system:
+
+```yaml
+cg_system:
+  format: lammps
+  data: cg_system.data
+```
+
+See `examples/dodecane-lammps-cg/` for a complete worked example (a
+LAMMPS-native CG system paired with the same GROMACS AT fragment and
+`cross_interactions` as `examples/dodecane/`, verified to build to a
+numerically identical hybrid system).
 
 ---
 
@@ -490,7 +537,10 @@ Coulomb interaction cutoff (nm).
 #### `simulation.table_groups`
 
 Pairs of CG bead types that interact via tabulated CG potentials. Used to
-set up the `pair_coeff` entries.
+set up the `pair_coeff` entries. Table files are looked up as
+`table_<a>_<b>.table` first, falling back to `table_<a>_<b>.xvg` (converted).
+When `cg_system.format: lammps`, use the numeric type-ID strings (e.g.
+`"1"`, `"2"`) here, matching `molecules[].beads[].type`.
 
 | | |
 |---|---|
