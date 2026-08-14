@@ -47,7 +47,7 @@ thermo_style custom step temp pe ke etotal press
 # tracks the CG→COM.
 fix integrate at_atoms nvt temp 298.0 298.0 100.0
 
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
 
 dump traj all custom 1000 dump.backmap id mol type x y z f_bm
 dump_modify traj sort id

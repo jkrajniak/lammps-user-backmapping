@@ -36,7 +36,7 @@ neigh_modify delay 0 every 1 check yes
 # Phase 0: Short relaxation
 fix freeze cg_atoms setforce 0.0 0.0 0.0
 fix relax at_atoms nve/limit 0.05
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
 
 timestep 0.10
 thermo 50
