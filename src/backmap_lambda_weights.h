@@ -41,7 +41,7 @@ namespace BackmapLambda {
 
 static constexpr double WEIGHT_ZERO_THRESHOLD = 1.0e-10;
 
-// Clamp lambda: negative values (from nonuniform init) → 0, cap at 1.
+// Clamp lambda: negative values (e.g. from a negative lambda0) → 0, cap at 1.
 inline double clamp_lambda(double val) {
   if (val < 0.0) return 0.0;
   if (val > 1.0) return 1.0;
@@ -70,14 +70,11 @@ inline bool same_bead(const int *atom2cg, int i1, int i2, int i3, int i4) {
 // Compute the weight for an interaction using a single global lambda
 // scalar (not a per-particle product) and CG-bead co-membership:
 //   CG term (is_cg=true):                       w = 1 - lambda_global
-//     (Phase 1 override: w = 1.0 regardless of lambda_global)
 //   AT intra-bead term (same_bead=true):         w = 1 always
 //   AT inter-bead term (same_bead=false):        w = lambda_global
-// `phase` defaults to 2 (the standard, single-phase MVP behavior). Only
-// the CG case is phase-sensitive; AT weighting is identical in both phases.
 inline double compute_weight3(bool is_same_bead, bool is_cg,
-                              double lambda_global, int phase = 2) {
-  if (is_cg) return (phase == 1) ? 1.0 : (1.0 - lambda_global);
+                              double lambda_global) {
+  if (is_cg) return 1.0 - lambda_global;
   if (is_same_bead) return 1.0;
   return lambda_global;
 }

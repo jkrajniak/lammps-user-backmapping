@@ -17,7 +17,7 @@
 
    Syntax:
      fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0
-         [nonuniform yes/no] [apb T1:N1 T2:N2 ...]
+         [apb T1:N1 T2:N2 ...]
 
    Reference: Krajniak et al., JCTC 2016, DOI: 10.1021/acs.jctc.6b00595 */
 
@@ -35,15 +35,13 @@
 #include "memory.h"
 #include "modify.h"
 #include "neighbor.h"
-#include "random_mars.h"
 #include "update.h"
 #include "utils.h"
 
 using namespace LAMMPS_NS;
 using namespace FixConst;
 
-static const std::set<std::string> KNOWN_KEYWORDS = {
-    "alpha", "lambda0", "nonuniform", "phase", "apb"};
+static const std::set<std::string> KNOWN_KEYWORDS = {"alpha", "lambda0", "apb"};
 
 /* ---------------------------------------------------------------------- */
 
@@ -51,9 +49,8 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
     : Fix(lmp, narg, arg),
       alpha(0.0),
       lambda0(0.0),
-      nonuniform(0),
       ramp_active(0),
-      lambda(nullptr),
+      lambda_display(nullptr),
       lambda_global(0.0),
       maxatom(0),
       atom2cg(nullptr),
@@ -62,14 +59,12 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
       cg_fwd(nullptr) {
   if (narg < 7) utils::missing_cmd_args(FLERR, "fix backmap", error);
 
-  restart_peratom = 1;
-  restart_global = 0;
   peratom_flag = 1;
   size_peratom_cols = 0;
   peratom_freq = 1;
   scalar_flag = 1;
   extscalar = 0;
-  comm_forward = 5;  // lambda + CG (fx, fy, fz, at_mass_sum)
+  comm_forward = 4;  // CG (fx, fy, fz, at_mass_sum)
   comm_reverse = 4;  // COM (mass, mdx, mdy, mdz)
   create_attribute = 1;
 
@@ -107,11 +102,6 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
         utils::missing_cmd_args(FLERR, "fix backmap lambda0", error);
       lambda0 = utils::numeric(FLERR, arg[iarg + 1], false, lmp);
       iarg += 2;
-    } else if (strcmp(arg[iarg], "nonuniform") == 0) {
-      if (iarg + 1 >= narg)
-        utils::missing_cmd_args(FLERR, "fix backmap nonuniform", error);
-      nonuniform = utils::logical(FLERR, arg[iarg + 1], false, lmp);
-      iarg += 2;
     } else if (strcmp(arg[iarg], "apb") == 0) {
       iarg++;
       if (iarg >= narg)
@@ -148,7 +138,7 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
   if (alpha == 0.0) error->all(FLERR, "fix backmap requires alpha");
 
   maxatom = atom->nmax;
-  memory->create(lambda, maxatom, "backmap:lambda");
+  memory->create(lambda_display, maxatom, "backmap:lambda_display");
   memory->create(atom2cg, maxatom, "backmap:atom2cg");
   memory->create(com_buf, maxatom * 4, "backmap:com_buf");
   memory->create(cg_denom, maxatom, "backmap:cg_denom");
@@ -157,24 +147,16 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
     atom2cg[i] = -1;
     cg_denom[i] = 0.0;
   }
-  vector_atom = lambda;
+  vector_atom = lambda_display;
 
   atom->add_callback(Atom::GROW);
-  if (restart_peratom) atom->add_callback(Atom::RESTART);
 
-  if (nonuniform) {
-    auto *rng = new RanMars(lmp, 12345 + comm->me);
-    for (int i = 0; i < atom->nlocal; i++) {
-      lambda[i] = lambda0 + rng->uniform() * (-10000.0 * alpha);
-    }
-    delete rng;
-  } else {
-    for (int i = 0; i < atom->nlocal; i++) lambda[i] = lambda0;
-  }
-  for (int i = atom->nlocal; i < maxatom; i++) lambda[i] = 0.0;
-
-  // lambda_global follows the uniform ramp rule regardless of nonuniform
-  // per-atom staggering; it is the single source of truth for weighting.
+  // lambda_display mirrors lambda_global for every atom; it exists only
+  // to back the fix's f_bm dump/thermo output, not to feed any interaction
+  // weight (those read lambda_global directly). end_of_step() keeps it in
+  // sync unconditionally, so this initial fill only matters for output
+  // written before the first end_of_step() call.
+  for (int i = 0; i < maxatom; i++) lambda_display[i] = lambda0;
   lambda_global = lambda0;
 }
 
@@ -182,8 +164,7 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
 
 FixBackmap::~FixBackmap() {
   atom->delete_callback(id, Atom::GROW);
-  atom->delete_callback(id, Atom::RESTART);
-  memory->destroy(lambda);
+  memory->destroy(lambda_display);
   memory->destroy(atom2cg);
   memory->destroy(com_buf);
   memory->destroy(cg_denom);
@@ -302,9 +283,10 @@ void FixBackmap::initial_integrate(int /*vflag*/) {
 
 void FixBackmap::pre_force(int /*vflag*/) {
   if (neighbor->ago == 0) {
-    // After a neighbor rebuild, new ghost atoms may appear with
-    // uninitialized lambda values. Communicate lambda to ghosts
-    // before force computation reads them.
+    // After a neighbor rebuild, new ghost CG beads may appear with
+    // uninitialized force/mass-sum data; forward-comm before
+    // post_force() reads it, and rebuild the bead map for the new
+    // ghost set.
     comm->forward_comm(this);
     build_bead_map();
   }
@@ -334,8 +316,8 @@ void FixBackmap::post_force(int /*vflag*/) {
   // CG force distribution always runs; lambda weighting is applied by the
   // backmap interaction styles before forces reach this hook.
 
-  // Forward-comm lambda + CG (fx, fy, fz, at_mass_sum) so each local AT atom
-  // can read its (local or ghost) CG bead's complete force.
+  // Forward-comm CG (fx, fy, fz, at_mass_sum) so each local AT atom can
+  // read its (local or ghost) CG bead's complete force.
   comm->forward_comm(this);
 
   double **f = atom->f;
@@ -381,16 +363,17 @@ void FixBackmap::post_force(int /*vflag*/) {
 /* ---------------------------------------------------------------------- */
 
 void FixBackmap::end_of_step() {
-  int nlocal = atom->nlocal;
-
   if (ramp_active) {
-    for (int i = 0; i < nlocal; i++) {
-      lambda[i] += alpha;
-      if (lambda[i] > 1.0) lambda[i] = 1.0;
-    }
     lambda_global += alpha;
     if (lambda_global > 1.0) lambda_global = 1.0;
   }
+
+  // Keep the display mirror in sync unconditionally (not gated on
+  // ramp_active) so it self-heals after any atom migration without
+  // needing exchange-time bookkeeping -- every slot always just equals
+  // lambda_global.
+  int nlocal = atom->nlocal;
+  for (int i = 0; i < nlocal; i++) lambda_display[i] = lambda_global;
 
   comm->forward_comm(this);
 }
@@ -409,32 +392,11 @@ int FixBackmap::modify_param(int narg, char **arg) {
 
 /* ---------------------------------------------------------------------- */
 
-double FixBackmap::compute_scalar() {
-  int nlocal = atom->nlocal;
-  int *mask = atom->mask;
-  double sum = 0.0;
-  int n = 0;
-  for (int i = 0; i < nlocal; i++) {
-    if (mask[i] & groupbit) {
-      sum += lambda[i];
-      n++;
-    }
-  }
-  double all_sum = 0.0;
-  int all_n = 0;
-  MPI_Allreduce(&sum, &all_sum, 1, MPI_DOUBLE, MPI_SUM, world);
-  MPI_Allreduce(&n, &all_n, 1, MPI_INT, MPI_SUM, world);
-  if (all_n == 0) return 0.0;
-  return all_sum / static_cast<double>(all_n);
-}
+double FixBackmap::compute_scalar() { return lambda_global; }
 
 /* ---------------------------------------------------------------------- */
 
 void *FixBackmap::extract(const char *str, int &dim) {
-  if (strcmp(str, "lambda") == 0) {
-    dim = 1;
-    return static_cast<void *>(lambda);
-  }
   if (strcmp(str, "atom2cg") == 0) {
     dim = 1;
     return static_cast<void *>(atom2cg);
@@ -451,36 +413,24 @@ void *FixBackmap::extract(const char *str, int &dim) {
 void FixBackmap::grow_arrays(int nmax) {
   int old_maxatom = maxatom;
   maxatom = nmax;
-  memory->grow(lambda, maxatom, "backmap:lambda");
+  memory->grow(lambda_display, maxatom, "backmap:lambda_display");
   memory->grow(atom2cg, maxatom, "backmap:atom2cg");
   memory->grow(com_buf, maxatom * 4, "backmap:com_buf");
   memory->grow(cg_denom, maxatom, "backmap:cg_denom");
   memory->grow(cg_fwd, maxatom * 4, "backmap:cg_fwd");
   for (int i = old_maxatom; i < maxatom; i++) {
-    lambda[i] = 0.0;
+    lambda_display[i] = lambda_global;
     atom2cg[i] = -1;
     cg_denom[i] = 0.0;
   }
-  vector_atom = lambda;
+  vector_atom = lambda_display;
 }
 
 /* ---------------------------------------------------------------------- */
 
 void FixBackmap::copy_arrays(int i, int j, int /*delflag*/) {
-  lambda[j] = lambda[i];
+  lambda_display[j] = lambda_display[i];
   atom2cg[j] = atom2cg[i];
-}
-
-/* ---------------------------------------------------------------------- */
-
-int FixBackmap::pack_exchange(int i, double *buf) {
-  buf[0] = lambda[i];
-  return 1;
-}
-
-int FixBackmap::unpack_exchange(int nlocal, double *buf) {
-  lambda[nlocal] = buf[0];
-  return 1;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -492,7 +442,6 @@ int FixBackmap::pack_forward_comm(int n, int *list, double *buf,
   int m = 0;
   for (int k = 0; k < n; k++) {
     int i = list[k];
-    buf[m++] = lambda[i];
     if (is_cg_type(type[i])) {
       buf[m++] = f[i][0];
       buf[m++] = f[i][1];
@@ -512,7 +461,6 @@ void FixBackmap::unpack_forward_comm(int n, int first, double *buf) {
   int m = 0;
   int last = first + n;
   for (int i = first; i < last; i++) {
-    lambda[i] = buf[m++];
     int k = i * 4;
     cg_fwd[k + 0] = buf[m++];
     cg_fwd[k + 1] = buf[m++];
@@ -547,25 +495,6 @@ void FixBackmap::unpack_reverse_comm(int n, int *list, double *buf) {
     p[3] += buf[m++];
   }
 }
-
-/* ---------------------------------------------------------------------- */
-
-int FixBackmap::pack_restart(int i, double *buf) {
-  buf[0] = 2;
-  buf[1] = lambda[i];
-  return 2;
-}
-
-void FixBackmap::unpack_restart(int nlocal, int nth) {
-  double **extra = atom->extra;
-  int m = 0;
-  for (int i = 0; i < nth; i++) m += static_cast<int>(extra[nlocal][m]);
-  lambda[nlocal] = extra[nlocal][m + 1];
-}
-
-int FixBackmap::size_restart(int /*nlocal*/) { return 2; }
-
-int FixBackmap::maxsize_restart() { return 2; }
 
 /* ---------------------------------------------------------------------- */
 
