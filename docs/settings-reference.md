@@ -465,16 +465,6 @@ Initial lambda value for all atoms.
 | **Type** | `float` |
 | **Default** | `0.0` |
 
-#### `simulation.nonuniform_lambda`
-
-Whether to use staggered (non-uniform) initial lambda values. When `true`,
-each atom gets a random offset applied to its starting lambda.
-
-| | |
-|---|---|
-| **Type** | `bool` |
-| **Default** | `false` |
-
 ### Time Integration
 
 #### `simulation.timestep`

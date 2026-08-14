@@ -3,7 +3,7 @@
 ## Syntax
 
 ```
-fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/no] [apb T1:N1 T2:N2 ...]
+fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [apb T1:N1 T2:N2 ...]
 ```
 
 - **ID** -- fix identifier (user-chosen)
@@ -13,15 +13,16 @@ fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/n
   bead types (e.g. end and middle beads).
 - **alpha** -- lambda ramp rate per timestep (positive float)
 - **lambda0** -- initial lambda value (float, default 0.0)
-- **nonuniform** -- `yes` or `no`; enable staggered initial lambda (optional,
-  default `no`)
 
 ## Description
 
 `fix backmap` drives the adaptive-resolution backmapping simulation. It manages:
 
-1. **Lambda ramp** -- per-atom resolution parameter that increases by `alpha`
-   each timestep, clamped to \[0, 1\]
+1. **Lambda ramp** -- a single global resolution parameter that increases by
+   `alpha` each timestep, clamped to \[0, 1\]. Every `backmap/*` interaction
+   style weights against this one value; it is mirrored per-atom only for
+   `f_ID` dump/thermo output (see Per-Atom Data below), not read by any
+   interaction style.
 2. **Bead map** -- builds and maintains the per-bead mapping between CG beads
    and their constituent AT atoms based on molecule IDs and global tag order.
    Rebuilt automatically on every neighbor list rebuild.
@@ -33,7 +34,7 @@ fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/n
    Σ F_AT = F_CG even when tabulated CG mass has small drift
 5. **CG velocity zeroing** -- sets CG bead velocities to zero each step
 
-The per-atom lambda value is stored as a per-atom vector and accessible via
+The global lambda value is mirrored into a per-atom vector, accessible via
 `f_ID` in dump commands (e.g., `f_bm` if the fix ID is `bm`).
 
 ## Arguments
@@ -65,11 +66,6 @@ Smaller values produce a slower, gentler transition. Typical range:
 ### `lambda0` (optional)
 
 Initial value of lambda for all atoms. Default: `0.0`.
-
-### `nonuniform` (optional)
-
-When `yes`, each atom receives a random offset to its initial lambda, creating
-a staggered transition. Default: `no`.
 
 ### `apb` (optional)
 
@@ -114,25 +110,30 @@ can be decoupled from their atomistic fragments.
 
 ## Per-Atom Data
 
-The fix stores one per-atom value: the current lambda. Access it via:
+The fix mirrors the current global lambda into a per-atom vector, purely for
+dump/thermo output -- every atom's value is always identical to
+`lambda_global` (see Restart below for a consequence of this). Access it via:
 
 - `f_ID` in dump commands: `dump 1 all custom 100 dump.dat id type f_bm`
 - `f_ID` in thermo output
-- `extract("lambda", dim)` from C++ code
 
 For the lambda-weighting formula used by every `backmap/*` style, C++ code
-also reads two more `extract()` keys (see
+reads two `extract()` keys (see
 [theory: Force Weighting](../theory.md#force-weighting)):
 
 - `extract("atom2cg", dim)` -- per-atom (local + ghost) index of the mapped
   CG bead, or `-1` if unmapped; `dim=1`
 - `extract("lambda_global", dim)` -- pointer to the single authoritative
-  global lambda scalar (ramped the same way as per-atom `lambda[]`); `dim=0`
+  global lambda scalar; `dim=0`
 
 ## Restart
 
-Per-atom lambda values are written to restart files and restored on restart,
-allowing seamless continuation of a backmapping simulation.
+`lambda_global` -- the only value any interaction style weights by -- is
+**not** restart-persisted; the fix has no restart-file state at all. On a
+`read_restart`-based continuation, reissue `fix backmap` with an explicit
+`lambda0` matching where the ramp had reached (e.g. from the last logged
+`f_bm`/`thermo` value) if you want the ramp to continue from that point
+rather than restart at `lambda0`'s default of `0.0`.
 
 ## Example
 
