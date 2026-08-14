@@ -74,6 +74,44 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   *different* CG beads → `λ_global` (linear). See
   `backmap_lambda_weights.h::compute_weight3()`/`same_bead()`.
 
+### Removed
+
+- **Dead per-atom lambda, `nonuniform`, and `phase` machinery**, left over
+  from `fix backmap`'s original broader AdResS-style design and made
+  fully inert by the lambda-weighting fix above: `lambda_global` was
+  already the single source of truth for every interaction style, so
+  none of this had any effect on any validated example.
+  - **BREAKING (LAMMPS input-script syntax)**: `fix backmap` no longer
+    accepts `nonuniform yes/no`. Removed the per-atom `lambda[]` array's
+    independent state (`RanMars`-based staggering, `pack_exchange`/
+    `unpack_exchange`, restart persistence) -- `nonuniform` was `no` in
+    every checked-in example, so the per-atom array was always
+    numerically identical to `lambda_global`. The array survives, renamed
+    `lambda_display`, as a pure broadcast mirror of `lambda_global`
+    (refreshed unconditionally every `end_of_step()`) so `f_bm`
+    dump/thermo output in existing examples (`in.pe`, `in.pe4`,
+    `in.pe_robust`) is unaffected. `comm_forward` shrinks from 5 to 4
+    doubles/ghost-atom (dropped the never-read ghost lambda slot).
+    `compute_scalar()` simplifies to `return lambda_global;` --
+    provably equal to the old per-atom mean for every real run, since
+    `nonuniform=no` means every atom's value was always `lambda_global`
+    already.
+  - Also removed the `phase` fix-keyword: reserved in the argument
+    parser but with no handling branch at all (a user specifying it got
+    a hard parse error, so nothing that worked before still works
+    differently now) and `compute_weight3()`'s `phase` parameter, never
+    passed a non-default value by any of the 14 production call sites.
+  - Corrected `docs/components/fix-backmap.md`'s Restart section, which
+    claimed "seamless continuation" -- already false before this change
+    (`lambda_global` was never restart-persisted; only the now-removed
+    per-atom `lambda[]` was).
+  - Rewrote the `pair-backmap` and `bonded-backmap-styles` openspec specs'
+    weighting requirements, which still described the pre-lambda-weighting-fix
+    `λ_i × λ_j` product model; removed `fix-backmap-resolution`'s
+    "Simulation phases" requirement (never implemented).
+  - See `openspec/changes/remove-dead-lambda-nonuniform-phase/` for the
+    full verification trail.
+
 ### Added
 
 - **Fast C++ unit tests** (`tests/unit/`, GoogleTest via CMake `FetchContent`,

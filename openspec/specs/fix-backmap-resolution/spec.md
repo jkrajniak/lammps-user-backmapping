@@ -2,28 +2,24 @@
 
 ### Requirement: Adaptive-resolution lambda ramp
 
-The fix SHALL increment the per-atom resolution parameter λ by a configurable rate each timestep: `λ(t+dt) = min(1.0, λ(t) + rate)`. The rate is specified as `alpha` in the fix command. All atoms within a molecule (CG + AT) SHALL receive the same λ value.
+The fix SHALL maintain a single global resolution parameter, `lambda_global`, incremented by a configurable rate each timestep: `lambda_global(t+dt) = min(1.0, lambda_global(t) + rate)`. The rate is specified as `alpha` in the fix command. `lambda_global` is the sole authoritative value every `backmap/*` interaction style weights by — there is no independent per-molecule or per-atom lambda state.
 
-The fix SHALL support activating and deactivating the lambda ramp at runtime via `fix_modify`. When deactivated, λ values SHALL remain frozen at their current values.
+The fix SHALL support activating and deactivating the lambda ramp at runtime via `fix_modify`. When deactivated, `lambda_global` SHALL remain frozen at its current value.
 
 Reference: Krajniak et al., "Generic Adaptive Resolution Method for Reverse Mapping of Polymers from Coarse-Grained to Atomistic Descriptions", JCTC 2016, DOI: 10.1021/acs.jctc.6b00595
 
 #### Scenario: Uniform lambda ramp from 0 to 1
 - **WHEN** the fix is configured with `alpha 0.001` and `lambda0 0.0`
-- **THEN** after 1000 timesteps, all atoms SHALL have λ = 1.0
+- **THEN** after 1000 timesteps, `lambda_global` SHALL equal 1.0
 
 #### Scenario: Lambda is clamped at 1.0
-- **WHEN** λ reaches 1.0 for a molecule
-- **THEN** λ SHALL remain at 1.0 on subsequent timesteps and the fix SHALL not modify it further
+- **WHEN** `lambda_global` reaches 1.0
+- **THEN** it SHALL remain at 1.0 on subsequent timesteps and the fix SHALL not modify it further
 
 #### Scenario: Lambda ramp deactivated
-- **WHEN** the user issues `fix_modify backmap active no` at λ = 0.5
-- **THEN** λ SHALL remain at 0.5 for all atoms until reactivated
-- **AND** CG COM tracking and CG→AT force distribution SHALL continue on every timestep (only the λ increment in `end_of_step()` is frozen)
-
-#### Scenario: Non-uniform initial lambda
-- **WHEN** the fix is configured with `nonuniform yes`
-- **THEN** each molecule SHALL receive a random initial λ in the range `[-10000*alpha, 0]`, causing molecules to reach λ=0 at staggered times. Negative λ values SHALL be treated as λ=0 for force weighting.
+- **WHEN** the user issues `fix_modify backmap active no` at `lambda_global` = 0.5
+- **THEN** `lambda_global` SHALL remain at 0.5 until reactivated
+- **AND** CG COM tracking and CG→AT force distribution SHALL continue on every timestep (only the increment in `end_of_step()` is frozen)
 
 ### Requirement: CG-AT molecule mapping
 
@@ -132,96 +128,39 @@ CG atoms SHALL NOT be integrated by standard LAMMPS integrators. The fix SHALL z
 - **WHEN** a user accidentally includes CG atoms in an integration group
 - **THEN** the fix SHALL zero CG velocities in `initial_integrate()` to prevent spurious CG motion
 
-### Requirement: Simulation phases
-
-The fix SHALL support the three-phase simulation workflow: CG equilibration → backmapping → AT production.
-
-The backmapping phase SHALL support both single-phase and two-phase modes:
-- **Single phase** (default, Phase 2): All lambda-weighted interactions (pair, cross-CG bonds, cross-CG angles, cross-CG dihedrals) use their respective custom styles with AT weight `λ²` and CG weight `1−λ²`. Intra-CG bonded forces remain at full strength (static). λ ramps from 0 to 1.
-- **Two-phase mode**: Controlled via `fix_modify` with a state machine:
-  - **Phase 1**: λ ramps 0→1. AT cross interactions are weighted by `λ²` (ramping in). CG cross interactions remain at full strength (weight = 1.0, ignoring lambda). This establishes atomistic connectivity under full CG restraint.
-  - **Phase 2**: λ resets to 0.0 and ramps 0→1 again. AT cross interactions are weighted by `λ²` (ramping in). CG cross interactions are weighted by `1−λ²` (ramping out). This is the standard AdResS interpolation.
-
-The timestep SHALL be changeable between phases via `timestep` command.
-
-The current phase SHALL be accessible to interaction styles via `fix->extract("phase")`, returning a pointer to an integer (1 or 2). Single-phase mode uses phase=2 (the default MVP behavior).
-
-`fix_modify` interface for phase control:
-```
-fix_modify <fix-id> phase 1       # enter Phase 1
-fix_modify <fix-id> phase 2       # enter Phase 2, reset λ to 0
-fix_modify <fix-id> active yes    # enable lambda ramp (existing)
-fix_modify <fix-id> active no     # freeze lambda (existing)
-```
-
-#### Scenario: Single-phase backmapping (default)
-- **WHEN** the fix is active with no explicit phase setting
-- **THEN** the fix SHALL operate in Phase 2 mode: AT non-bonded pair forces weighted by `λ²`, CG non-bonded pair forces by `1−λ²`, cross-CG AT bonded forces by `λ²`, cross-CG CG bonded forces by `1−λ²`, and intra-CG bonded forces at full strength
-
-#### Scenario: Two-phase backmapping — Phase 1 behavior
-- **WHEN** `fix_modify bm phase 1` is issued
-- **THEN** the fix SHALL set phase=1, and `fix->extract("phase")` SHALL return a pointer to integer value 1
-- **AND** CG cross interactions SHALL receive weight 1.0 from `backmap_lambda.h` helpers regardless of lambda
-
-#### Scenario: Two-phase backmapping — transition from Phase 1 to Phase 2
-- **WHEN** Phase 1 completes (λ reaches 1.0) and the user issues `fix_modify bm phase 2`
-- **THEN** λ SHALL be reset to 0.0 for all atoms, phase SHALL be set to 2, and the lambda ramp SHALL restart
-- **AND** CG cross interactions SHALL begin using `1−λ²` weighting
-
-#### Scenario: Phase 2 lambda reset
-- **WHEN** `fix_modify bm phase 2` is issued while λ values are at various values
-- **THEN** ALL per-atom λ values SHALL be reset to 0.0 regardless of their current values
-
-#### Scenario: Phase queryable via extract
-- **WHEN** an interaction style calls `fix->extract("phase", size)`
-- **THEN** it SHALL receive a pointer to the current phase integer (1 or 2)
-- **AND** `size` SHALL be set to 0 (scalar, not per-atom)
-
-#### Scenario: Phase preserved in restart
-- **WHEN** a simulation is restarted from a restart file that was written during Phase 1
-- **THEN** the phase SHALL be restored to 1 and λ values SHALL be at their saved values
-
-#### Scenario: Invalid phase value
-- **WHEN** the user issues `fix_modify bm phase 3` or any value other than 1 or 2
-- **THEN** the fix SHALL abort with: "fix backmap: phase must be 1 or 2"
-
 ### Requirement: Lambda accessible for output
 
-The per-atom λ values SHALL be accessible via `fix->extract()` for use with `dump custom` or other LAMMPS analysis tools. The fix SHALL support writing λ to restart files so that simulations can be continued.
+`lambda_global` SHALL be accessible to interaction styles via `fix->extract("lambda_global", dim)` (a pointer to the scalar, `dim=0`). It is additionally mirrored into a per-atom vector purely for output — every atom's mirrored value always equals `lambda_global` — accessible via `f_ID` in `dump custom` or thermo output. No interaction style reads the per-atom mirror; only `lambda_global` (plus `atom2cg` bead membership) determines any interaction weight.
 
-The fix SHALL expose the group-averaged λ as a global scalar via `compute_scalar()`, so it can be printed in thermo output as `f_bm` (for fix ID `bm`) with an optional `thermo_modify colname f_bm lambda` label.
+The fix SHALL expose `lambda_global` as a global scalar via `compute_scalar()`, so it can be printed in thermo output as `f_bm` (for fix ID `bm`) with an optional `thermo_modify colname f_bm lambda` label.
 
-#### Scenario: Thermo average lambda
+`lambda_global` is NOT restart-persisted — the fix carries no state across `write_restart`/`read_restart`. A continuation run must reissue `fix backmap` with an explicit `lambda0` matching the desired resumption point.
+
+#### Scenario: Thermo lambda output
 - **WHEN** the input contains `thermo_style custom ... f_bm` and `fix bm` is active
-- **THEN** each thermo line SHALL report the arithmetic mean of λ over atoms in the fix group
+- **THEN** each thermo line SHALL report the current value of `lambda_global`
 
 #### Scenario: Dump lambda values
-- **WHEN** the user specifies `dump custom ... f_backmap[1]` (or equivalent accessor)
-- **THEN** the output SHALL contain the current λ value for each atom
-
-#### Scenario: Restart with lambda state
-- **WHEN** a simulation is restarted from a restart file
-- **THEN** λ values SHALL be restored to their values at the time the restart file was written
+- **WHEN** the user specifies `dump custom ... f_bm` (or equivalent accessor)
+- **THEN** the output SHALL contain `lambda_global`'s current value, repeated for every atom
 
 ### Requirement: Fix command syntax
 
 The fix SHALL be invoked with the following syntax:
 ```
-fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [nonuniform yes/no] [phase P]
+fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [apb T1:N1 T2:N2 ...]
 ```
 
 Where:
 - `T1 [T2 ...]` = one or more atom types identifying CG particles (integers, read until next recognized keyword)
 - `A` = lambda increment per timestep (float)
 - `L0` = initial lambda value (float, default 0.0)
-- `nonuniform` = staggered initial lambda (optional, default no)
-- `P` = initial phase (optional, integer 1 or 2, default 2)
 
-The `cg_type` keyword SHALL accept multiple type IDs. Parsing SHALL read integer values until a recognized keyword (`alpha`, `lambda0`, `nonuniform`, `phase`) or a non-integer token is encountered.
+The `cg_type` keyword SHALL accept multiple type IDs. Parsing SHALL read integer values until a recognized keyword (`alpha`, `lambda0`, `apb`) or a non-integer token is encountered.
 
 #### Scenario: Single CG type (backward compatible)
 - **WHEN** the user specifies `fix bm all backmap cg_type 3 alpha 0.001`
-- **THEN** the fix SHALL initialize with one CG type (3), lambda0=0.0, nonuniform=no, phase=2
+- **THEN** the fix SHALL initialize with one CG type (3), lambda0=0.0
 
 #### Scenario: Multiple CG types
 - **WHEN** the user specifies `fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0`
@@ -234,15 +173,3 @@ The `cg_type` keyword SHALL accept multiple type IDs. Parsing SHALL read integer
 #### Scenario: No CG types provided
 - **WHEN** the user specifies `fix bm all backmap cg_type alpha 0.001` (alpha parsed as a type)
 - **THEN** the fix SHALL abort because "alpha" is not a valid integer type
-
-#### Scenario: Full invocation with two-phase
-- **WHEN** the user specifies `fix bm all backmap cg_type 3 alpha 0.0005 lambda0 0.0 phase 1`
-- **THEN** the fix SHALL initialize in Phase 1 with lambda0=0.0
-
-#### Scenario: Phase specified via fix_modify after init
-- **WHEN** the user starts with default phase (2) and issues `fix_modify bm phase 1`
-- **THEN** the fix SHALL switch to Phase 1 and reset λ to lambda0 for all atoms
-
-#### Scenario: Full invocation with nonuniform
-- **WHEN** the user specifies `fix bm all backmap cg_type 3 alpha 0.0005 lambda0 0.0 nonuniform yes`
-- **THEN** the fix SHALL initialize with staggered lambda values for each molecule

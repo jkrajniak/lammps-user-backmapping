@@ -43,7 +43,7 @@ velocity all create 298.0 12345 dist gaussian mom yes rot yes
 
 fix integrate at_atoms nvt temp 298.0 298.0 100.0
 
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
 
 compute at_temp at_atoms temp
 

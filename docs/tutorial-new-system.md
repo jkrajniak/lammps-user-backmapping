@@ -211,7 +211,6 @@ Similarly, define angles that span bead boundaries:
 simulation:
   alpha: 0.0001
   initial_resolution: 0.0
-  nonuniform_lambda: false
 
   timestep: 0.001
   timestep_backmapping: 0.001

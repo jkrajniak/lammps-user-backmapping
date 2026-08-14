@@ -43,7 +43,7 @@ group cg_atoms type 1 2
 
 neigh_modify delay 0 every 1 check yes
 
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
 
 compute at_temp at_atoms temp
 

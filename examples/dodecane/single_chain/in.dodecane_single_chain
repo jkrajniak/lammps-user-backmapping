@@ -35,7 +35,7 @@ group at_atoms type 3 4
 group cg_atoms type 1 2
 
 # cg_type 2 → types 1,2 are CG beads; alpha=0.0005 → lambda 0→1 in 2000 steps
-fix bm all backmap cg_type 2 alpha 0.0005 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 2 alpha 0.0005 lambda0 0.0
 
 fix integrate at_atoms nve
 fix thermo at_atoms langevin 298.0 298.0 33.3 12345

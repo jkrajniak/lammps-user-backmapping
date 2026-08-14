@@ -328,7 +328,7 @@ read_dump pet_vel.bakery.dump 0 vx vy vz box no replace yes format native
 fix integrate_at at_atoms nve
 fix therm_at at_atoms langevin 298.0 298.0 33.333333 48279
 
-fix bm all backmap cg_type 1 6 7 11 14 16 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 6 7 11 14 16 alpha 0.0001 lambda0 0.0
 fix pairs all backmap/pairs at file pairs.dat cut 12.000000
 fix cap all backmap/capforce 1195.0300
 # SHAKE placed AFTER bm/pairs/cap: must see the complete final force

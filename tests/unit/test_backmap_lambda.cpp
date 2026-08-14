@@ -33,11 +33,6 @@ TEST(ComputeWeight3, CgIsLinearInLambda) {
   EXPECT_DOUBLE_EQ(compute_weight3(false, true, 0.75), 0.25);
 }
 
-TEST(ComputeWeight3, CgPhase1OverridesToFullStrength) {
-  EXPECT_DOUBLE_EQ(compute_weight3(false, true, 0.5, /*phase=*/1), 1.0);
-  EXPECT_DOUBLE_EQ(compute_weight3(false, true, 1.0, /*phase=*/1), 1.0);
-}
-
 // ---- AT intra-bead (same_bead=true): always full strength, independent
 // of lambda_global. Represents real intra-molecular chemistry that exists
 // regardless of the CG/AT resolution ramp (matches the original

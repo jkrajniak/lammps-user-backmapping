@@ -51,7 +51,7 @@ each one atom. All-atom examples have one extra hydrogen per terminal CH3 group
 Added `apb` keyword to `fix backmap`:
 
 ```
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 nonuniform no apb 1:7 2:6
+fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0 apb 1:7 2:6
 ```
 
 Syntax: `apb T1:N1 T2:N2 ...` — maps CG type `T` to `N` AT atoms per bead.

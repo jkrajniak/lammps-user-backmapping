@@ -43,7 +43,7 @@ special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 group at_atoms type 3 4 5
 group cg_atoms type 1 2
 
-fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.0 nonuniform no
+fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.0
 
 fix integrate at_atoms nve
 fix thermo at_atoms langevin 423.0 423.0 33.3 12345

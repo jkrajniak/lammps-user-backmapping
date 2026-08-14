@@ -2,32 +2,31 @@
 
 ### Requirement: Lambda-weighted pair force computation
 
-The pair style SHALL compute non-bonded pair forces as a weighted combination of atomistic and coarse-grained sub-styles. The weighting follows the per-pair scheme from AdResS, identical to the bonded weighting in `FixedPairListAdressInteractionTemplate` and the non-bonded weighting in `VerletListAdressInteractionTemplate`:
+The pair style SHALL compute non-bonded pair forces as a weighted combination of atomistic and coarse-grained sub-styles, using a single global lambda scalar (`lambda_global`, read from `fix backmap`) and per-atom CG-bead co-membership (`atom2cg`) — not a per-particle product. Three cases:
 
-- AT pair force weight: `w_AT = λ_i × λ_j`
-- CG pair force weight: `w_CG = 1 − λ_i × λ_j`
+- CG-CG pairs: weight `w = 1 − lambda_global`
+- AT-AT pairs mapped to the *same* CG bead (intra-bead): weight `w = 1` always, unconditionally — this is real intra-molecular chemistry that exists independent of the resolution ramp
+- AT-AT pairs mapped to *different* CG beads (inter-bead): weight `w = lambda_global`
 
-For uniform backmapping (all particles share the same λ), this reduces to `w_AT = λ²` and `w_CG = 1 − λ²`. This ensures `w_AT + w_CG = 1` always — a physically consistent interpolation.
+Bonded forces are handled separately by `bond_style backmap/*`, `angle_style backmap/*`, and `dihedral_style backmap/*` using the same three-case weighting scheme (`BackmapLambda::compute_weight3`). See the bonded styles spec for details.
 
-Bonded forces are handled separately by `bond_style backmap/*`, `angle_style backmap/*`, and `dihedral_style backmap/*` using the same weighting scheme. See the bonded styles spec for details on the three categories of bonded interactions (intra-CG static, cross-CG AT, cross-CG CG).
+Reference: Krajniak et al., JCTC 2016, DOI: 10.1021/acs.jctc.6b00595 — Section 2, Eq. 1-3 (for the original per-pair AdResS-derived scheme this three-case model supersedes)
 
-Reference: Krajniak et al., JCTC 2016, DOI: 10.1021/acs.jctc.6b00595 — Section 2, Eq. 1-3
+#### Scenario: Forces at lambda_global=0 (pure CG)
+- **WHEN** `lambda_global` = 0
+- **THEN** CG-CG pair forces SHALL be at full strength (weight 1), AT-AT inter-bead pair forces SHALL be zero (weight 0), AT-AT intra-bead pair forces SHALL remain at full strength (weight 1)
 
-#### Scenario: Forces at lambda=0 (pure CG)
-- **WHEN** λ = 0 for all particles
-- **THEN** AT pair forces SHALL be zero (weight 0×0=0), CG pair forces SHALL be at full strength (weight 1−0=1)
+#### Scenario: Forces at lambda_global=1 (pure AT)
+- **WHEN** `lambda_global` = 1
+- **THEN** CG-CG pair forces SHALL be zero (weight 0), AT-AT inter-bead pair forces SHALL be at full strength (weight 1), AT-AT intra-bead pair forces SHALL remain at full strength (weight 1)
 
-#### Scenario: Forces at lambda=1 (pure AT)
-- **WHEN** λ = 1 for all particles
-- **THEN** AT pair forces SHALL be at full strength (weight 1×1=1), CG pair forces SHALL be zero (weight 1−1=0)
-
-#### Scenario: Forces at lambda=0.5 (mid-transition)
-- **WHEN** λ = 0.5 for all particles
-- **THEN** AT pair forces SHALL be weighted by 0.25 (0.5×0.5), CG pair forces SHALL be weighted by 0.75 (1−0.25)
+#### Scenario: Forces at lambda_global=0.5 (mid-transition)
+- **WHEN** `lambda_global` = 0.5
+- **THEN** CG-CG pair forces SHALL be weighted by 0.5, AT-AT inter-bead pair forces SHALL be weighted by 0.5, AT-AT intra-bead pair forces SHALL remain at weight 1
 
 #### Scenario: Negative lambda treated as zero
-- **WHEN** λ < 0 for a particle (from nonuniform initialization)
-- **THEN** the effective lambda for force weighting SHALL be max(0, λ), so AT weight = 0 and CG weight = 1
+- **WHEN** `lambda_global` < 0 (e.g. from a negative `lambda0`)
+- **THEN** the effective value for force weighting SHALL be `max(0, lambda_global)`
 
 ### Requirement: Sub-style delegation
 
@@ -41,7 +40,7 @@ The pair style SHALL support any pairwise sub-style that implements the `compute
 
 #### Scenario: LJ atomistic + tabulated CG
 - **WHEN** the pair style is configured with `lj/cut/coul/cut` for AT and `table` for CG
-- **THEN** AT type pairs SHALL use LJ+Coulomb forces (weighted by λ²), CG type pairs SHALL use tabulated forces (weighted by 1−λ²)
+- **THEN** AT type pairs SHALL use LJ+Coulomb forces (weighted per the three-case model above), CG type pairs SHALL use tabulated forces (weighted by `1 − lambda_global`)
 
 #### Scenario: No cross-type interactions
 - **WHEN** pair_coeff is not defined for an AT-CG type pair
@@ -73,21 +72,18 @@ or auto-detected from the defined fixes.
 
 ### Requirement: Lambda access from fix
 
-The pair style SHALL read per-atom λ values from `fix backmap`'s per-atom array. It SHALL NOT maintain its own lambda state. The fix is the single source of truth for lambda values.
+The pair style SHALL read `lambda_global` and `atom2cg` from `fix backmap` via `extract()`. It SHALL NOT maintain its own lambda state. The fix is the single source of truth.
 
 #### Scenario: Lambda updated by fix before pair computation
-- **WHEN** the fix increments λ in `end_of_step()` at timestep N
-- **THEN** the pair style SHALL use the updated λ values at timestep N+1
+- **WHEN** the fix increments `lambda_global` in `end_of_step()` at timestep N
+- **THEN** the pair style SHALL use the updated value at timestep N+1
 
 ### Requirement: Energy computation
 
-The pair style SHALL correctly compute potential energy contributions weighted by lambda for thermodynamic output. The per-pair energy SHALL be:
-```
-E_pair = w_AT × E_AT + w_CG × E_CG
-```
+The pair style SHALL correctly compute potential energy contributions weighted by the same three-case model as forces, for thermodynamic output. The per-pair energy SHALL be `w * E_substyle`, using the same `w` as the force computation for that pair (CG: `1 − lambda_global`; AT intra-bead: `1`; AT inter-bead: `lambda_global`).
 
-#### Scenario: Energy at lambda endpoints
-- **WHEN** λ = 0
-- **THEN** the pair energy SHALL equal the CG potential energy only
-- **WHEN** λ = 1
-- **THEN** the pair energy SHALL equal the AT potential energy only
+#### Scenario: Energy at lambda_global endpoints
+- **WHEN** `lambda_global` = 0
+- **THEN** CG-CG pair energy SHALL be at full strength and AT-AT inter-bead pair energy SHALL be zero (AT-AT intra-bead energy is unaffected, always full strength)
+- **WHEN** `lambda_global` = 1
+- **THEN** CG-CG pair energy SHALL be zero and AT-AT inter-bead pair energy SHALL be at full strength

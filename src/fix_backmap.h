@@ -43,23 +43,15 @@ class FixBackmap : public Fix {
   int modify_param(int, char **) override;
   double compute_scalar() override;
 
-  // Per-atom array grow/copy/exchange for domain decomposition
+  // Per-atom array grow/copy for domain decomposition
   void grow_arrays(int) override;
   void copy_arrays(int, int, int) override;
-  int pack_exchange(int, double *) override;
-  int unpack_exchange(int, double *) override;
 
-  // Ghost atom communication for lambda + CG force (forward) and COM (reverse)
+  // Ghost atom communication for CG force (forward) and COM (reverse)
   int pack_forward_comm(int, int *, double *, int, int *) override;
   void unpack_forward_comm(int, int, double *) override;
   int pack_reverse_comm(int, int, double *) override;
   void unpack_reverse_comm(int, int *, double *) override;
-
-  // Restart support
-  int pack_restart(int, double *) override;
-  void unpack_restart(int, int) override;
-  int size_restart(int) override;
-  int maxsize_restart() override;
 
   void *extract(const char *, int &) override;
   double memory_usage() override;
@@ -75,11 +67,12 @@ class FixBackmap : public Fix {
   std::map<int, int> apb_map_;  // CG type -> atoms-per-bead count
   double alpha;
   double lambda0;
-  int nonuniform;
   int ramp_active;
 
-  double *lambda;
-  double lambda_global;  // single authoritative global lambda scalar
+  double *lambda_display;  // per-atom mirror of lambda_global, for f_bm
+                           // dump/thermo output only -- not read by any
+                           // interaction style
+  double lambda_global;    // single authoritative global lambda scalar
   int maxatom;
 
   // MPI-correct partner map and communication scratch

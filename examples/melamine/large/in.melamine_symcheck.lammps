@@ -167,7 +167,7 @@ fix therm_at at_atoms langevin 300.0 300.0 33.3 12345
 # lambda_global=1 (compute_weight3 gives w=1-1=0 exactly, is_almost_zero()
 # skips the interaction in pair_backmap.cpp before any force is computed) --
 # this fix stays on purely for its harmless COM-tracking bookkeeping.
-fix bm all backmap cg_type 1 alpha 0.0001 lambda0 1.0 nonuniform no
+fix bm all backmap cg_type 1 alpha 0.0001 lambda0 1.0
 fix cap all backmap/capforce 1195.0300
 fix_modify bm active no
 

@@ -342,7 +342,6 @@ class SimulationParams(BaseModel):
 
     alpha: float = 0.001
     initial_resolution: float = 0.0
-    nonuniform_lambda: bool = False
 
     timestep: float = 0.001
     timestep_backmapping: float = 0.001

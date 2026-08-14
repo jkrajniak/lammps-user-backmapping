@@ -50,15 +50,6 @@ inline Fix *find_fix_backmap(LAMMPS *lmp, const char *caller) {
   return nullptr;
 }
 
-// Extract the per-atom lambda array from fix backmap.
-// Call once per compute() invocation; the pointer is valid for
-// the current timestep (may move on grow_arrays).
-inline double *extract_lambda(Fix *fix_backmap) {
-  int dim = 0;
-  auto *ptr = static_cast<double *>(fix_backmap->extract("lambda", dim));
-  return ptr;
-}
-
 // Extract the per-atom CG-bead-membership map (local-or-ghost index of the
 // mapped CG bead, -1 if none) from fix backmap.
 inline int *extract_atom2cg(Fix *fix_backmap) {
