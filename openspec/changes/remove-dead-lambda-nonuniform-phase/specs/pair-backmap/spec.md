@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Lambda-weighted pair force computation
 
@@ -77,6 +77,8 @@ The pair style SHALL read `lambda_global` and `atom2cg` from `fix backmap` via `
 #### Scenario: Lambda updated by fix before pair computation
 - **WHEN** the fix increments `lambda_global` in `end_of_step()` at timestep N
 - **THEN** the pair style SHALL use the updated value at timestep N+1
+
+
 
 ### Requirement: Energy computation
 

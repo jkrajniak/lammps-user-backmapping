@@ -279,7 +279,6 @@ simulation:
   # Dynamic resolution
   alpha: 0.001                       # lambda increment per step
   initial_resolution: 0.0            # initial lambda value
-  nonuniform_lambda: false           # staggered initial lambda
 
   # Time stepping
   timestep: 0.001                    # ps (converted to fs for LAMMPS)
@@ -326,7 +325,7 @@ simulation:
   em_ftol: 10.0                 # EM force tolerance
 ```
 
-When `two_phase: true`, the generator SHALL produce an input script with Phase 1 and Phase 2 run blocks. If `alpha2` is specified, Phase 2 SHALL use a different lambda ramp rate.
+`two_phase: true` is currently rejected at validation time (deferred feature, not yet implemented) rather than producing Phase 1/Phase 2 run blocks — see the "Two-phase backmapping is rejected" scenario below. `alpha2`, `cap_force`, and `cap_force_ramp` are unreachable while `two_phase` is rejected.
 
 **Other deferred parameters** (spec'd, implemented later):
 
@@ -350,13 +349,13 @@ All parameters in GROMACS units. The generator converts to LAMMPS `real` units i
 - **WHEN** `alpha` is negative or `temperature` is zero
 - **THEN** the generator SHALL abort with a validation error
 
-#### Scenario: Two-phase parameters
+#### Scenario: Two-phase parameters (unreachable while two_phase is rejected)
 - **WHEN** `two_phase: true` and `alpha2: 0.0002` are set
-- **THEN** the Phase 1 run SHALL use `alpha` for the ramp rate and Phase 2 SHALL use `fix_modify bm alpha 0.0002` (or equivalent) for its ramp rate
+- **THEN** validation SHALL abort on `two_phase` before `alpha2` is ever consulted (see "Two-phase backmapping is rejected" above)
 
-#### Scenario: Force capping
-- **WHEN** `cap_force: 1000.0` is set (kJ/(mol·nm))
-- **THEN** the input script SHALL include `fix_modify bm cap_force 23.9006` (converted to kcal/(mol·Å))
+#### Scenario: Force capping (unreachable while two_phase is rejected)
+- **WHEN** `cap_force: 1000.0` is set (kJ/(mol·nm)) alongside `two_phase: true`
+- **THEN** validation SHALL abort on `two_phase` before `cap_force` is ever consulted
 
 ### Requirement: Output section
 
@@ -571,7 +570,7 @@ Table file paths are specified in `cross_interactions` entries with `table:` fie
 The generator SHALL produce a LAMMPS input script (`.in`) configured for backmapping. The `fix backmap` command SHALL list ALL CG atom type IDs after the `cg_type` keyword:
 
 ```
-fix bm all backmap cg_type T1 T2 ... alpha A lambda0 L0 nonuniform yes/no
+fix bm all backmap cg_type T1 T2 ... alpha A lambda0 L0
 ```
 
 Where `T1 T2 ...` are all atom type IDs marked as CG in the system's atom type list, sorted ascending.
@@ -587,9 +586,9 @@ The script SHALL include:
 - Dihedral style routing: `dihedral_style hybrid backmap/ryckaert backmap/table` (only include sub-styles that are actually used)
 - `bond_coeff` / `angle_coeff` / `dihedral_coeff` for each type, routing to correct sub-style based on category (intra-CG static vs cross-CG AT vs cross-CG CG)
 - Group definitions for AT and CG atoms
-- `fix backmap` with ALL CG type IDs (not just one) plus parameters from `simulation` section, including `phase` if two-phase mode is enabled
+- `fix backmap` with ALL CG type IDs (not just one) plus parameters from `simulation` section
 - `fix nve` and `fix langevin` applied to AT group only (or as configured by `thermostat_target`)
-- For two-phase mode: the run sequence SHALL include Phase 1 run, `fix_modify phase 2`, and Phase 2 run
+- Two-phase backmapping (`simulation.two_phase`) remains deferred (see "Deferred features" below) and is rejected at validation time; `fix backmap`'s command syntax has no `phase` keyword to target for it
 - `special_bonds` from `simulation.exclusion_nrexcl`
 - Thermo output every `simulation.energy_interval` steps
 - Dump configuration every `simulation.trajectory_interval` steps
@@ -619,9 +618,9 @@ The script SHALL include:
 - **WHEN** the settings describe a polymer with cross bonds, cross angles, and cross dihedrals (both RB and tabulated)
 - **THEN** the `.in` file SHALL contain `dihedral_style hybrid backmap/ryckaert backmap/table` and correct `dihedral_coeff` lines for each type
 
-#### Scenario: Two-phase backmapping script
+#### Scenario: Two-phase backmapping is rejected (deferred feature)
 - **WHEN** `simulation.two_phase: true` is set
-- **THEN** the `.in` file SHALL contain `fix backmap ... phase 1`, a Phase 1 run block, `fix_modify bm phase 2`, and a Phase 2 run block
+- **THEN** the generator SHALL abort at validation time with "Feature 'two_phase' backmapping is not yet implemented (planned for Phase 2)" — `fix backmap`'s command syntax has no `phase` keyword, so this deferred feature has no current target mechanism
 
 #### Scenario: System with dihedrals but no tabulated dihedrals
 - **WHEN** the settings define only RB cross dihedrals (no tabulated)
