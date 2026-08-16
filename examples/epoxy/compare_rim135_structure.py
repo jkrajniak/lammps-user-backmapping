@@ -328,15 +328,19 @@ def plot_rdgs(curves: list[tuple[RDFCurve, RDFCurve, str]], output: Path) -> Non
     n = len(curves)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 4), squeeze=False)
     for ax, (calc, ref, title) in zip(axes[0], curves, strict=True):
-        ax.plot(calc.r_nm, calc.g, label="LAMMPS backmap", linewidth=1.5)
-        ax.plot(ref.r_nm, ref.g, "--", label="paper ref", linewidth=1.5)
+        ax.plot(calc.r_nm, calc.g, color="C0", lw=2.4, label="LAMMPS backmap")
+        ax.plot(ref.r_nm, ref.g, "--", color="C1", lw=2.4, label="paper ref")
         ax.set_xlim(0, R_MAX_NM)
-        ax.set_xlabel("r (nm)")
-        ax.set_ylabel("g(r)")
-        ax.set_title(title)
-        ax.legend(fontsize=8)
+        ax.set_xlabel("r (nm)", fontsize=14)
+        ax.set_ylabel("g(r)", fontsize=14)
+        ax.set_title(title, fontsize=15)
+        ax.tick_params(axis="both", labelsize=12)
+        ax.legend(fontsize=12)
     fig.tight_layout()
-    fig.savefig(output, dpi=150)
+    # Line widths, font sizes and vector output match the conventions applied
+    # to the dodecane (PR #7) and melamine_network (PR #11) figures. Writing a
+    # .pdf path yields vector output; dpi only affects raster formats.
+    fig.savefig(output)
     plt.close(fig)
 
 
