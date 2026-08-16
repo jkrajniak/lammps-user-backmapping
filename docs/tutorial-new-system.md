@@ -161,7 +161,7 @@ cross_interactions:
 !!! note
     The `table` field points to an XVG file with the tabulated potential.
     The `params` field provides metadata for the table interpolation.
-    Set `cg_bonded: true` so the bond weight follows 1 - &lambda;&lambda;.
+    Set `cg_bonded: true` so the bond weight follows 1 - &lambda;<sub>global</sub>.
 
 ### AT Cross Bonds (fade in during backmapping)
 
@@ -319,9 +319,12 @@ Watch the thermodynamic output for:
 
 ### Visualize Results
 
-The trajectory dump includes per-atom lambda values in the `f_bm` column.
-You can use this to color atoms by resolution in VMD, OVITO, or similar
-visualization tools.
+The trajectory dump includes the current global lambda value in the `f_bm`
+column (the same number on every atom in a given frame, since resolution
+isn't spatially varying in this implementation). Use it as a numeric
+readout of ramp progress across frames -- e.g. label the frame with its
+`f_bm` value in VMD, OVITO, or similar tools -- rather than to color atoms
+by resolution within a single frame.
 
 ## Checklist
 

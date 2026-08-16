@@ -108,12 +108,16 @@ input after extracting AT atoms from the hybrid frame.
 
 ### 3. Check the output
 
-- `dump.backmap` -- trajectory with per-atom lambda values (column `f_bm`)
+- `dump.backmap` -- trajectory with the current global lambda value mirrored
+  onto every atom (column `f_bm`)
 - `log.lammps` -- thermodynamic output showing energy convergence
 
 !!! tip
-    The per-atom lambda value is accessible via `f_bm` in dump commands and
-    can be used for visualization or post-processing.
+    `f_bm` reports the single global lambda value for that frame (the same
+    number on every atom) -- useful as a numeric readout of ramp progress
+    when post-processing, but it will render as one flat color per frame in
+    visualization tools, not a spatial resolution map, since resolution
+    isn't spatially varying in this implementation.
 
 ## More Examples
 
