@@ -28,7 +28,7 @@ Dump: 11 frames from step 10000 to 20000
   INFO: max euclidean bond = 99.58 Å
   INFO: density ≈ 1.894 g/cm³ (box 145.4 nm³)
 
-Plot saved to examples/epoxy/validation/rdf_comparison.png
+Plot saved to examples/epoxy/validation/rdf_comparison.pdf
 
 ==================================================
 Results: 8 passed, 6 failed
