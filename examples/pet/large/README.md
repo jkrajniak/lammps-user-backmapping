@@ -86,6 +86,37 @@ for the current validated reference artifact.
      18,392 incorrect over-exclusions. See
      `research/notebook/2026-07-13_pet-exclusion-list-verification.md`.
 
+## Tier C RDF comparison (manuscript Figure 5)
+
+| File | Role |
+|------|------|
+| `rdf_out_bakery/rdf_*_backmap_avg.txt` | Backmapped RDF curves, 11-frame average over the production window (steps 12000–22000). `r` in Å. |
+| `pet_rdf_bakery.py` | Computes the above from the production trajectory |
+| `plot_pet_rdf.py` | Plots the five-panel overlay against the published Dacron reference |
+| `rdf_comparison_bakery.pdf` | The overlay, vector — promoted to the manuscript |
+
+The curves and both scripts were recovered from the VM (`~/sc/pet_v3/`) and
+archived here on 2026-08-16. Before that, only the finished `.png` existed in
+the paper repo: `plot_pet_rdf.py` had never been written down at all, so the
+figure could not be regenerated without redoing the analysis. The trajectory
+`pet_rdf_bakery.py` consumes (`dump.pet_bakery_faithful.custom`, 30 MB) is
+still VM-only, but the archived curves are sufficient to redraw the figure.
+
+Regenerate the figure (no trajectory needed):
+
+```bash
+uv run examples/pet/large/plot_pet_rdf.py \
+  --rdf-dir examples/pet/large/rdf_out_bakery \
+  --ref-dir ../paper-reverse-mapping-polymer-networks/paper/dacron/rdf \
+  --out examples/pet/large/rdf_comparison_bakery.pdf
+```
+
+Reference curves are the mean over all seeds and rates for each pair (4 × 3),
+matching `report_dacron_ref_peaks.py`. Peak metrics recomputed from these
+archived curves reproduce the manuscript's Tier C claims exactly: 8 of 10
+pass, with C–H peak height 23 % high and O–H peak position falling in the
+broad second-shell region (its height agrees to 4 %).
+
 ## Tier status
 
 | Tier | Status |

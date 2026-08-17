@@ -40,6 +40,10 @@ packages = ["python/src/backmap_prep"]
 target-version = "py310"
 line-length = 100
 src = ["python/src", "python/tests"]
+# Archived analysis scripts recovered verbatim from the VM. They are evidence
+# for published numbers, so they are kept byte-identical to the copy that
+# produced those numbers rather than reformatted to repo style.
+extend-exclude = ["examples/pet/large/pet_rdf_bakery.py"]
 
 [tool.ruff.lint]
 select = [
