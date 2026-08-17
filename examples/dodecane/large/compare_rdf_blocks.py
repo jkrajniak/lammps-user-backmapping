@@ -185,9 +185,12 @@ def plot(backmap: BlockedRDF, reference: BlockedRDF, skip_first: int, out: Path)
         r_bm, r_ref = backmap.r, reference.r
 
         ax.plot(r_bm, bm_mean, color="C0", lw=2.4, label="backmapped (mean)")
-        ax.fill_between(
-            r_bm, bm_mean - bm_sem, bm_mean + bm_sem, color="C0", alpha=0.25, label="±SEM"
-        )
+        # The +/-SEM bands are plotted but carry no legend entry: block-to-block
+        # scatter here is at most ~0.5% of the peak (max SEM 0.008 in g(r)),
+        # narrower than the 2.4 pt line drawn over them, so a legend swatch
+        # would key an element the reader can never find. The convergence this
+        # implies is stated in the manuscript caption instead.
+        ax.fill_between(r_bm, bm_mean - bm_sem, bm_mean + bm_sem, color="C0", alpha=0.25)
         ax.plot(r_ref, ref_mean, "--", color="C1", lw=2.4, label="reference AT (mean)")
         ax.fill_between(r_ref, ref_mean - ref_sem, ref_mean + ref_sem, color="C1", alpha=0.25)
 
