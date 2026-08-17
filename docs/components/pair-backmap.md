@@ -28,10 +28,9 @@ For each pair of atoms *i* and *j*:
   always full strength, unconditionally (real intra-molecular chemistry,
   independent of the resolution ramp)
 - **AT-type pairs**, different CG beads:
-  force is weighted by \( w_\text{AT} = \lambda_\text{global} \), and
-  additionally deferred entirely until \( \lambda_\text{global} \) exceeds
-  a small onset threshold (`LAMBDA_AT_ONSET`), for numerical safety against
-  un-relaxed inter-molecular overlaps from rigid fragment placement
+  force is weighted by \( w_\text{AT} = \lambda_\text{global} \), evaluated
+  smoothly from \( \lambda_\text{global} = 0 \) upward (see the note on
+  `LAMBDA_AT_ONSET` in [theory: Force Weighting](../theory.md#force-weighting))
 - **None pairs** (tagged `none`): no interaction
 
 Both force and energy are scaled by the weight factor. Interactions with

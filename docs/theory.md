@@ -97,11 +97,29 @@ This ensures:
   only the inter-bead AT terms and CG terms fade in/out linearly with the
   global ramp
 
-`pair_style backmap` additionally defers inter-bead (not intra-bead) AT-AT
-pair evaluation until \( \lambda_\text{global} \) exceeds a small onset
-threshold (`LAMBDA_AT_ONSET`), purely for numerical safety against
-un-relaxed inter-molecular overlaps from rigid fragment placement — this is
-a pair-style-level guard, not part of the weighting formula itself.
+!!! warning "`LAMBDA_AT_ONSET` is 0.0 — do not raise it"
+
+    `pair_style backmap` carries a constant `LAMBDA_AT_ONSET` that would skip
+    inter-bead AT-AT pair evaluation entirely while
+    \( \lambda_\text{global} \) is below it. **It is set to 0.0, so no
+    deferral takes place**, and it must stay that way.
+
+    The weighting above already provides a smooth onset: \( w_\text{AT} \)
+    starts at zero and ramps linearly, so inter-bead forces grow from nothing
+    without any threshold. A *nonzero* threshold behaves quite differently —
+    it holds the term fully off rather than weighted near zero, then
+    evaluates the real, unscaled sub-potential the instant
+    \( \lambda_\text{global} \) crosses it, at whatever separation the
+    un-relaxed fragment placement happens to have. That is a genuine force
+    discontinuity, not a smoothing device: it blew up PET/Dacron the moment
+    the threshold was crossed (300 K → 71,000+ K within a few hundred steps),
+    independently of ramp timestep or thermostat tuning. ESPResSo++ has no
+    such threshold either.
+
+    See the comment block at the top of `src/pair_backmap.cpp` and
+    `research/notebook/2026-07-13_at-intrabead-always-on-fix.md`. The same
+    regression was diagnosed and fixed once before, so it has recurred at
+    least once.
 
 See `backmap_lambda_weights.h::compute_weight3()`/`same_bead()` for the
 implementation; both are covered by fast unit tests in `tests/unit/`.
