@@ -46,10 +46,11 @@ pair_coeff I J none
 ```
 
 - **I, J** -- atom type pair (1-indexed, can use `*` for ranges)
-- **atomistic** -- forward coefficients to the AT sub-style, weight by
-  &lambda;&lambda;
+- **atomistic** -- forward coefficients to the AT sub-style; weight is
+  always full strength for pairs in the same CG bead, otherwise
+  &lambda;<sub>global</sub> (see Description above)
 - **cg** -- forward coefficients to the CG sub-style, weight by
-  1 - &lambda;&lambda;
+  1 - &lambda;<sub>global</sub>
 - **none** -- no interaction between these types
 
 The AT and CG arguments after the keyword are passed directly to the
@@ -58,7 +59,8 @@ respective sub-style's `pair_coeff` command.
 ## Requirements
 
 This pair style requires [`fix backmap`](fix-backmap.md) to be defined.
-It reads per-atom lambda values from the fix at each timestep.
+It reads the global lambda value and per-atom CG-bead membership from the
+fix at each timestep.
 
 ## Example
 
@@ -98,5 +100,6 @@ re-specified after a restart.
 
 ## Related
 
-- [fix backmap](fix-backmap.md) -- provides per-atom lambda values
+- [fix backmap](fix-backmap.md) -- provides the global lambda value and
+  per-atom CG-bead membership
 - [bond_style backmap/harmonic](bond-styles.md) -- lambda-weighted bonds

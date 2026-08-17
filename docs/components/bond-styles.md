@@ -152,7 +152,8 @@ bond_coeff 3 backmap/harmonic at 800.0 1.53
 ## Requirements
 
 Both bond styles require [`fix backmap`](fix-backmap.md) to be defined.
-They read per-atom lambda values from the fix at each timestep.
+They read the global lambda value and per-atom CG-bead membership from the
+fix at each timestep.
 
 ## Restart
 
@@ -160,5 +161,6 @@ Bond coefficients (K, r0, is_cg) are written to and read from restart files.
 
 ## Related
 
-- [fix backmap](fix-backmap.md) -- provides per-atom lambda values
+- [fix backmap](fix-backmap.md) -- provides the global lambda value and
+  per-atom CG-bead membership
 - [angle_style backmap/harmonic](angle-styles.md) -- lambda-weighted angles
