@@ -31,8 +31,6 @@ atomistic detail while maintaining thermodynamic consistency.
   tables from GROMACS topologies (the CG system and/or each molecule's AT
   fragment can alternatively be supplied as native LAMMPS input -- see
   [Settings Reference](settings-reference.md#cg_system))
-- **Restart support** -- per-atom lambda values are saved and restored across
-  LAMMPS restarts
 
 ## Components
 

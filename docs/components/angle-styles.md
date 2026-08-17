@@ -37,8 +37,8 @@ all three atoms in the angle triplet (*i*-*j*-*k*) map to the same CG bead
 
 For an angle *i*-*j*-*k*:
 
-- **AT mode** (`at`), all three atoms in the same CG bead: \( w = 1 \) once
-  \( \lambda_\text{global} > 0 \)
+- **AT mode** (`at`), all three atoms in the same CG bead: \( w = 1 \) always,
+  including at \( \lambda_\text{global} = 0 \)
 - **AT mode** (`at`), atoms span different CG beads: \( w = \lambda_\text{global} \)
 - **CG mode** (`cg`): \( w = 1 - \lambda_\text{global} \)
 
@@ -66,7 +66,8 @@ angle_coeff 2 backmap/harmonic at 126.67 111.0
 ## Requirements
 
 This angle style requires [`fix backmap`](fix-backmap.md) to be defined.
-It reads per-atom lambda values from the fix at each timestep.
+It reads the global lambda value and per-atom CG-bead membership from the
+fix at each timestep.
 
 ## Restart
 
@@ -75,7 +76,8 @@ files.
 
 ## Related
 
-- [fix backmap](fix-backmap.md) -- provides per-atom lambda values
+- [fix backmap](fix-backmap.md) -- provides the global lambda value and
+  per-atom CG-bead membership
 - [bond_style backmap/harmonic](bond-styles.md) -- lambda-weighted bonds
 - [bond_style backmap/table](bond-styles.md#backmap-table) -- lambda-weighted
   tabulated bonds
@@ -92,7 +94,7 @@ angle_coeff M cg filename keyword
 
 - **N** -- number of interpolation points (typically 1000)
 - **M** -- angle type number
-- **cg** -- weighting mode (CG cross-angles use `cg`; weight = 1 − λ<sub>i</sub> × λ<sub>k</sub>)
+- **cg** -- weighting mode (CG cross-angles use `cg`; weight = 1 − λ<sub>global</sub>)
 - **filename** -- LAMMPS table file converted from GROMACS `table_a*.xvg`
 - **keyword** -- table section label (usually `ENTRY`)
 

@@ -388,8 +388,9 @@ Path to a tabulated angle potential file (if using tabulated angles).
 
 #### `cross_interactions.angles[].cg_bonded`
 
-Whether this angle uses CG weighting (1 - &lambda;&lambda;) or AT weighting
-(&lambda;&lambda;).
+Whether this angle uses CG weighting (1 - &lambda;<sub>global</sub>) or AT
+weighting (&lambda;<sub>global</sub>, or full strength if all atoms are in
+the same CG bead).
 
 | | |
 |---|---|
