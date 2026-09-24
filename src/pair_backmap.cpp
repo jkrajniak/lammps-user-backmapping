@@ -392,16 +392,8 @@ void PairBackmap::compute(int eflag, int vflag) {
         f[j][2] -= delz * fforce;
       }
 
-      // Tally energy and virial
-      if (eflag) {
-        if (eflag_global) eng_vdwl += eng;
-        if (eflag_atom) {
-          double ehalf = 0.5 * eng;
-          if (newton_pair || i < nlocal) eatom[i] += ehalf;
-          if (newton_pair || j < nlocal) eatom[j] += ehalf;
-        }
-      }
-
+      // ev_tally() handles global and per-atom energy as well as the virial;
+      // tallying eng_vdwl/eatom here too would count every pair twice.
       if (evflag) {
         ev_tally(i, j, nlocal, newton_pair, eng, 0.0, fforce, delx, dely, delz);
       }

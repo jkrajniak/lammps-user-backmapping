@@ -36,6 +36,11 @@ For each pair of atoms *i* and *j*:
 Both force and energy are scaled by the weight factor. Interactions with
 negligible weight (< 10<sup>-10</sup>) are skipped for efficiency.
 
+The weighted energy of each pair is tallied once, as van der Waals energy:
+`evdwl` holds the whole sub-style energy (LJ and any cut-off Coulomb part), and
+`ecoul` stays zero. At \( \lambda_\text{global} = 1 \) the pair energy of the
+atomistic part equals that of the plain atomistic pair style.
+
 ## pair_coeff
 
 ```

@@ -30,6 +30,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`pair_style backmap` reported twice the pair energy**: `PairBackmap::compute()`
+  added each weighted pair energy to `eng_vdwl`/`eatom` by hand and then again
+  through `ev_tally()`. Forces and the virial were always correct, so
+  trajectories, structures and pressures are unaffected; every reported pair
+  energy (`evdwl`, `pe`, `etotal`, `compute pe/atom`) was inflated by the pair
+  term. Regression test: `python/tests/test_lammps_energy.py` (needs
+  `BACKMAP_LMP`).
+
 - **`build_network_lammps` under-sized `comm_modify cutoff` for crosslinked
   networks**: `build_system_from_hybrid` (the code path behind `backmap-prep
   build` for `engine: network` systems) already computed correct per-atom

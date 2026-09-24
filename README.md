@@ -171,6 +171,10 @@ make pre-commit-all # run pre-commit hooks on all files
 make clean          # remove caches and build artifacts
 ```
 
+LAMMPS regression tests (`python/tests/test_lammps_energy.py`) run only when
+`BACKMAP_LMP` points to a LAMMPS binary built with the package:
+`BACKMAP_LMP=/path/to/lmp uv run pytest python/tests/test_lammps_energy.py`.
+
 ## How to Cite
 
 If you use this package in your research, please cite:
