@@ -35,3 +35,9 @@ dihedral_coeff M cg table_d1.table ENTRY
 ```
 
 Tables use φ in degrees (-180..180), energy in kcal/mol, force in kcal/(mol·deg).
+
+## Data files
+
+`write_data` writes the coefficients of `ryckaert`, `backmap/ryckaert` and
+`backmap/harmonic` in `dihedral_coeff` argument order, so a written data file
+can be read back directly. `backmap/table` coefficients are not written.

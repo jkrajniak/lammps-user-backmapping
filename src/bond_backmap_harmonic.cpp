@@ -231,3 +231,12 @@ void BondBackmapHarmonic::read_restart(FILE *fp) {
 
   for (int i = 1; i <= atom->nbondtypes; i++) setflag[i] = 1;
 }
+
+/* ---------------------------------------------------------------------- */
+
+/* proc 0 writes to data file, one line per type in coeff() argument order */
+
+void BondBackmapHarmonic::write_data(FILE *fp) {
+  for (int i = 1; i <= atom->nbondtypes; i++)
+    fprintf(fp, "%d %s %.15g %.15g\n", i, is_cg[i] ? "cg" : "at", k[i], r0[i]);
+}

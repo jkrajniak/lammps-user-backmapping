@@ -33,6 +33,7 @@ class BondBackmapHarmonic : public Bond {
   double equilibrium_distance(int) override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
+  void write_data(FILE *) override;
   double single(int, double, int, int, double &) override;
 
  protected:

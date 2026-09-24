@@ -73,6 +73,9 @@ fix at each timestep.
 
 Angle coefficients (K, theta0, is_cg) are written to and read from restart
 files.
+`write_data` writes them in `angle_coeff` order (`N at|cg K theta0`, theta0
+in degrees). `backmap/table` coefficients are not written; give
+`angle_coeff` again after `read_data`.
 
 ## Related
 

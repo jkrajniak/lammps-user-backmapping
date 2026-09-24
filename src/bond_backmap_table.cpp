@@ -50,7 +50,11 @@ BondBackmapTable::BondBackmapTable(LAMMPS *lmp)
       tables(nullptr),
       tabindex(nullptr),
       is_cg(nullptr),
-      fix_backmap(nullptr) {}
+      fix_backmap(nullptr) {
+  // Table coefficients name an external file; they cannot round-trip
+  // through write_data, so leave the section out (as bond_style table does).
+  writedata = 0;
+}
 
 /* ---------------------------------------------------------------------- */
 

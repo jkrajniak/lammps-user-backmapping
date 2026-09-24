@@ -30,6 +30,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`write_data` left empty coefficient sections** for `bond_style
+  backmap/harmonic`, `angle_style backmap/harmonic`, `dihedral_style
+  backmap/harmonic`, `dihedral_style backmap/ryckaert` and `dihedral_style
+  ryckaert`, which then made `read_data` fail ("Unexpected empty line in
+  AngleCoeffs section"). These styles now implement `write_data()`.
+  `backmap/table` bond and angle styles no longer write a section at all,
+  as for stock `bond_style table`. Regression tests:
+  `python/tests/test_lammps_write_data.py` (needs `BACKMAP_LMP`).
 - **`pair_style backmap` reported twice the pair energy**: `PairBackmap::compute()`
   added each weighted pair energy to `eng_vdwl`/`eatom` by hand and then again
   through `ev_tally()`. Forces and the virial were always correct, so
