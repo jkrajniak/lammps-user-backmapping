@@ -34,7 +34,8 @@ def _flatten_atoms(atoms: list[str]) -> list[str]:
 
 
 def _prefix_atoms(atoms: list[str], ident: str) -> list[str]:
-    return [f"1:{ident}:{atom}" for atom in _flatten_atoms(atoms)]
+    """Qualify bare atom names as ``1:<ident>:<name>``; keep qualified ones."""
+    return [atom if atom.count(":") == 2 else f"1:{ident}:{atom}" for atom in _flatten_atoms(atoms)]
 
 
 def _resolve_mapping(
