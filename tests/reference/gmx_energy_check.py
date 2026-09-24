@@ -28,6 +28,8 @@ import tempfile
 from pathlib import Path
 
 KCAL_TO_KJ = 4.184
+# GROMACS terms that have no LAMMPS thermo counterpart yet; printed, not compared.
+REPORTED = ["LJ-14", "Coulomb-14", "Coulomb (SR)"]
 TERMS = {
     # LAMMPS thermo keyword -> GROMACS energy term(s), summed
     "ebond": ["Bond"],
@@ -135,8 +137,31 @@ def write_g96(
     path.write_text("\n".join(out) + "\n")
 
 
+def _zero_top_charges(text: str) -> str:
+    """Set the charge column of every [ atoms ] line (and atomtypes) to zero."""
+    out = []
+    section = None
+    for line in text.splitlines():
+        m = re.match(r"^\s*\[\s*(\w+)\s*\]", line)
+        if m:
+            section = m.group(1)
+        elif section == "atoms" and line.split(";")[0].strip():
+            parts = line.split(";")[0].split()
+            if len(parts) >= 7:
+                parts[6] = "0.0"
+                line = " ".join(parts)
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
 def gromacs_energies(
-    gmx: str, top: Path, g96: Path, n_mol: int, cutoff_nm: float, work: Path
+    gmx: str,
+    top: Path,
+    g96: Path,
+    n_mol: int,
+    cutoff_nm: float,
+    work: Path,
+    zero_charges: bool = False,
 ) -> dict[str, float]:
     text = top.read_text()
     text = re.sub(
@@ -145,6 +170,8 @@ def gromacs_energies(
         text,
         count=1,
     )
+    if zero_charges:
+        text = _zero_top_charges(text)
     (work / "topol.top").write_text(text)
     (work / "run.mdp").write_text(
         "\n".join(
@@ -170,9 +197,12 @@ def gromacs_energies(
     )
 
     def run(*args: str, input: str | None = None) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            [gmx, *args], cwd=work, capture_output=True, text=True, check=True, input=input
+        proc = subprocess.run(
+            [gmx, *args], cwd=work, capture_output=True, text=True, check=False, input=input
         )
+        if proc.returncode != 0:
+            raise SystemExit(f"gmx {args[0]} failed:\n{proc.stderr[-3000:]}")
+        return proc
 
     run(
         "grompp",
@@ -188,7 +218,7 @@ def gromacs_energies(
         "5",
     )
     run("mdrun", "-s", "run.tpr", "-deffnm", "run", "-nt", "1")
-    wanted = sorted({t for terms in TERMS.values() for t in terms})
+    wanted = sorted({t for terms in TERMS.values() for t in terms} | set(REPORTED))
     available = run("dump", "-e", "run.edr").stdout
     present = [t for t in wanted if re.search(rf"(^|\s){re.escape(t)}\s", available, re.MULTILINE)]
     run(
@@ -211,7 +241,8 @@ def gromacs_energies(
     return energies
 
 
-def lammps_energies(lmp: str, input_path: Path, data: Path, work: Path) -> dict[str, float]:
+def _ff_header(input_path: Path, data: Path) -> list[str]:
+    """The generated input up to fix backmap, reading ``data``, at lambda = 1."""
     lines = []
     for line in input_path.read_text().splitlines():
         if line.startswith("fix bm "):
@@ -220,7 +251,39 @@ def lammps_energies(lmp: str, input_path: Path, data: Path, work: Path) -> dict[
             break
         if line.split()[:1] in (["dump"], ["dump_modify"], ["run"], ["minimize"]):
             continue
-        lines.append(line.replace(data.name, str(data.resolve())) if "read_data" in line else line)
+        lines.append(f"read_data {data.resolve()}" if line.startswith("read_data") else line)
+    return lines
+
+
+def relax(lmp: str, input_path: Path, data: Path, steps: int) -> Path:
+    """Minimize at lambda = 1 so the comparison frame has no overlapping atoms.
+
+    The unrelaxed hybrid places fragments independently, so neighbouring
+    fragments overlap; near-degenerate dihedrals and r -> 0 pairs are then
+    evaluated differently by any two codes. Returns the relaxed data file.
+    """
+    out = input_path.parent / "relaxed_check.data"
+    lines = [
+        *_ff_header(input_path, data),
+        "fix_modify bm active no",
+        f"minimize 0.0 1.0e-6 {steps} {10 * steps}",
+        f"write_data {out} nocoeff",
+    ]
+    (input_path.parent / "in.relax_check").write_text("\n".join(lines) + "\n")
+    subprocess.run(
+        [lmp, "-in", "in.relax_check", "-log", "log.relax_check", "-screen", "none"],
+        cwd=input_path.parent,
+        check=True,
+    )
+    return out
+
+
+def lammps_energies(
+    lmp: str, input_path: Path, data: Path, work: Path, zero_charges: bool = False
+) -> dict[str, float]:
+    lines = _ff_header(input_path, data)
+    if zero_charges:
+        lines.append("set group all charge 0.0")
     lines += [
         "thermo_style custom step ebond eangle edihed evdwl ecoul",
         "run 0",
@@ -249,11 +312,31 @@ def main() -> int:
     ap.add_argument("--lmp", required=True)
     ap.add_argument("--gmx", required=True)
     ap.add_argument("--cutoff", type=float, default=1.4, help="LJ cutoff, nm")
-    ap.add_argument("--rtol", type=float, default=1e-5)
+    ap.add_argument("--rtol", type=float, default=1e-6)
+    ap.add_argument(
+        "--atol",
+        type=float,
+        default=1e-4,
+        help="absolute tolerance, kJ/mol (data-file coordinates carry 1e-6 A)",
+    )
+    ap.add_argument(
+        "--zero-charges",
+        action="store_true",
+        help="compare with all charges zero on both sides (pair_style backmap reports "
+        "LJ + cut-off Coulomb as evdwl; GROMACS has no plain cut-off Coulomb)",
+    )
+    ap.add_argument(
+        "--relax",
+        type=int,
+        default=0,
+        help="minimize this many steps at lambda = 1 first and compare on that frame",
+    )
     args = ap.parse_args()
 
     d = args.dir.resolve()
     data, inp, gro, top = d / args.data, d / args.input, d / args.gro, d / args.top
+    if args.relax:
+        data = relax(args.lmp, inp, data, args.relax)
     _, _, masses = read_data(data)
     at_types = {t for t, m in masses.items() if m < 20.0}
     box, coords, n_mol = at_coordinates(data, gro, top, at_types)
@@ -262,8 +345,10 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         write_g96(work / "conf.g96", box, coords, resname, names)
-        gmx = gromacs_energies(args.gmx, top, work / "conf.g96", n_mol, args.cutoff, work)
-        lmp = lammps_energies(args.lmp, inp, data, work)
+        gmx = gromacs_energies(
+            args.gmx, top, work / "conf.g96", n_mol, args.cutoff, work, args.zero_charges
+        )
+        lmp = lammps_energies(args.lmp, inp, data, work, args.zero_charges)
 
     failed = False
     print(f"{'term':8s} {'LAMMPS (kJ/mol)':>18s} {'GROMACS (kJ/mol)':>18s} {'rel diff':>10s}")
@@ -271,9 +356,12 @@ def main() -> int:
         ref = sum(gmx.get(t, 0.0) for t in gmx_terms)
         val = lmp[key] * KCAL_TO_KJ
         rel = abs(val - ref) / max(abs(ref), 1e-12)
-        ok = rel <= args.rtol or abs(val - ref) < 1e-6
+        ok = rel <= args.rtol or abs(val - ref) <= args.atol
         failed |= not ok
         print(f"{key:8s} {val:18.6f} {ref:18.6f} {rel:10.2e} {'ok' if ok else 'FAIL'}")
+    for term in REPORTED:
+        if term in gmx:
+            print(f"{term:12s} GROMACS {gmx[term]:14.6f} kJ/mol (no LAMMPS thermo counterpart)")
     return 1 if failed else 0
 
 

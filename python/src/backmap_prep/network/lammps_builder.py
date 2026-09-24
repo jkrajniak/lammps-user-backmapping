@@ -932,6 +932,7 @@ def _merge_source_atom_types(
     field is not pulled in through ``hybrid.includes``, the AT types live in each
     molecule's source topology; without them the AT LJ parameters would be zero.
     """
+    adopted: tuple[int, float, float] | None = None
     for rel in _source_topology_paths(settings):
         path = Path(rel) if Path(rel).is_absolute() else base_dir / rel
         if not path.is_file():
@@ -939,6 +940,18 @@ def _merge_source_atom_types(
         source = parse_top(path, include_dirs=[path.parent, base_dir], forcefield_dirs=ff_dirs)
         for name, entry in source.atom_types.items():
             top_file.atom_types.setdefault(name, entry)
+        # bakery writes no [ defaults ] into the hybrid topology unless the force
+        # field is included; the AT source then defines the LJ combination rule.
+        if top_file.has_defaults or not source.has_defaults:
+            continue
+        rule = (source.combination_rule, source.fudge_lj, source.fudge_qq)
+        if adopted is not None and rule != adopted:
+            raise ValueError(
+                f"AT source topologies disagree on [ defaults ]: {adopted} vs {rule} ({path})"
+            )
+        adopted = rule
+    if adopted is not None:
+        top_file.combination_rule, top_file.fudge_lj, top_file.fudge_qq = adopted
 
 
 def build_system_from_hybrid(

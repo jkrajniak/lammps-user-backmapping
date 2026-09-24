@@ -386,3 +386,21 @@ class TestHybridInvariants:
                 "Dihedrals": n_mol * sum(len(e.quadruples) for e in ci.dihedrals if e.cg_bonded),
             }
         assert found == expected
+
+
+@pytest.mark.parametrize("example_workdir", ["pe_10"], indirect=True)
+def test_lj_mixing_follows_source_combination_rule(example_workdir: Path) -> None:
+    """pe_10's AT topology uses comb-rule 3 (geometric sigma).
+
+    bakery writes no [ defaults ] into the hybrid topology, so the rule must
+    come from the AT source; it used to fall back to Lorentz-Berthelot.
+    """
+    data = _build_example(example_workdir)
+    script = (example_workdir / f"in.{data.stem}").read_text()
+    sigmas = {
+        float(line.split()[5])
+        for line in script.splitlines()
+        if line.startswith("pair_coeff") and " atomistic " in line
+    }
+    assert any(abs(s - (3.5 * 2.5) ** 0.5) < 1e-6 for s in sigmas), sorted(sigmas)
+    assert not any(abs(s - 3.0) < 1e-6 for s in sigmas), sorted(sigmas)

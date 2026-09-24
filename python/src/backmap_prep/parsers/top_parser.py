@@ -98,6 +98,7 @@ class Topology:
     fudge_lj: float = 1.0
     fudge_qq: float = 1.0
     defaults_gen_pairs: str = "yes"
+    has_defaults: bool = False  # True once a [ defaults ] section was read
 
 
 def parse_top(
@@ -163,6 +164,7 @@ def _parse_file(
         tokens = stripped.split()
 
         if section == "defaults":
+            top.has_defaults = True
             if len(tokens) >= 2:
                 top.combination_rule = int(tokens[1])
             if len(tokens) >= 4:
