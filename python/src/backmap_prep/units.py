@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # GROMACS → LAMMPS real conversion factors
 NM_TO_ANGSTROM = 10.0
-KJ_TO_KCAL = 0.239006
+KJ_TO_KCAL = 1.0 / 4.184  # thermochemical calorie, exact
 
 # Derived factors
 DISTANCE = NM_TO_ANGSTROM  # nm → Å

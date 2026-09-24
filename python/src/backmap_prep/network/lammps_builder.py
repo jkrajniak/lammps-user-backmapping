@@ -882,6 +882,35 @@ def build_system_from_cg(
     return system
 
 
+def _source_topology_paths(settings: Settings) -> list[str]:
+    paths: list[str] = []
+    for mol in settings.molecules:
+        topology = mol.source.topology
+        if isinstance(topology, str):
+            paths.append(topology)
+        elif topology:
+            paths.extend(entry.file for entry in topology)
+    return paths
+
+
+def _merge_source_atom_types(
+    top_file: Topology, settings: Settings, base_dir: Path, ff_dirs: list[Path]
+) -> None:
+    """Fill AT atom types (mass, sigma, epsilon) missing from the hybrid topology.
+
+    bakery writes only the CG types into the hybrid topology. When the AT force
+    field is not pulled in through ``hybrid.includes``, the AT types live in each
+    molecule's source topology; without them the AT LJ parameters would be zero.
+    """
+    for rel in _source_topology_paths(settings):
+        path = Path(rel) if Path(rel).is_absolute() else base_dir / rel
+        if not path.is_file():
+            continue
+        source = parse_top(path, include_dirs=[path.parent, base_dir], forcefield_dirs=ff_dirs)
+        for name, entry in source.atom_types.items():
+            top_file.atom_types.setdefault(name, entry)
+
+
 def build_system_from_hybrid(
     settings: Settings,
     base_dir: Path,
@@ -902,6 +931,7 @@ def build_system_from_hybrid(
         include_dirs=[base_dir],
         forcefield_dirs=ff_dirs,
     )
+    _merge_source_atom_types(top_file, settings, base_dir, ff_dirs)
     molecule = _topology_molecule(top_file)
     cg_type_names = _cg_types_from_settings(settings)
 

@@ -258,12 +258,12 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
 def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]) -> str:
     hybrid = len(dihedral_styles) > 1
     if dihtype.style == "ryckaert":
-        coeffs = " ".join(f"{value:.6f}" for value in dihtype.params[:6])
+        coeffs = " ".join(f"{value:.10g}" for value in dihtype.params[:6])
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} ryckaert {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
     if dihtype.style == "backmap/ryckaert":
-        coeffs = " ".join(f"{value:.6f}" for value in dihtype.params[:6])
+        coeffs = " ".join(f"{value:.10g}" for value in dihtype.params[:6])
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/ryckaert {dihtype.keyword} {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
@@ -279,27 +279,27 @@ def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]
         )
     if dihtype.style == "harmonic":
         k_val, sign_val, n_val = dihtype.params[:3]
-        coeffs = f"{k_val:.6f} {int(sign_val)} {int(n_val)}"
+        coeffs = f"{k_val:.10g} {int(sign_val)} {int(n_val)}"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} harmonic {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
     if dihtype.style == "backmap/harmonic":
         k_val, sign_val, n_val = dihtype.params[:3]
-        coeffs = f"{k_val:.6f} {int(sign_val)} {int(n_val)}"
+        coeffs = f"{k_val:.10g} {int(sign_val)} {int(n_val)}"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/harmonic {dihtype.keyword} {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
     if dihtype.style == "charmm":
         k_val, n_val, delta = dihtype.params[:3]
         shift = round(delta)
-        coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
+        coeffs = f"{k_val:.10g} {int(n_val)} {shift} 1.0"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} charmm {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
     if dihtype.style == "backmap/charmm":
         k_val, n_val, delta = dihtype.params[:3]
         shift = round(delta)
-        coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
+        coeffs = f"{k_val:.10g} {int(n_val)} {shift} 1.0"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/charmm {dihtype.keyword} {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
@@ -319,7 +319,7 @@ def _write_cap_force(f: IO[str], sim: SimulationParams) -> None:
     fmax = units.force(sim.cap_force)
     if sim.cap_force_ramp is not None and sim.cap_force_ramp != 0.0:
         ramp = units.force(sim.cap_force_ramp)
-        f.write(f"fix cap all backmap/capforce {fmax:.4f} ramp {ramp:.6f}\n\n")
+        f.write(f"fix cap all backmap/capforce {fmax:.4f} ramp {ramp:.10g}\n\n")
     else:
         f.write(f"fix cap all backmap/capforce {fmax:.4f}\n\n")
 
@@ -379,7 +379,9 @@ def _write_setup(
     )
     for pt in system.pair_types:
         if pt.kind == "atomistic":
-            f.write(f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.6f} {pt.sigma:.6f}\n")
+            f.write(
+                f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.10g} {pt.sigma:.10g}\n"
+            )
         elif pt.kind == "cg":
             if pt.table_file:
                 f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
@@ -398,11 +400,13 @@ def _write_setup(
     for bt in system.bond_types:
         if len(bond_styles) > 1:
             if bt.style == "harmonic":
-                f.write(f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+                f.write(
+                    f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
+                )
             elif bt.style == "backmap/harmonic":
                 f.write(
                     f"bond_coeff {bt.type_id} backmap/harmonic "
-                    f"{bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                    f"{bt.keyword} {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
             elif bt.style == "backmap/table":
                 f.write(
@@ -411,10 +415,10 @@ def _write_setup(
                 )
         else:
             if bt.style == "harmonic":
-                f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+                f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.10g} {bt.params[1]:.10g}\n")
             elif bt.style == "backmap/harmonic":
                 f.write(
-                    f"bond_coeff {bt.type_id} {bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                    f"bond_coeff {bt.type_id} {bt.keyword} {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
             elif bt.style == "backmap/table":
                 f.write(
@@ -434,12 +438,12 @@ def _write_setup(
                 if angtype.style == "harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} harmonic "
-                        f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} backmap/harmonic "
-                        f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.keyword} {angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/table":
                     f.write(
@@ -450,12 +454,12 @@ def _write_setup(
                 if angtype.style == "harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} "
-                        f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} "
-                        f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.keyword} {angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/table":
                     f.write(
@@ -514,7 +518,7 @@ def _write_setup(
     if system.has_cross_pairs:
         f.write(
             f"fix pairs all backmap/pairs at file {system.cross_pairs_file} "
-            f"cut {params['lj_cut_ang']:.6f}\n\n"
+            f"cut {params['lj_cut_ang']:.10g}\n\n"
         )
 
     _write_cap_force(f, sim)
@@ -546,7 +550,7 @@ def write_cross_pairs_file(system: System, path: Path) -> None:
     with open(path, "w") as f:
         f.write(f"{len(system.cross_pairs)}\n")
         for pair in system.cross_pairs:
-            f.write(f"{pair.i} {pair.j} {pair.sigma:.6f} {pair.epsilon:.6f}\n")
+            f.write(f"{pair.i} {pair.j} {pair.sigma:.10g} {pair.epsilon:.10g}\n")
 
 
 def write_lammps_input(
