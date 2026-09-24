@@ -314,7 +314,7 @@ class TestWriteLammpsInput:
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
         content = p.read_text()
-        assert "fix cap all backmap/capforce 1195.0300" in content
+        assert "fix cap all backmap/capforce 1195.0287" in content
 
     def test_cap_force_ramp_when_set(self, tmp_path: Path) -> None:
         system = _make_system()
@@ -324,7 +324,7 @@ class TestWriteLammpsInput:
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
         content = p.read_text()
-        assert "fix cap all backmap/capforce 1195.0300 ramp 0.239006" in content
+        assert "fix cap all backmap/capforce 1195.0287 ramp 0.2390057361" in content
 
     def test_langevin_damp_from_thermostat_gamma(self, tmp_path: Path) -> None:
         system = _make_system()

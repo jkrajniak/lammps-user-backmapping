@@ -20,18 +20,18 @@ class TestDistanceConversion:
 
 class TestEnergyConversion:
     def test_one_kj_to_kcal(self) -> None:
-        assert units.energy(1.0) == pytest.approx(0.239006)
+        assert units.energy(1.0) == pytest.approx(1.0 / 4.184, rel=1e-12)
 
     def test_zero(self) -> None:
         assert units.energy(0.0) == 0.0
 
     def test_negative(self) -> None:
-        assert units.energy(-4.184) == pytest.approx(-4.184 * 0.239006)
+        assert units.energy(-4.184) == pytest.approx(-1.0, rel=1e-12)
 
 
 class TestForceConversion:
     def test_force(self) -> None:
-        expected = 0.239006 / 10.0
+        expected = (1.0 / 4.184) / 10.0
         assert units.force(1.0) == pytest.approx(expected)
 
     def test_zero(self) -> None:
@@ -49,13 +49,13 @@ class TestTimeConversion:
 class TestSpringBondConversion:
     def test_spring_bond(self) -> None:
         # GROMACS E=(k/2)x^2 -> LAMMPS E=Kx^2: unit conversion, then halved.
-        expected = (0.239006 / 100.0) / 2.0
+        expected = (1.0 / 4.184 / 100.0) / 2.0
         assert units.spring_bond(1.0) == pytest.approx(expected)
 
 
 class TestSpringAngleConversion:
     def test_spring_angle(self) -> None:
-        assert units.spring_angle(1.0) == pytest.approx(0.239006 / 2.0)
+        assert units.spring_angle(1.0) == pytest.approx(1.0 / 4.184 / 2.0, rel=1e-12)
 
 
 class TestGromacsRbConversion:
@@ -98,17 +98,17 @@ class TestSigmaEpsilon:
         assert units.sigma(0.34) == pytest.approx(3.4)
 
     def test_epsilon_is_energy(self) -> None:
-        assert units.epsilon(1.0) == pytest.approx(0.239006)
+        assert units.epsilon(1.0) == pytest.approx(1.0 / 4.184, rel=1e-12)
 
 
 @pytest.mark.parametrize(
     ("func", "input_val", "expected"),
     [
         (units.distance, 2.5, 25.0),
-        (units.energy, 10.0, 2.39006),
+        (units.energy, 10.0, 10.0 / 4.184),
         (units.time, 0.5, 500.0),
         (units.sigma, 0.5, 5.0),
-        (units.epsilon, 0.5, 0.119503),
+        (units.epsilon, 0.5, 0.5 / 4.184),
     ],
 )
 def test_parametrized_conversions(func: object, input_val: float, expected: float) -> None:
