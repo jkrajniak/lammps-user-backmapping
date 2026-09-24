@@ -132,10 +132,12 @@ def rebuild_network_lammps(
 ) -> NetworkLammpsBuildResult:
     """Build hybrid topology and place AT fragments using equilibrated CG coordinates."""
     work_dir = resolve_data_dir(settings_path, settings)
-    settings = materialize_lammps_sources(settings, work_dir)
+    output_dir = settings_path.parent.resolve()
+    settings = materialize_lammps_sources(settings, work_dir, output_dir)
     hybrid = build_hybrid_gromacs(
         settings,
         base_dir=work_dir,
+        output_dir=output_dir,
         allow_no_bonds=settings.prep.allow_no_bonds,
         chain_rng_seed=settings.prep.chain_rng_seed,
     )

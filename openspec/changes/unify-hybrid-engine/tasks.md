@@ -19,7 +19,7 @@ Design: [design.md](./design.md). Branch `feat/single-hybrid-engine`.
 - [x] 2.5 LAMMPS-format `cg_system` and `molecules[].source` -> temporary
       `.gro`/`.top`, exact unit round trip
 - [x] 2.6 CLI: `build`, `rebuild`, `cg-only` through the single engine
-- [ ] 2.8 Write outputs to the settings directory (or an explicit output
+- [x] 2.8 Write outputs to the settings directory (or an explicit output
       directory), never into `prep.data_dir`: a PET build wrote into the
       published paper-data repository
 - [ ] 2.7 Delete `builder.build_system` and linear-only helpers; keep the

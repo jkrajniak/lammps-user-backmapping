@@ -488,6 +488,7 @@ class TestWriteLammpsInput:
             DihedralTypeInfo(1, "harmonic", "", [10.0, 1.0, 2.0]),
             DihedralTypeInfo(2, "backmap/harmonic", "at", [20.0, -1.0, 3.0]),
         ]
+        system.atoms.append(LammpsAtom(4, 1, 2, 0.0, 3.0, 1.0, 0.0))
         system.dihedrals = [LammpsDihedral(1, 2, 1, 2, 3, 4)]
         system.has_cross_dihedrals = True
         settings = _make_settings()

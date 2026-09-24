@@ -535,6 +535,9 @@ def max_interaction_extent(system: System) -> float:
     terms += [[a.i, a.j, a.k] for a in system.angles]
     terms += [[d.i, d.j, d.k, d.l] for d in system.dihedrals]
     for ids in terms:
+        missing = [i for i in ids if i not in by_id]
+        if missing:
+            raise ValueError(f"bonded term {ids} refers to atoms {missing} that do not exist")
         chain = _chained_positions([by_id[i] for i in ids], system.box)
         for m in range(len(chain)):
             for n in range(m + 1, len(chain)):

@@ -137,8 +137,15 @@ def _cg_top_text(
     return "\n".join(out)
 
 
-def materialize_lammps_sources(settings: Settings, work_dir: Path) -> Settings:
-    """Return settings whose LAMMPS-format sources point at converted GROMACS files."""
+def materialize_lammps_sources(
+    settings: Settings, work_dir: Path, output_dir: Path | None = None
+) -> Settings:
+    """Return settings whose LAMMPS-format sources point at converted GROMACS files.
+
+    Sources are read from ``work_dir``; the converted files are written to
+    ``<output_dir>/lammps_sources/`` (default ``work_dir``) and referenced by
+    absolute path.
+    """
     uses_lammps = settings.cg_system is not None and settings.cg_system.format == "lammps"
     uses_lammps |= any(mol.source.format == "lammps" for mol in settings.molecules)
     if not uses_lammps:
@@ -146,8 +153,8 @@ def materialize_lammps_sources(settings: Settings, work_dir: Path) -> Settings:
     if len(settings.molecules) != 1:
         raise ValueError("LAMMPS-format sources are supported for one molecule type")
     mol = settings.molecules[0]
-    out_dir = work_dir / SOURCE_DIR
-    out_dir.mkdir(exist_ok=True)
+    out_dir = (output_dir or work_dir) / SOURCE_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
     new = settings.model_copy(deep=True)
     new_mol = new.molecules[0]
 
@@ -158,8 +165,8 @@ def materialize_lammps_sources(settings: Settings, work_dir: Path) -> Settings:
         _write_gro(out_dir / "at_fragment.gro", gro, mol.name, names)
         (out_dir / "at_fragment.top").write_text(_at_top_text(top, mol.name))
         new_mol.source.format = "gromacs"
-        new_mol.source.coordinates = f"{SOURCE_DIR}/at_fragment.gro"
-        new_mol.source.topology = f"{SOURCE_DIR}/at_fragment.top"
+        new_mol.source.coordinates = str(out_dir / "at_fragment.gro")
+        new_mol.source.topology = str(out_dir / "at_fragment.top")
         new_mol.source.data = None
         new_mol.source.input_script = None
 
@@ -187,7 +194,7 @@ def materialize_lammps_sources(settings: Settings, work_dir: Path) -> Settings:
             _cg_top_text(top, settings, mol.name, bead_names, data_bonds)
         )
         new.cg_system.format = "gromacs"
-        new.cg_system.coordinates = f"{SOURCE_DIR}/cg_system.gro"
-        new.cg_system.topology = f"{SOURCE_DIR}/cg_system.top"
+        new.cg_system.coordinates = str(out_dir / "cg_system.gro")
+        new.cg_system.topology = str(out_dir / "cg_system.top")
         new.cg_system.data = None
     return new

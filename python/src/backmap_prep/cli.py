@@ -32,7 +32,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
     """Default build: generate hybrid data + input from GROMACS sources."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = resolve_data_dir(args.settings, settings)
+    out_dir = args.settings.parent.resolve()
     system = build_network_lammps(settings, args.settings).system
 
     data_path = out_dir / f"{prefix}.data"
@@ -48,7 +48,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
     write_lammps_input(system, settings, input_path, data_filename=f"{prefix}.data")
     print(f"Wrote {input_path}")
 
-    table_search: list[Path] = [out_dir]
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
     if tables_dir is not None:
         table_search.append(tables_dir)
@@ -63,8 +63,8 @@ def _cmd_rebuild(args: argparse.Namespace) -> int:
     """Rebuild hybrid data from equilibrated CG coordinates (.data or unwrapped .gro)."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = resolve_data_dir(args.settings, settings)
-    table_search: list[Path] = [out_dir]
+    out_dir = args.settings.parent.resolve()
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
     if tables_dir is not None:
         table_search.append(tables_dir)
@@ -97,8 +97,8 @@ def _cmd_cg_only(args: argparse.Namespace) -> int:
     if settings.cg_system is None:
         print("cg-only requires cg_system in settings", file=sys.stderr)
         return 1
-    out_dir = resolve_data_dir(args.settings, settings)
-    table_search: list[Path] = [out_dir]
+    out_dir = args.settings.parent.resolve()
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
     if tables_dir is not None:
         table_search.append(tables_dir)
@@ -247,9 +247,9 @@ def _cmd_finalize_cg(args: argparse.Namespace) -> int:
     """Fix PBC/image flags on an equilibrated CG LAMMPS frame."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = resolve_data_dir(args.settings, settings)
+    out_dir = args.settings.parent.resolve()
 
-    table_search: list[Path] = [out_dir]
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
     if tables_dir is not None:
         table_search.append(tables_dir)
@@ -332,6 +332,7 @@ def _cmd_build_hybrid(args: argparse.Namespace) -> int:
             result = build_hybrid_gromacs(
                 settings,
                 base_dir=work_dir,
+                output_dir=settings_path.parent.resolve(),
                 allow_no_bonds=allow_no_bonds,
                 chain_rng_seed=chain_rng_seed,
             )

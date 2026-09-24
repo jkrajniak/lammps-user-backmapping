@@ -853,7 +853,7 @@ def build_system_from_cg(
     base_dir = resolve_data_dir(settings_path, settings)
     from backmap_prep.network.lammps_sources import materialize_lammps_sources
 
-    settings = materialize_lammps_sources(settings, base_dir)
+    settings = materialize_lammps_sources(settings, base_dir, settings_path.parent.resolve())
     assert settings.cg_system is not None
     gro_path = (base_dir / settings.cg_system.coordinates).resolve()
     top_path = (base_dir / settings.cg_system.topology).resolve()
