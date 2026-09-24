@@ -6,10 +6,11 @@ import math
 
 import pytest
 
-from backmap_prep.builder import LammpsAtom, LammpsBond, System
+from backmap_prep.builder import LammpsAngle, LammpsAtom, LammpsBond, System
 from backmap_prep.network.pbc import (
     fold_atoms_with_images,
     max_bond_length,
+    max_interaction_extent,
     prepare_network_coordinates,
 )
 
@@ -118,3 +119,25 @@ def test_prepare_network_coordinates_flags_consistent_in_every_component() -> No
     assert max_bond_length(system.atoms, system.bonds, system.box) < 4.5
     assert _max_flag_unwrapped_bond(system) < 4.5
     assert all(0.0 <= atom.x < box[0] for atom in system.atoms)
+
+
+def test_interaction_extent_uses_minimum_image_not_folded_coordinates() -> None:
+    """A bond across the boundary has a small extent, not about a box length.
+
+    The communication cutoff used to include the distance between folded file
+    coordinates, which inflated it to ~85-100 A for any system with a bond
+    crossing the box boundary.
+    """
+    box = (40.0, 40.0, 40.0)
+    atoms = [
+        LammpsAtom(1, 1, 1, 0.0, 39.5, 5.0, 5.0, "A", True),
+        LammpsAtom(2, 1, 2, 0.0, 0.5, 5.0, 5.0, "C", False),
+        LammpsAtom(3, 1, 2, 0.0, 1.5, 5.0, 5.0, "C", False),
+    ]
+    bonds = [LammpsBond(1, 1, 2, 3)]
+    angles = [LammpsAngle(1, 1, 1, 2, 3)]
+    system = System(atoms=atoms, bonds=bonds, angles=angles, box=box)
+
+    extent = max_interaction_extent(system)
+
+    assert extent == pytest.approx(2.0)

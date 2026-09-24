@@ -7,8 +7,7 @@ from typing import IO, TYPE_CHECKING, Any
 
 from . import units
 from .builder import DihedralTypeInfo, System
-from .network.pbc import max_bond_length as _max_bond_length_from_pbc
-from .network.pbc import max_euclidean_bond_length, validate_bond_geometry
+from .network.pbc import max_interaction_extent, validate_bond_geometry
 from .schema import Settings, SimulationParams
 
 if TYPE_CHECKING:
@@ -140,11 +139,6 @@ def _min_image_distance(
     return math.sqrt(dx * dx + dy * dy + dz * dz)
 
 
-def _max_bond_length(system: System) -> float:
-    """Longest bonded distance in the system (minimum-image, Angstrom)."""
-    return _max_bond_length_from_pbc(system.atoms, system.bonds, system.box)
-
-
 def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     """Pre-compute unit-converted values and style lists used by multiple writers."""
     sim = settings.simulation
@@ -212,26 +206,13 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if has_backmap_dihedral_table:
         dihedral_styles.append("backmap/table linear 1000")
 
-    max_bond_ang = _max_bond_length(system)
     interaction_cutoff_ang = max(lj_cut_ang, cg_cut_ang)
     comm_skin_ang = 1.0
     comm_cutoff_ang = interaction_cutoff_ang + comm_skin_ang
-    is_network_hybrid = (
-        system.has_cross_bonds
-        or system.has_cross_angles
-        or system.has_cross_dihedrals
-        or system.has_cross_pairs
-    )
-    if is_network_hybrid and system.write_image_flags:
-        max_euclidean_bond_ang = max_euclidean_bond_length(system.atoms, system.bonds)
-        # Cured networks (rim135): crosslink bonds can span the box in file
-        # coordinates; LAMMPS comm must cover the folded Cartesian extent.
-        # Linear polymer melts use min-image cross-CG bonds only — keep lj+cg cutoff.
-        bond_extent = max(max_bond_ang, max_euclidean_bond_ang)
-        comm_cutoff_ang = max(
-            comm_cutoff_ang,
-            bond_extent + comm_skin_ang,
-        )
+    # Ghost atoms must cover the pair cutoff and the minimum-image extent of
+    # every bonded term and bead (see pbc.max_interaction_extent).
+    comm_cutoff_ang = max(interaction_cutoff_ang, max_interaction_extent(system)) + comm_skin_ang
+    if system.write_image_flags:
         validate_bond_geometry(system, interaction_cutoff_ang)
 
     return {
