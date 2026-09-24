@@ -1,6 +1,6 @@
 """Bounded LAMMPS input-script parser for AT-fragment force-field coefficients.
 
-Covers exactly the four coefficient families `builder.py` consumes for AT
+Covers exactly the four coefficient families `network.lammps_sources` converts for AT
 fragments (``molecules[].source.format: lammps``): ``bond_coeff`` (only
 ``bond_style harmonic``), ``angle_coeff`` (only ``angle_style harmonic``),
 ``dihedral_coeff`` (only ``dihedral_style ryckaert`` — the package's own

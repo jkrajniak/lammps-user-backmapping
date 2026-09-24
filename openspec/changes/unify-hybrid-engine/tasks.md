@@ -22,7 +22,7 @@ Design: [design.md](./design.md). Branch `feat/single-hybrid-engine`.
 - [x] 2.8 Write outputs to the settings directory (or an explicit output
       directory), never into `prep.data_dir`: a PET build wrote into the
       published paper-data repository
-- [ ] 2.7 Delete `builder.build_system` and linear-only helpers; keep the
+- [x] 2.7 Delete `builder.build_system` and linear-only helpers; keep the
       data classes (`System`, `LammpsAtom`, ...) in a neutral module
 
 ## 2b. Found while porting (done)
