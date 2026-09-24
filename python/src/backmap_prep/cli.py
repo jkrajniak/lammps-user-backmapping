@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from .builder import CGPositionOverride, System, build_system
+    from .builder import System
+
 from .network.api import build_hybrid_gromacs, build_network_lammps
 from .network.compare_topology import main as compare_topology_main
 from .network.finalize_cg import finalize_cg_from_equil, write_cg_gro
 from .network.lammps_builder import build_system_from_cg
 from .network.rebuild import rebuild_network_lammps
-from .parsers import parse_lammps_data
 from .schema import (
     Settings,
     load_settings,
@@ -32,13 +32,8 @@ def _cmd_build(args: argparse.Namespace) -> int:
     """Default build: generate hybrid data + input from GROMACS sources."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = args.settings.parent
-    if settings.prep.engine == "network":
-        out_dir = resolve_data_dir(args.settings, settings)
-        result = build_network_lammps(settings, args.settings)
-        system = result.system
-    else:
-        system = build_system(settings, base_dir=out_dir, settings_path=args.settings)
+    out_dir = resolve_data_dir(args.settings, settings)
+    system = build_network_lammps(settings, args.settings).system
 
     data_path = out_dir / f"{prefix}.data"
     write_lammps_data(system, data_path)
@@ -68,28 +63,12 @@ def _cmd_rebuild(args: argparse.Namespace) -> int:
     """Rebuild hybrid data from equilibrated CG coordinates (.data or unwrapped .gro)."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = args.settings.parent
+    out_dir = resolve_data_dir(args.settings, settings)
     table_search: list[Path] = [out_dir]
-
-    if settings.prep.engine == "network":
-        out_dir = resolve_data_dir(args.settings, settings)
-        table_search = [out_dir]
-        tables_dir = resolve_tables_dir(args.settings, settings)
-        if tables_dir is not None:
-            table_search.append(tables_dir)
-        result = rebuild_network_lammps(settings, args.settings, args.cg_frame.resolve())
-        system = result.system
-    else:
-        cg_frame = parse_lammps_data(args.cg_frame)
-        positions = [(a.x, a.y, a.z) for a in sorted(cg_frame.atoms, key=lambda a: a.atom_id)]
-        box = (float(cg_frame.box[0]), float(cg_frame.box[1]), float(cg_frame.box[2]))
-        override = CGPositionOverride(positions=positions, box=box)
-        system = build_system(
-            settings,
-            base_dir=out_dir,
-            cg_override=override,
-            settings_path=args.settings,
-        )
+    tables_dir = resolve_tables_dir(args.settings, settings)
+    if tables_dir is not None:
+        table_search.append(tables_dir)
+    system = rebuild_network_lammps(settings, args.settings, args.cg_frame.resolve()).system
 
     data_path = out_dir / f"{prefix}.data"
     write_lammps_data(system, data_path)
@@ -115,56 +94,19 @@ def _cmd_cg_only(args: argparse.Namespace) -> int:
     """Extract CG-only system for pre-equilibration."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = args.settings.parent
-    table_search: list[Path] = []
-
-    if settings.prep.engine == "network":
-        if settings.cg_system is None:
-            print("network cg-only requires cg_system in settings", file=sys.stderr)
-            return 1
-        out_dir = resolve_data_dir(args.settings, settings)
-        table_search = [out_dir]
-        tables_dir = resolve_tables_dir(args.settings, settings)
-        if tables_dir is not None:
-            table_search.append(tables_dir)
-        cg_system = build_system_from_cg(
-            settings,
-            args.settings,
-            table_search_dirs=table_search[1:],
-        )
-    else:
-        system = build_system(settings, base_dir=out_dir, settings_path=args.settings)
-
-        cg_atoms = [a for a in system.atoms if a.is_cg]
-        cg_atom_ids = {a.atom_id for a in cg_atoms}
-        cg_bonds = [b for b in system.bonds if b.i in cg_atom_ids and b.j in cg_atom_ids]
-        cg_angles = [
-            a
-            for a in system.angles
-            if a.i in cg_atom_ids and a.j in cg_atom_ids and a.k in cg_atom_ids
-        ]
-
-        cg_system = System(
-            atoms=cg_atoms,
-            bonds=cg_bonds,
-            angles=cg_angles,
-            atom_types=[at for at in system.atom_types if at.is_cg],
-            bond_types=[
-                bt
-                for bt in system.bond_types
-                if bt.keyword == "cg" or bt.style in {"harmonic", "table"}
-            ],
-            angle_types=[
-                at
-                for at in system.angle_types
-                if at.keyword == "cg" or at.style in {"harmonic", "table"}
-            ],
-            pair_types=[pt for pt in system.pair_types if pt.kind == "cg"],
-            box=system.box,
-            table_files=system.table_files,
-            angle_table_files=system.angle_table_files,
-            pair_table_files=system.pair_table_files,
-        )
+    if settings.cg_system is None:
+        print("cg-only requires cg_system in settings", file=sys.stderr)
+        return 1
+    out_dir = resolve_data_dir(args.settings, settings)
+    table_search: list[Path] = [out_dir]
+    tables_dir = resolve_tables_dir(args.settings, settings)
+    if tables_dir is not None:
+        table_search.append(tables_dir)
+    cg_system = build_system_from_cg(
+        settings,
+        args.settings,
+        table_search_dirs=table_search[1:],
+    )
 
     data_path = out_dir / f"{prefix}_cg.data"
     write_lammps_data(cg_system, data_path)

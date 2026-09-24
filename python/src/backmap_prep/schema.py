@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Literal
 
@@ -311,9 +312,12 @@ class HybridOutputConfig(BaseModel):
 
 
 class PrepConfig(BaseModel):
-    """Which preparation engine to use."""
+    """Paths and options for hybrid preparation."""
 
-    engine: Literal["linear", "network"] = "linear"
+    engine: Literal["linear", "network"] | None = Field(
+        default=None,
+        description="Deprecated and ignored: every system is built by the same engine",
+    )
     bakery_xml: str | None = Field(
         default=None,
         description="Bakery XML settings for network prep (Phase 3 bridge)",
@@ -450,7 +454,7 @@ class Settings(BaseModel):
     prep: PrepConfig = Field(default_factory=PrepConfig)
     molecules: list[MoleculeDef] = Field(default_factory=list)
     cg_system: CGSystem | None = None
-    hybrid: HybridOutputConfig | None = None
+    hybrid: HybridOutputConfig = Field(default_factory=HybridOutputConfig)
     cross_interactions: CrossInteractions = Field(default_factory=CrossInteractions)
     simulation: SimulationParams = Field(default_factory=SimulationParams)
     output: OutputConfig = Field(default_factory=OutputConfig)
@@ -459,31 +463,22 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def check_engine_requirements(self) -> Settings:
-        if self.prep.engine == "linear":
+        if self.prep.engine is not None:
+            warnings.warn(
+                "prep.engine is deprecated and ignored: linear and network systems are "
+                "built by the same engine",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if self.prep.bakery_xml is None:
             if not self.molecules:
-                raise ValueError("linear prep requires at least one molecule definition")
+                raise ValueError("prep requires prep.bakery_xml or molecule definitions")
             if self.cg_system is None:
-                raise ValueError("linear prep requires cg_system")
-        elif self.prep.engine == "network":
-            if self.prep.bakery_xml is None:
-                if not self.molecules:
-                    raise ValueError(
-                        "network prep requires prep.bakery_xml or full molecule definitions"
-                    )
-                if self.cg_system is None:
-                    raise ValueError("network v2 prep requires cg_system")
-                if self.hybrid is None:
-                    raise ValueError("network v2 prep requires hybrid output config")
-            if self.cg_system is not None and self.cg_system.format == "lammps":
-                raise ValueError(
-                    "cg_system format 'lammps' is not yet supported for the network engine "
-                    "(planned for a future phase; currently linear engine only)"
-                )
-            if any(mol.source.format == "lammps" for mol in self.molecules):
-                raise ValueError(
-                    "molecules[].source format 'lammps' is not yet supported for the network "
-                    "engine (planned for a future phase; currently linear engine only)"
-                )
+                raise ValueError("prep requires cg_system")
+        if self.cg_system is not None and self.cg_system.format == "lammps":
+            raise ValueError("cg_system format 'lammps' is not supported yet")
+        if any(mol.source.format == "lammps" for mol in self.molecules):
+            raise ValueError("molecules[].source format 'lammps' is not supported yet")
         if self.simulation.two_phase:
             raise ValueError(
                 "Feature 'two_phase' backmapping is not yet implemented (planned for Phase 2)"

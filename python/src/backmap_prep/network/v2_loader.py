@@ -223,7 +223,7 @@ def _emit_cross_dihedrals(parent: etree.Element, dihedrals: list[CrossDihedral])
 
 def settings_to_xml_root(settings: Settings) -> etree.Element:
     """Build a bakery-compatible <settings> element tree from v2 Settings."""
-    if settings.cg_system is None or settings.hybrid is None:
+    if settings.cg_system is None:
         raise ValueError("network v2 settings require cg_system and hybrid sections")
 
     root = etree.Element("settings")
@@ -265,8 +265,7 @@ def settings_to_xml_root(settings: Settings) -> etree.Element:
 def has_native_network_config(settings: Settings) -> bool:
     """True when settings carry a full v2 network definition (no bakery_xml)."""
     return (
-        settings.prep.engine == "network"
-        and settings.prep.bakery_xml is None
+        settings.prep.bakery_xml is None
         and bool(settings.molecules)
         and settings.cg_system is not None
         and settings.hybrid is not None
