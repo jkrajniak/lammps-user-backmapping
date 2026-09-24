@@ -64,7 +64,7 @@ def _unwrap_component(
     by_id: dict[int, LammpsAtom],
     adjacency: dict[int, list[int]],
     box: tuple[float, float, float],
-) -> None:
+) -> set[int]:
     component_queue: deque[int] = deque([root_id])
     component_seen = {root_id}
     while component_queue:
@@ -75,6 +75,7 @@ def _unwrap_component(
                 component_seen.add(neighbor_id)
                 _place_near_reference(current, by_id[neighbor_id], box)
                 component_queue.append(neighbor_id)
+    return component_seen
 
 
 def unwrap_bond_graph(
@@ -123,10 +124,15 @@ def _unwrap_molecule(
         return
     by_id = {atom.atom_id: atom for atom in mol_atoms}
     adjacency = _bond_adjacency(mol_bonds)
+    # A hybrid molecule has several bond components (the CG and AT chains are
+    # not bonded to each other); unwrap each one from its own root.
     cg_roots = sorted(atom.atom_id for atom in mol_atoms if atom.is_cg)
-    root_id = cg_roots[0] if cg_roots else min(by_id)
+    at_roots = sorted(atom.atom_id for atom in mol_atoms if not atom.is_cg)
     component = set(by_id)
-    _unwrap_component(root_id, component, by_id, adjacency, box)
+    seen: set[int] = set()
+    for root_id in cg_roots + at_roots:
+        if root_id not in seen:
+            seen |= _unwrap_component(root_id, component, by_id, adjacency, box)
     for _ in range(8):
         for bond in mol_bonds:
             _place_near_reference(by_id[bond.i], by_id[bond.j], box)
@@ -256,24 +262,30 @@ def _assign_image_flags_by_bond_tree(
         atom.atom_id: (atom.x, atom.y, atom.z) for atom in atoms
     }
     adjacency = _bond_adjacency(bonds)
-    root_id = min(by_id)
-    queue: deque[int] = deque([root_id])
-    visited = {root_id}
+    visited: set[int] = set()
 
-    while queue:
-        current_id = queue.popleft()
-        current_pos = unwrapped[current_id]
-        for neighbor_id in adjacency[current_id]:
-            if neighbor_id in visited:
-                continue
-            visited.add(neighbor_id)
-            queue.append(neighbor_id)
-            delta = _min_image_vector_to(current_pos, unwrapped[neighbor_id], box)
-            unwrapped[neighbor_id] = (
-                current_pos[0] + delta[0],
-                current_pos[1] + delta[1],
-                current_pos[2] + delta[2],
-            )
+    # Walk every connected component, not only the one holding the lowest ID:
+    # atoms never reached would keep per-atom flags that disagree with their
+    # bonded neighbours.
+    for root_id in sorted(by_id):
+        if root_id in visited:
+            continue
+        visited.add(root_id)
+        queue: deque[int] = deque([root_id])
+        while queue:
+            current_id = queue.popleft()
+            current_pos = unwrapped[current_id]
+            for neighbor_id in adjacency[current_id]:
+                if neighbor_id in visited:
+                    continue
+                visited.add(neighbor_id)
+                queue.append(neighbor_id)
+                delta = _min_image_vector_to(current_pos, unwrapped[neighbor_id], box)
+                unwrapped[neighbor_id] = (
+                    current_pos[0] + delta[0],
+                    current_pos[1] + delta[1],
+                    current_pos[2] + delta[2],
+                )
 
     for atom in atoms:
         ux, uy, uz = unwrapped[atom.atom_id]

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from backmap_prep.builder import LammpsAtom, LammpsBond, System
@@ -68,3 +70,51 @@ def test_fold_sets_image_flags_for_out_of_box_coords() -> None:
     assert atoms[0].iy == -1
     assert atoms[0].x == pytest.approx(5.0)
     assert atoms[0].y == pytest.approx(48.0)
+
+
+def _max_flag_unwrapped_bond(system: System) -> float:
+    bx, by, bz = system.box
+    by_id = {atom.atom_id: atom for atom in system.atoms}
+
+    def unwrapped(atom: LammpsAtom) -> tuple[float, float, float]:
+        return (atom.x + atom.ix * bx, atom.y + atom.iy * by, atom.z + atom.iz * bz)
+
+    return max(
+        math.dist(unwrapped(by_id[bond.i]), unwrapped(by_id[bond.j])) for bond in system.bonds
+    )
+
+
+def test_prepare_network_coordinates_flags_consistent_in_every_component() -> None:
+    """Image flags must follow the bonds in every connected component.
+
+    A hybrid melt molecule has at least two components (the CG chain and the
+    AT chain are not bonded to each other), and a melt has many molecules.
+    Walking the bond graph from one root only left the other components with
+    per-atom flags, so bonded atoms a bond length apart in the cell got
+    flags one box vector apart.
+    """
+    box = (20.0, 20.0, 20.0)
+    n_at = 24  # 12 two-atom beads; the AT chain crosses the x boundary
+    atoms = []
+    bonds = []
+    for mol in (1, 2):
+        base = 100 * (mol - 1)
+        y = 5.0 + 8.0 * (mol - 1)
+        atoms.append(LammpsAtom(base + 1, mol, 1, 0.0, 10.0, y, 5.0, "A", True))
+        atoms.append(LammpsAtom(base + 2, mol, 1, 0.0, 14.0, y, 5.0, "B", True))
+        for k in range(n_at):
+            x = (15.0 + 1.2 * k) % box[0]
+            atoms.append(LammpsAtom(base + 3 + k, mol, 2, 0.0, x, y + 1.0, 5.0, "C", False))
+        bonds.append(LammpsBond(len(bonds) + 1, 1, base + 1, base + 2))
+        # backmap-prep order: all intra-bead bonds first, then the cross-bead ones
+        for k in range(0, n_at, 2):
+            bonds.append(LammpsBond(len(bonds) + 1, 2, base + 3 + k, base + 4 + k))
+        for k in range(1, n_at - 1, 2):
+            bonds.append(LammpsBond(len(bonds) + 1, 3, base + 3 + k, base + 4 + k))
+    system = System(atoms=atoms, bonds=bonds, box=box, has_cross_bonds=True)
+
+    prepare_network_coordinates(system)
+
+    assert max_bond_length(system.atoms, system.bonds, system.box) < 4.5
+    assert _max_flag_unwrapped_bond(system) < 4.5
+    assert all(0.0 <= atom.x < box[0] for atom in system.atoms)

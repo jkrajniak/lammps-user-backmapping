@@ -30,6 +30,19 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **Inconsistent image flags in `backmap-prep` data files for melts**: the
+  bond-tree image-flag assignment (`network/pbc.py`) walked the bond graph
+  from the lowest atom ID only, so it covered one connected component. Every
+  other molecule, and the AT chain of each hybrid molecule (not bonded to
+  its CG chain), kept per-atom flags. With intra-bead bonds listed before
+  cross-bead bonds, the 8 relaxation passes in the per-molecule unwrap did not
+  repair them. Bonded atoms a bond length apart in the cell then carried flags
+  one box vector apart: LAMMPS warned "Inconsistent image flags", unwrapped
+  analysis saw 60 Å bonds, and multi-rank runs could lose bond partners.
+  Both walks now cover every component. The existing checks used
+  minimum-image lengths and could not see this; the new test checks
+  flag-unwrapped lengths.
+
 - **`build_network_lammps` under-sized `comm_modify cutoff` for crosslinked
   networks**: `build_system_from_hybrid` (the code path behind `backmap-prep
   build` for `engine: network` systems) already computed correct per-atom
