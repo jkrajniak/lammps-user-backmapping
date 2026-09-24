@@ -6,7 +6,7 @@ Design: [design.md](./design.md). Branch `feat/single-hybrid-engine`.
 - [x] 1.1 GROMACS 2023 on the compute VM (user space, conda-forge)
 - [x] 1.2 `tests/reference/gmx_energy_check.py`: AT-only GROMACS rerun vs LAMMPS
       `run 0` at lambda = 1, per-term comparison (VM-only; documented)
-- [ ] 1.3 Property tests: bead-on-fragment-COM, CG bonded completeness
+- [x] 1.3 Property tests: bead-on-fragment-COM, CG bonded completeness
 - [ ] 1.4 Freeze current network outputs (rim135, PET, melamine_network) as
       byte-level baselines before touching the engine
 
