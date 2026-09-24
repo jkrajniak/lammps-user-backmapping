@@ -36,6 +36,13 @@ DOD     3
 3    4  5  8  2  1.0
 4    5  6  8  1  1.0
 
+[ dihedrals ]
+; CG torsions, tabulated (func 8, table_d1.xvg); restored from the published
+; JCTC 2016 CG model (paper-data: preparation/dodecane/cg_force_field/nvt/topol.top)
+1    2  3  4  8  1  1.0
+2    3  4  5  8  1  1.0
+3    4  5  6  8  1  1.0
+
 [ system ]
 ; Name
 DOD
