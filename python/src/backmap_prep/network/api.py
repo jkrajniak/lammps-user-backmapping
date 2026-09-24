@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backmap_prep.network.lammps_builder import build_system_from_hybrid
+from backmap_prep.parsers.top_parser import parse_top
 from backmap_prep.schema import (
     resolve_bakery_xml,
     resolve_data_dir,
@@ -46,6 +47,34 @@ class NetworkLammpsBuildResult:
     topology_path: Path
     n_atoms: int
     missing_definitions_path: Path | None
+
+
+def check_molecule_names(settings: Settings, work_dir: Path) -> None:
+    """Fail early when a CG residue has no molecule definition of the same name.
+
+    The hybrid builder matches AT fragments to CG residues by name; a mismatch
+    otherwise surfaces deep inside bakery as "could not find correct fragment".
+    """
+    if settings.cg_system is None or settings.cg_system.topology is None:
+        return
+    top_path = work_dir / settings.cg_system.topology
+    if not top_path.is_file():
+        return
+    cg_top = parse_top(top_path, include_dirs=[top_path.parent])
+    residues = {
+        atom.resname
+        for name, _ in cg_top.molecules
+        if name in cg_top.molecule_types
+        for atom in cg_top.molecule_types[name].atoms
+    }
+    defined = {mol.name for mol in settings.molecules}
+    missing = sorted(residues - defined)
+    if missing:
+        raise ValueError(
+            f"CG residue(s) {missing} in {settings.cg_system.topology} have no molecule "
+            f"definition: molecules[].name must equal the CG residue name "
+            f"(defined: {sorted(defined)})"
+        )
 
 
 def build_hybrid_gromacs(
@@ -130,6 +159,7 @@ def build_network_lammps(settings: Settings, settings_path: Path) -> NetworkLamm
             chain_rng_seed=settings.prep.chain_rng_seed,
         )
     else:
+        check_molecule_names(settings, work_dir)
         hybrid = build_hybrid_gromacs(
             settings,
             base_dir=work_dir,
