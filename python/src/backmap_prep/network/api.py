@@ -19,6 +19,7 @@ from backmap_prep.schema import (
 )
 
 from .bakery.structures import BackmapperSettings2
+from .lammps_sources import materialize_lammps_sources
 from .v2_loader import has_native_network_config, settings_to_xml_root
 
 if TYPE_CHECKING:
@@ -159,6 +160,7 @@ def build_network_lammps(settings: Settings, settings_path: Path) -> NetworkLamm
             chain_rng_seed=settings.prep.chain_rng_seed,
         )
     else:
+        settings = materialize_lammps_sources(settings, work_dir)
         check_molecule_names(settings, work_dir)
         hybrid = build_hybrid_gromacs(
             settings,

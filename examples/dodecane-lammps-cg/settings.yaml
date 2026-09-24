@@ -89,6 +89,29 @@ cross_interactions:
         - [DOD:C8, DOD:C9, DOD:C10]
         - [DOD:C9, DOD:C10, DOD:C11]
         - [DOD:C10, DOD:C11, DOD:C12]
+    # CG-CG tabulated angles (published JCTC 2016 CG model, same as
+    # examples/dodecane/topol_cg.top)
+    - params: "8 1 1.0"
+      table: table_a1.xvg
+      triples:
+        - [DOD:A1, DOD:B1, DOD:B2]
+        - [DOD:B3, DOD:B4, DOD:A2]
+      cg_bonded: true
+    - params: "8 2 1.0"
+      table: table_a2.xvg
+      triples:
+        - [DOD:B1, DOD:B2, DOD:B3]
+        - [DOD:B2, DOD:B3, DOD:B4]
+      cg_bonded: true
+  dihedrals:
+    # CG-CG tabulated dihedrals (published JCTC 2016 CG model)
+    - params: "8 1 1.0"
+      table: table_d1.xvg
+      quadruples:
+        - [DOD:A1, DOD:B1, DOD:B2, DOD:B3]
+        - [DOD:B1, DOD:B2, DOD:B3, DOD:B4]
+        - [DOD:B2, DOD:B3, DOD:B4, DOD:A2]
+      cg_bonded: true
 
 simulation:
   alpha: 0.0001

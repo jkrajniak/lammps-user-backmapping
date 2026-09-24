@@ -30,6 +30,7 @@ from backmap_prep.parsers.top_parser import (
 if TYPE_CHECKING:
     from backmap_prep.parsers.gro_parser import GroAtom
     from backmap_prep.parsers.top_parser import (
+        AtomType,
         MoleculeType,
         TopAngle,
         TopAtom,
@@ -110,6 +111,18 @@ def _topology_molecule(topology: Topology) -> MoleculeType:
     return molecule
 
 
+def _lj_sigma_epsilon(atom_type: AtomType | None, combination_rule: int) -> tuple[float, float]:
+    """(sigma nm, epsilon kJ/mol) of an atom type; rule 1 stores C6, C12 instead."""
+    if atom_type is None:
+        return 0.0, 0.0
+    if combination_rule != 1:
+        return atom_type.sigma, atom_type.epsilon
+    c6, c12 = atom_type.sigma, atom_type.epsilon
+    if c6 <= 0.0 or c12 <= 0.0:
+        return 0.0, 0.0
+    return (c12 / c6) ** (1.0 / 6.0), c6 * c6 / (4.0 * c12)
+
+
 def _atom_type_info(
     topology: Topology,
     molecule: MoleculeType,
@@ -127,8 +140,9 @@ def _atom_type_info(
         atom_type = topology.atom_types.get(atom_type_name)
         sample = type_samples[atom_type_name]
         is_cg = atom_type_name in cg_type_names or _single_letter_cg(atom_type_name)
-        sigma = units.sigma(atom_type.sigma) if atom_type else 0.0
-        epsilon = units.epsilon(atom_type.epsilon) if atom_type else 0.0
+        sigma_nm, epsilon_kj = _lj_sigma_epsilon(atom_type, topology.combination_rule)
+        sigma = units.sigma(sigma_nm)
+        epsilon = units.epsilon(epsilon_kj)
         atom_types.append(
             AtomTypeInfo(
                 type_id=type_id,
@@ -771,7 +785,13 @@ def _resolve_pair_tables(
         if type_i.name not in table_groups or type_j.name not in table_groups:
             continue
         name_a, name_b = sorted([type_i.name, type_j.name])
-        for xvg_name in (f"table_{name_a}_{name_b}.xvg", f"table_{name_b}_{name_a}.xvg"):
+        candidates = [
+            f"table_{name_a}_{name_b}.xvg",
+            f"table_{name_b}_{name_a}.xvg",
+            f"table_{name_a}_{name_b}.table",
+            f"table_{name_b}_{name_a}.table",
+        ]
+        for xvg_name in candidates:
             if _find_xvg(xvg_name, search_dirs) is None:
                 continue
             table_out = Path(xvg_name).stem + ".table"
@@ -782,18 +802,24 @@ def _resolve_pair_tables(
             break
 
 
-def _pair_terms(atom_types: list[AtomTypeInfo]) -> list[PairTypeInfo]:
+def _pair_terms(atom_types: list[AtomTypeInfo], combination_rule: int) -> list[PairTypeInfo]:
+    """CG, AT and none pair types; AT sigma mixes per the GROMACS combination rule.
+
+    Rule 2 is Lorentz-Berthelot (arithmetic sigma); rules 1 and 3 are geometric
+    in sigma and epsilon (rule 1 is geometric in C6, C12, which is the same).
+    """
     pair_types: list[PairTypeInfo] = []
     for i, atom_type_i in enumerate(atom_types, start=1):
         for j, atom_type_j in enumerate(atom_types[i - 1 :], start=i):
             if atom_type_i.is_cg and atom_type_j.is_cg:
                 pair_types.append(PairTypeInfo(itype=i, jtype=j, kind="cg"))
             elif not atom_type_i.is_cg and not atom_type_j.is_cg:
-                sigma = (
-                    0.5 * (atom_type_i.sigma + atom_type_j.sigma)
-                    if atom_type_i.sigma > 0 and atom_type_j.sigma > 0
-                    else 0.0
-                )
+                if atom_type_i.sigma <= 0 or atom_type_j.sigma <= 0:
+                    sigma = 0.0
+                elif combination_rule == 2:
+                    sigma = 0.5 * (atom_type_i.sigma + atom_type_j.sigma)
+                else:
+                    sigma = (atom_type_i.sigma * atom_type_j.sigma) ** 0.5
                 epsilon = (
                     (atom_type_i.epsilon * atom_type_j.epsilon) ** 0.5
                     if atom_type_i.epsilon > 0 and atom_type_j.epsilon > 0
@@ -825,6 +851,10 @@ def build_system_from_cg(
     from backmap_prep.schema import resolve_data_dir
 
     base_dir = resolve_data_dir(settings_path, settings)
+    from backmap_prep.network.lammps_sources import materialize_lammps_sources
+
+    settings = materialize_lammps_sources(settings, base_dir)
+    assert settings.cg_system is not None
     gro_path = (base_dir / settings.cg_system.coordinates).resolve()
     top_path = (base_dir / settings.cg_system.topology).resolve()
 
@@ -873,7 +903,7 @@ def build_system_from_cg(
         search_dirs,
         plain_cg=True,
     )
-    system.pair_types = _pair_terms(system.atom_types)
+    system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
     _resolve_pair_tables(system, settings, search_dirs)
     prepare_network_coordinates(system)
     cg_cut = units.distance(settings.simulation.cg_cutoff)
@@ -957,7 +987,7 @@ def build_system_from_hybrid(
         system, molecule, top_file, dihedral_defaults, cg_type_names, search_dirs
     )
     _pair_14_terms(system, molecule, top_file)
-    system.pair_types = _pair_terms(system.atom_types)
+    system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
     _resolve_pair_tables(system, settings, search_dirs)
     system.has_cross_bonds = any(bond_type.keyword == "at" for bond_type in system.bond_types)
     system.has_cross_angles = any(angle_type.keyword == "at" for angle_type in system.angle_types)

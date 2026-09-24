@@ -475,10 +475,6 @@ class Settings(BaseModel):
                 raise ValueError("prep requires prep.bakery_xml or molecule definitions")
             if self.cg_system is None:
                 raise ValueError("prep requires cg_system")
-        if self.cg_system is not None and self.cg_system.format == "lammps":
-            raise ValueError("cg_system format 'lammps' is not supported yet")
-        if any(mol.source.format == "lammps" for mol in self.molecules):
-            raise ValueError("molecules[].source format 'lammps' is not supported yet")
         if self.simulation.two_phase:
             raise ValueError(
                 "Feature 'two_phase' backmapping is not yet implemented (planned for Phase 2)"
