@@ -28,14 +28,17 @@ import tempfile
 from pathlib import Path
 
 KCAL_TO_KJ = 4.184
-# GROMACS terms that have no LAMMPS thermo counterpart yet; printed, not compared.
-REPORTED = ["LJ-14", "Coulomb-14", "Coulomb (SR)"]
+# GROMACS terms with no comparable LAMMPS value (plain cut-off Coulomb is not
+# available in GROMACS with the Verlet scheme); printed, not compared.
+REPORTED = ["Coulomb (SR)"]
 TERMS = {
     # LAMMPS thermo keyword -> GROMACS energy term(s), summed
     "ebond": ["Bond"],
     "eangle": ["Angle"],
     "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Improper Dih."],
     "evdwl": ["LJ (SR)"],
+    "lj14": ["LJ-14"],
+    "coul14": ["Coulomb-14"],
 }
 
 
@@ -162,6 +165,7 @@ def gromacs_energies(
     cutoff_nm: float,
     work: Path,
     zero_charges: bool = False,
+    include_dir: Path | None = None,
 ) -> dict[str, float]:
     text = top.read_text()
     text = re.sub(
@@ -191,6 +195,7 @@ def gromacs_energies(
                 "nstcalcenergy = 1",
                 "nstenergy = 1",
                 "constraints = none",
+                *([f"include = -I{include_dir}"] if include_dir else []),
                 "",
             ]
         )
@@ -244,10 +249,13 @@ def gromacs_energies(
 def _ff_header(input_path: Path, data: Path) -> list[str]:
     """The generated input up to fix backmap, reading ``data``, at lambda = 1."""
     lines = []
-    for line in input_path.read_text().splitlines():
+    text = input_path.read_text().splitlines()
+    pairs_fix = [line for line in text if re.match(r"^fix\s+\S+\s+\S+\s+backmap/pairs\b", line)]
+    for line in text:
         if line.startswith("fix bm "):
             line = re.sub(r"lambda0\s+\S+", "lambda0 1.0", line)
             lines.append(line)
+            lines.extend(pairs_fix)
             break
         if line.split()[:1] in (["dump"], ["dump_modify"], ["run"], ["minimize"]):
             continue
@@ -284,10 +292,21 @@ def lammps_energies(
     lines = _ff_header(input_path, data)
     if zero_charges:
         lines.append("set group all charge 0.0")
+    pairs_id = next(
+        (
+            line.split()[1]
+            for line in lines
+            if re.match(r"^fix\s+\S+\s+\S+\s+backmap/pairs\b", line)
+        ),
+        None,
+    )
+    lj14 = f"$(f_{pairs_id}[1]:%.12e)" if pairs_id else "0.0"
+    coul14 = f"$(f_{pairs_id}[2]:%.12e)" if pairs_id else "0.0"
     lines += [
         "thermo_style custom step ebond eangle edihed evdwl ecoul",
         "run 0",
-        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e)"',
+        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) '
+        f'evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e) lj14={lj14} coul14={coul14}"',
     ]
     (input_path.parent / "in.check").write_text("\n".join(lines) + "\n")
     subprocess.run(
@@ -320,6 +339,12 @@ def main() -> int:
         help="absolute tolerance, kJ/mol (data-file coordinates carry 1e-6 A)",
     )
     ap.add_argument(
+        "--include-dir",
+        type=Path,
+        default=None,
+        help="directory holding e.g. oplsaa.ff/ for #include in the AT topology",
+    )
+    ap.add_argument(
         "--zero-charges",
         action="store_true",
         help="compare with all charges zero on both sides (pair_style backmap reports "
@@ -346,13 +371,27 @@ def main() -> int:
         work = Path(tmp)
         write_g96(work / "conf.g96", box, coords, resname, names)
         gmx = gromacs_energies(
-            args.gmx, top, work / "conf.g96", n_mol, args.cutoff, work, args.zero_charges
+            args.gmx,
+            top,
+            work / "conf.g96",
+            n_mol,
+            args.cutoff,
+            work,
+            args.zero_charges,
+            args.include_dir.resolve() if args.include_dir else None,
         )
         lmp = lammps_energies(args.lmp, inp, data, work, args.zero_charges)
 
     failed = False
     print(f"{'term':8s} {'LAMMPS (kJ/mol)':>18s} {'GROMACS (kJ/mol)':>18s} {'rel diff':>10s}")
+    charged = abs(gmx.get("Coulomb (SR)", 0.0)) > 0.0
     for key, gmx_terms in TERMS.items():
+        if key == "evdwl" and charged:
+            print(
+                f"{key:8s} skipped: charges present (evdwl holds LJ + cut-off Coulomb); "
+                "rerun with --zero-charges"
+            )
+            continue
         ref = sum(gmx.get(t, 0.0) for t in gmx_terms)
         val = lmp[key] * KCAL_TO_KJ
         rel = abs(val - ref) / max(abs(ref), 1e-12)
