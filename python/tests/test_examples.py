@@ -38,6 +38,9 @@ def example_workdir(request, tmp_path: Path) -> Path:
     ff_src = EXAMPLES_DIR / "forcefield"
     if ff_src.is_dir():
         shutil.copytree(ff_src, tmp_path / "forcefield", dirs_exist_ok=True)
+    epoxy_ff = EXAMPLES_DIR / "epoxy" / "forcefield"
+    if epoxy_ff.is_dir():
+        shutil.copytree(epoxy_ff, tmp_path / "epoxy" / "forcefield", dirs_exist_ok=True)
     return dst
 
 
@@ -102,6 +105,9 @@ class TestDeterministicOutput:
         ff_src = EXAMPLES_DIR / "forcefield"
         if ff_src.is_dir():
             shutil.copytree(ff_src, tmp_path / "forcefield", dirs_exist_ok=True)
+        epoxy_ff = EXAMPLES_DIR / "epoxy" / "forcefield"
+        if epoxy_ff.is_dir():
+            shutil.copytree(epoxy_ff, tmp_path / "epoxy" / "forcefield", dirs_exist_ok=True)
         run1 = tmp_path / "run1"
         run2 = tmp_path / "run2"
         shutil.copytree(src, run1)

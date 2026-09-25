@@ -86,11 +86,18 @@ class TestLjPairParams:
             1.0,
             0.3,
             0.5,
-            combination_rule=1,
+            combination_rule=3,
             fudge_lj=1.0,
         )
         assert sigma == pytest.approx(units.sigma((0.3 * 0.5) ** 0.5))
         assert epsilon == pytest.approx(units.epsilon(1.0))
+
+    def test_rule_1_values_are_c6_c12(self) -> None:
+        # C6 = 4 eps sigma^6, C12 = 4 eps sigma^12 for sigma = 0.3 nm, eps = 0.5 kJ/mol.
+        c6, c12 = 4 * 0.5 * 0.3**6, 4 * 0.5 * 0.3**12
+        sigma, epsilon = units.lj_pair_params(c12, c12, c6, c6, combination_rule=1)
+        assert sigma == pytest.approx(units.sigma(0.3), rel=1e-12)
+        assert epsilon == pytest.approx(units.epsilon(0.5), rel=1e-12)
 
 
 class TestSigmaEpsilon:
