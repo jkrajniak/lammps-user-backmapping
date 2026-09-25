@@ -3,15 +3,16 @@
 # Run from repo root:
 #   uv run backmap-prep build-hybrid examples/epoxy/settings.v2.yaml
 #
-# Asset paths resolve via prep.data_dir → bakery/tests/rim135/
+# Inputs are read from the published JCC 2018 bundle (only read, never
+# written): paper-reverse-mapping-polymer-networks/preparation/rim135_small/
+# backmapping/aa, next to this repository in the workspace.
 
 version: 2
 
 prep:
-  engine: network
   chain_rng_seed: 42
-  data_dir: ../../../../bakery/tests/rim135
-  tables_dir: ../../../../bakery/examples/network_backmapping/epoxy/backmapping_aa
+  data_dir: ../../../paper-reverse-mapping-polymer-networks/preparation/rim135_small/backmapping/aa
+  tables_dir: ../../../paper-reverse-mapping-polymer-networks/preparation/rim135_small/backmapping/aa
   forcefield_dir: forcefield
 
 molecules:
