@@ -59,6 +59,7 @@ nav:
       - Setting Up a New System: tutorial-new-system.md
   - LAMMPS Components:
       - fix backmap: components/fix-backmap.md
+      - fix backmap/pairs: components/fix-backmap-pairs.md
       - pair_style backmap: components/pair-backmap.md
       - Bond Styles: components/bond-styles.md
       - Angle Style: components/angle-styles.md

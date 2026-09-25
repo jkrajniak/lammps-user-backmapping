@@ -30,6 +30,20 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`fix backmap/pairs`: 1-4 Coulomb, energy output, setup, minimization and
+  MPI.** The fix applied 1-4 LJ only, so with `special_bonds coul 0 0 0`
+  the scaled 1-4 electrostatics (GROMACS `fudgeQQ`) were absent. It now
+  takes an optional fifth pairs-file column, the 1-4 Coulomb scale. It
+  reported no energy or virial; it now contributes both (scalar: total,
+  vector: LJ-14, Coulomb-14), counted in `pe` and pressure by default. It had
+  no `setup()` or `min_post_force()`, so its forces were missing from the
+  first force evaluation of every run (including `run 0`) and from all
+  minimizations. With `newton_pair on` it added forces to ghost atoms after
+  the reverse communication, so the force on a partner owned by another
+  rank was lost; every rank now evaluates each pair it owns an atom of and
+  applies the force to its own atoms. Regression tests:
+  `python/tests/test_lammps_pairs.py` (needs `BACKMAP_LMP`).
+
 - **`write_data` left empty coefficient sections** for `bond_style
   backmap/harmonic`, `angle_style backmap/harmonic`, `dihedral_style
   backmap/harmonic`, `dihedral_style backmap/ryckaert` and `dihedral_style
