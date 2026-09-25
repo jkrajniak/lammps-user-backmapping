@@ -65,6 +65,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   Lorentz-Berthelot. Rule 1 (C6/C12) is converted before mixing.
 - **Missing AT LJ parameters** for settings-driven builds (the hybrid topology
   lists only CG types; AT types now come from the source topologies).
+- **Angle/dihedral table fallback force per degree.** When an `.xvg` angle or
+  dihedral table has no usable force column, the converter differentiated
+  the energy per radian, while LAMMPS expects per degree (57x off). No
+  committed table takes this path; generated tables (MARTINI G96 angles) will.
 - **Bonds and angles are converted by GROMACS function type.** Any bond or
   angle with two or more parameters was written as harmonic whatever its
   function, so e.g. MARTINI G96 angles (func 2) or Urey-Bradley angles

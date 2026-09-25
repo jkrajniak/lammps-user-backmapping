@@ -351,8 +351,8 @@ def _convert_angle_xvg(src: Path, dst: Path) -> None:
         raise ValueError(f"No data found in {src}")
 
     if _is_force_column_degenerate(f_vals, e_vals):
-        theta_rad = [math.radians(t) for t in theta_vals]
-        f_vals = [-g for g in _numerical_gradient(theta_rad, e_vals)]
+        # Per degree, like the file's own force column (LAMMPS converts to radians).
+        f_vals = [-g for g in _numerical_gradient(theta_vals, e_vals)]
 
     _write_table_file(dst, src.name, theta_vals, e_vals, f_vals, x_axis="angle")
 
@@ -390,8 +390,8 @@ def _convert_dihedral_xvg(src: Path, dst: Path) -> None:
         raise ValueError(f"No data found in {src}")
 
     if _is_force_column_degenerate(f_vals, e_vals):
-        phi_rad = [math.radians(p) for p in phi_vals]
-        f_vals = [-g for g in _numerical_gradient(phi_rad, e_vals)]
+        # Per degree, like the file's own force column (LAMMPS converts to radians).
+        f_vals = [-g for g in _numerical_gradient(phi_vals, e_vals)]
 
     _write_table_file(dst, src.name, phi_vals, e_vals, f_vals, x_axis="dihedral")
 

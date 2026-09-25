@@ -236,6 +236,37 @@ class TestConvertAngleXvg:
         assert "180.00000000" in content
 
 
+def _zero_force_xvg(path: Path, xs: list[float], k: float) -> None:
+    # V = k x^2 (x in degrees) with an all-zero force column -> fallback path.
+    path.write_text("".join(f"{x} {k * x * x} 0.0\n" for x in xs))
+
+
+def _table_rows(path: Path) -> list[list[float]]:
+    return [
+        [float(v) for v in ln.split()]
+        for ln in path.read_text().splitlines()
+        if ln and ln[0].isdigit()
+    ]
+
+
+@pytest.mark.parametrize("kind", ["angle", "dihedral"])
+def test_fallback_force_is_per_degree(tmp_path: Path, kind: str) -> None:
+    """Without a usable force column, -dV/dx is taken per degree, as LAMMPS expects.
+
+    It used to be per radian (57x too small here, 57x too large after LAMMPS's
+    own degree -> radian conversion).
+    """
+    xs = [0.5 * i for i in range(361)] if kind == "angle" else [-180 + i for i in range(361)]
+    src = tmp_path / "t.xvg"
+    _zero_force_xvg(src, xs, k=0.01)
+    dst = tmp_path / "t.table"
+    (_convert_angle_xvg if kind == "angle" else _convert_dihedral_xvg)(src, dst)
+    rows = _table_rows(dst)
+    mid = rows[len(rows) // 2 + 20]
+    x, force = mid[1], mid[3]
+    assert force == pytest.approx(units.energy(-2 * 0.01 * x), rel=1e-3)
+
+
 class TestConvertDihedralXvg:
     def test_dihedral_degrees_preserved(self, tmp_path: Path) -> None:
         src = tmp_path / "table_d1.xvg"
