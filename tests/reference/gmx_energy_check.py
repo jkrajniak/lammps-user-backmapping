@@ -206,7 +206,7 @@ def gromacs_energies(
             [gmx, *args], cwd=work, capture_output=True, text=True, check=False, input=input
         )
         if proc.returncode != 0:
-            raise SystemExit(f"gmx {args[0]} failed:\n{proc.stderr[-3000:]}")
+            raise SystemExit(f"gmx {args[0]} failed:\n{proc.stdout[-2000:]}\n{proc.stderr[-4000:]}")
         return proc
 
     run(
