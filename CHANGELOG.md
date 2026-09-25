@@ -7,6 +7,17 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Changed
+
+- **One hybrid builder for every system (breaking).** `backmap-prep build`,
+  `rebuild` and `cg-only` use the same builder for linear melts and networks;
+  the former linear builder is removed. `prep.engine` is deprecated and
+  ignored, `hybrid` is optional with defaults, and `molecules[].name` must
+  equal the CG residue name. LAMMPS-format `cg_system` and AT fragments are
+  converted to GROMACS files internally. Outputs go to the settings file's
+  directory; `prep.data_dir` is only read. See the OpenSpec change
+  `unify-hybrid-engine`.
+
 ### Added
 
 - **`cg_system.format: lammps`**: the CG side of `backmap-prep` can now be
@@ -29,6 +40,29 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   or GROMACS-virtual-site AT fragments.
 
 ### Fixed
+
+- **Defects of the removed linear builder**, which built every dodecane and
+  polyethylene example: AT fragments were placed relative to the first atom of
+  the whole template molecule instead of with their COM on the bead (PE: 34 A
+  median bead-to-COM distance; the CG configuration collapsed at the first
+  step), all CG angles and dihedrals were dropped, and the GROMACS function
+  code of cross-bead RB dihedrals was read as C0.
+- **LJ mixing** follows the AT topology's combination rule (taken from the AT
+  source when the hybrid topology has no `[ defaults ]`); it was always
+  Lorentz-Berthelot. Rule 1 (C6/C12) is converted before mixing.
+- **Missing AT LJ parameters** for settings-driven builds (the hybrid topology
+  lists only CG types; AT types now come from the source topologies).
+- **kJ -> kcal** is exactly 1/4.184 (was 0.239006); force-field coefficients
+  are written with 10 significant digits.
+- **Communication cutoff** from minimum-image extents; it used folded
+  coordinates and reached 85-101 A for systems with bonds across the box.
+- **All 1-4 pairs** (`[ pairs ]` within beads and `[ cross_pairs ]`) are
+  written to `pairs.dat` with the 1-4 Coulomb scale (needs the matching
+  `fix backmap/pairs`).
+- **Examples**: every large PE variant now has 75 chains (10 chains sat in the
+  75-chain box); CG angle and dihedral tables and topology sections restored
+  from the JCTC 2016 data; melamine and pe_aa include the OPLS-AA force field
+  (melamine had comb-rule 2 and sigma(N) 0.325 nm, not bakery's 3 and 0.33 nm).
 
 - **Inconsistent image flags in `backmap-prep` data files for melts**: the
   bond-tree image-flag assignment (`network/pbc.py`) walked the bond graph
