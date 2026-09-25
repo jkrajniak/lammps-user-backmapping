@@ -68,14 +68,15 @@ FixBackmapPairs::FixBackmapPairs(LAMMPS *lmp, int narg, char **arg)
   read_file(arg[iarg]);
   iarg++;
 
-  cut = force->pair ? force->pair->cutforce : 12.0;
+  // 1-4 pairs are bonded terms: no cutoff unless one is asked for.
+  cut = 0.0;
   if (iarg < narg && strcmp(arg[iarg], "cut") == 0) {
     if (iarg + 1 >= narg)
       error->all(FLERR, "Missing cutoff for fix backmap/pairs cut");
     cut = utils::numeric(FLERR, arg[iarg + 1], false, lmp);
     iarg += 2;
   }
-  cutsq = cut * cut;
+  cutsq = (cut > 0.0) ? cut * cut : -1.0;
 
   for (auto &entry : pairs) {
     entry.is_cg = default_is_cg;
@@ -192,10 +193,15 @@ void FixBackmapPairs::post_force(int vflag) {
     // atom->map returns the owned (local) index when this rank owns the atom.
     int i = atom->map(par.id1);
     int j = atom->map(par.id2);
-    if (i < 0 || j < 0) continue;
-    bool own_i = i < nlocal;
-    bool own_j = j < nlocal;
+    bool own_i = i >= 0 && i < nlocal;
+    bool own_j = j >= 0 && j < nlocal;
     if (!own_i && !own_j) continue;
+    if (i < 0 || j < 0)
+      error->one(
+          FLERR,
+          "fix backmap/pairs: partner of 1-4 pair {} {} missing on this proc; "
+          "increase comm_modify cutoff",
+          par.id1, par.id2);
 
     // Geometry from the closest image of the partner; forces go to the owned
     // atoms themselves. (Using the image index for the force would drop the
@@ -213,7 +219,7 @@ void FixBackmapPairs::post_force(int vflag) {
       dz = x[ii][2] - x[j][2];
     }
     double rsq = dx * dx + dy * dy + dz * dz;
-    if (rsq >= cutsq || rsq <= 0.0) continue;
+    if ((cutsq > 0.0 && rsq >= cutsq) || rsq <= 0.0) continue;
 
     bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
     double w =

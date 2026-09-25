@@ -9,8 +9,8 @@ fix ID group backmap/pairs at|cg file pairs.dat [cut Rc]
 - **at|cg** -- lambda weighting of the listed pairs (`at`: atomistic 1-4
   pairs; `cg`: CG pairs)
 - **file** -- pairs file (format below)
-- **cut** -- optional cutoff; pairs farther apart are skipped (default: the
-  pair style's cutoff)
+- **cut** -- optional cutoff; pairs farther apart are skipped (default: no
+  cutoff, as for any bonded term)
 
 ## Description
 
@@ -55,6 +55,10 @@ Forces and energy are included from the first force evaluation of a run
 (`run 0`) and in energy minimization.
 
 ## Parallel runs
+
+The partner of every pair must be present as an owned atom or a ghost on each
+rank that owns the other atom; otherwise the run stops with an error. Set
+`comm_modify cutoff` above the longest 1-4 distance (`backmap-prep` does this).
 
 Each MPI rank evaluates every pair with at least one of its own atoms and
 applies the force to its own atoms only, so the result does not depend on

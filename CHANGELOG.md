@@ -30,6 +30,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`fix backmap/pairs` has no cutoff by default.** 1-4 pairs are bonded
+  terms, but the fix skipped any pair beyond the pair-style cutoff (12 Å in
+  the examples). In freshly built network frames 77 of 35612 RIM135 1-4
+  pairs are longer than that, so their LJ and Coulomb terms were dropped
+  (Coul-14 off by 5% against GROMACS, which applies no cutoff). `cut` is now
+  opt-in. A pair whose partner is not present on the owning rank is an error
+  instead of being skipped silently.
 - **`fix backmap/pairs`: 1-4 Coulomb, energy output, setup, minimization and
   MPI.** The fix applied 1-4 LJ only, so with `special_bonds coul 0 0 0`
   the scaled 1-4 electrostatics (GROMACS `fudgeQQ`) were absent. It now

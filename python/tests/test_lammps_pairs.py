@@ -66,7 +66,7 @@ bond_style harmonic
 bond_coeff 1 0.0 1.2
 special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 fix bm all backmap cg_type 1 alpha 0.0001 lambda0 1.0
-fix pairs all backmap/pairs at file pairs.dat cut 12.0
+fix pairs all backmap/pairs at file pairs.dat
 thermo_style custom step pe f_pairs f_pairs[1] f_pairs[2]
 run 0
 variable f2x equal fx[2]
@@ -82,7 +82,9 @@ def _lmp() -> Path:
     return Path(path)
 
 
-def _run(tmp_path: Path, pairs_line: str, shift: float = 0.0) -> dict[str, float]:
+def _run(
+    tmp_path: Path, pairs_line: str, shift: float = 0.0, input_text: str = INPUT
+) -> dict[str, float]:
     data = DATA.format(q2=Q2, q5=Q5)
     if shift:
         # Translate the molecule along x and wrap it into the 40 A box.
@@ -99,7 +101,7 @@ def _run(tmp_path: Path, pairs_line: str, shift: float = 0.0) -> dict[str, float
         data = "\n".join(lines) + "\n"
     (tmp_path / "test.data").write_text(data)
     (tmp_path / "pairs.dat").write_text(f"1\n{pairs_line}\n")
-    (tmp_path / "in.test").write_text(INPUT)
+    (tmp_path / "in.test").write_text(input_text)
     proc = subprocess.run(
         [str(_lmp()), "-in", "in.test", "-log", "log.test", "-screen", "none"],
         cwd=tmp_path,
@@ -161,3 +163,29 @@ def test_pair_across_periodic_boundary(tmp_path: Path) -> None:
     assert res["coul"] == pytest.approx(e_coul, rel=1e-10)
     assert res["f5x"] == pytest.approx(f5, rel=1e-10)
     assert res["f2x"] == pytest.approx(-f5, rel=1e-10)
+
+
+@pytest.mark.integration
+def test_pair_beyond_the_pair_style_cutoff_is_kept(tmp_path: Path) -> None:
+    """1-4 pairs are bonded terms: no cutoff unless ``cut`` is given.
+
+    A strained frame (fresh fragment placement) can stretch a 1-4 pair past
+    the pair-style cutoff; GROMACS still evaluates it, and so must we.
+    """
+    short = INPUT.replace(
+        "backmap 12.0 lj/cut/coul/cut 12.0 12.0 12.0 lj/cut 12.0",
+        "backmap 3.0 lj/cut/coul/cut 3.0 3.0 3.0 lj/cut 3.0",
+    )
+    res = _run(tmp_path, f"2 5 {SIGMA} {EPSILON} {QQ_SCALE}", input_text=short)
+    e_lj, e_coul, _ = _expected(3.6, QQ_SCALE)
+
+    assert res["lj"] == pytest.approx(e_lj, rel=1e-10)
+    assert res["coul"] == pytest.approx(e_coul, rel=1e-10)
+
+
+@pytest.mark.integration
+def test_explicit_cut_skips_farther_pairs(tmp_path: Path) -> None:
+    with_cut = INPUT.replace("pairs.dat\n", "pairs.dat cut 3.0\n")
+    res = _run(tmp_path, f"2 5 {SIGMA} {EPSILON} {QQ_SCALE}", input_text=with_cut)
+
+    assert res["total"] == 0.0
