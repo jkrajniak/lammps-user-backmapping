@@ -9,6 +9,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **CHARMM-type bonded styles.** `angle_style backmap/charmm` (harmonic +
+  Urey-Bradley), `dihedral_style backmap/fourier` (multi-term periodic with
+  arbitrary phase) and `improper_style backmap/harmonic`, with the usual
+  lambda weighting, restart and `write_data`. Kernels are the stock LAMMPS
+  `angle charmm`, `dihedral fourier` and `improper harmonic`; tests check equality
+  with them times the weight (energies and forces). Needed for CHARMM36/Slipids
+  lipids (MARTINI 3 POPC example) and requested in review (impropers).
+
 - **`cg_system.format: lammps`**: the CG side of `backmap-prep` can now be
   supplied as a native LAMMPS `data` file (box, `Masses`, `Atoms # full`)
   instead of GROMACS `.gro`/`.top`. No unit conversion is applied (the file

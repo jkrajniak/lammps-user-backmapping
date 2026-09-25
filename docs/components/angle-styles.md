@@ -133,3 +133,33 @@ LAMMPS `.table` format via `convert_tables`.
 
 - [`angle_style backmap/harmonic`](#angle_style-backmapharmonic) -- harmonic cross angles
 - [`bond_style backmap/table`](bond-styles.md#backmap-table) -- tabulated cross bonds
+
+---
+
+# angle_style backmap/charmm
+
+## Syntax
+
+```
+angle_style backmap/charmm
+angle_coeff N at/cg K theta0 K_ub r_ub
+```
+
+- **K** -- angle force constant (energy/radian&sup2;)
+- **theta0** -- equilibrium angle (degrees)
+- **K_ub** -- Urey-Bradley force constant (energy/distance&sup2;)
+- **r_ub** -- Urey-Bradley equilibrium 1-3 distance (distance units)
+
+## Description
+
+The CHARMM angle (harmonic in the angle plus a Urey-Bradley 1-3 spring),
+scaled by the lambda weight:
+
+\[
+E = w \left[ K (\theta - \theta_0)^2 + K_{UB} (r_{13} - r_{UB})^2 \right]
+\]
+
+Same form and kernel as LAMMPS `angle_style charmm`; \( w \) as for
+`backmap/harmonic`. GROMACS angle function 5 (\( \theta_0, k_\theta, r_{13},
+k_{UB} \), with the \( \tfrac12 k \) convention) maps to
+\( K = k_\theta/2 \), \( K_{UB} = k_{UB}/2 \).
