@@ -506,10 +506,7 @@ def _write_backmap_fixes(
     f.write(fix_line + "\n\n")
 
     if system.has_cross_pairs:
-        f.write(
-            f"fix pairs all backmap/pairs at file {system.cross_pairs_file} "
-            f"cut {params['lj_cut_ang']:.10g}\n\n"
-        )
+        f.write(f"fix pairs all backmap/pairs at file {system.cross_pairs_file}\n\n")
 
 
 def _write_setup(

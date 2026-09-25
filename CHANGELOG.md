@@ -69,9 +69,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   are written with 10 significant digits.
 - **Communication cutoff** from minimum-image extents; it used folded
   coordinates and reached 85-101 A for systems with bonds across the box.
-- **All 1-4 pairs** (`[ pairs ]` within beads and `[ cross_pairs ]`) are
-  written to `pairs.dat` with the 1-4 Coulomb scale (needs the matching
-  `fix backmap/pairs`).
+- **1-4 pairs come from the bond graph.** When the force field uses 1-4
+  pairs, every AT pair exactly three bonds apart is written to `pairs.dat`
+  once, with the 1-4 Coulomb scale (needs the matching `fix backmap/pairs`).
+  Listed `[ pairs ]` / `[ cross_pairs ]` lines only supply explicit
+  parameters; the rest are generated as with GROMACS `gen-pairs`. bakery's
+  network lists were incomplete and duplicated (PET: 34748 listed against
+  48000 topological, 2000 duplicates; RIM135: 32073 against 35612, plus 472
+  pairs that are not 1-4). Force fields without `[ pairs ]` (united-atom
+  alkanes) keep none. The generated `fix backmap/pairs` line has no cutoff.
 - **Examples**: every large PE variant now has 75 chains (10 chains sat in the
   75-chain box); CG angle and dihedral tables and topology sections restored
   from the JCTC 2016 data; melamine and pe_aa include the OPLS-AA force field

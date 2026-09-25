@@ -176,6 +176,8 @@ def _parse_file(
             top.has_defaults = True
             if len(tokens) >= 2:
                 top.combination_rule = int(tokens[1])
+            if len(tokens) >= 3:
+                top.defaults_gen_pairs = tokens[2].lower()
             if len(tokens) >= 4:
                 top.fudge_lj = float(tokens[3])
             if len(tokens) >= 5:

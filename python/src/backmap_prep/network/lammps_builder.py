@@ -344,32 +344,65 @@ def _cross_dihedral_params(cross_dihedral: CrossDihedral) -> tuple[list[float], 
     return [0.0] * 6, None
 
 
+def _topological_14_pairs(molecule: MoleculeType, at_indices: set[int]) -> set[tuple[int, int]]:
+    """AT atom pairs exactly three bonds apart and not closer (the GROMACS 1-4 set)."""
+    neighbours: dict[int, set[int]] = {i: set() for i in at_indices}
+    for bond in [*molecule.bonds, *molecule.cross_bonds]:
+        if bond.i in at_indices and bond.j in at_indices:
+            neighbours[bond.i].add(bond.j)
+            neighbours[bond.j].add(bond.i)
+    pairs: set[tuple[int, int]] = set()
+    for a in at_indices:
+        first = neighbours[a]
+        second = {c for b in first for c in neighbours[b]} - {a}
+        third = {c for b in second for c in neighbours[b]}
+        for c in third - second - first - {a}:
+            pairs.add((min(a, c), max(a, c)))
+    return pairs
+
+
 def _pair_14_terms(
     system: System,
     molecule: MoleculeType,
     topology: Topology,
+    cg_type_names: set[str] | None = None,
 ) -> None:
-    """All 1-4 pairs: ``[ pairs ]`` (within a bead) and ``[ cross_pairs ]`` (across beads).
+    """1-4 pairs for fix backmap/pairs (special_bonds excludes them from the pair style).
 
-    special_bonds excludes every 1-4 pair from the pair style, so each one is
-    applied by fix backmap/pairs with its LJ parameters and the 1-4 Coulomb
-    scale (fudgeQQ).
+    If the force field uses 1-4 pairs (the topology lists [ pairs ] or
+    [ cross_pairs ]), every topological 1-4 pair of the AT atoms gets one
+    scaled interaction: explicit parameters when a listed line gives them,
+    otherwise generated from the atom types (gen-pairs, fudgeLJ), with the
+    1-4 Coulomb scale fudgeQQ. Listed lines are neither required to be
+    complete nor allowed to double-count (bakery's lists are both incomplete
+    and duplicated for networks). A force field without [ pairs ] (e.g. the
+    united-atom alkane models) has no 1-4 interactions.
     """
+    listed = [*molecule.pairs, *molecule.cross_pairs]
+    if not listed:
+        return
+    cg_names = cg_type_names or set()
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
-    seen: set[tuple[int, int]] = set()
-    for pair in [*molecule.pairs, *molecule.cross_pairs]:
-        atom_i = atom_by_index.get(pair.i)
-        atom_j = atom_by_index.get(pair.j)
-        if atom_i is None or atom_j is None:
-            continue
-        sigma, epsilon = resolve_pair_lj_params(topology, atom_i, atom_j, pair.func, pair.params)
-        i_id, j_id = pair.i, pair.j
-        if i_id > j_id:
-            i_id, j_id = j_id, i_id
-        key = (i_id, j_id)
-        if key in seen:
-            continue
-        seen.add(key)
+    at_indices = {
+        a.index for a in molecule.atoms if a.type not in cg_names and not _single_letter_cg(a.type)
+    }
+    explicit: dict[tuple[int, int], tuple[int, list[float]]] = {}
+    for pair in listed:
+        key = (min(pair.i, pair.j), max(pair.i, pair.j))
+        if pair.params and key not in explicit:
+            explicit[key] = (pair.func, pair.params)
+    gen_pairs = topology.defaults_gen_pairs != "no"
+    for i_id, j_id in sorted(_topological_14_pairs(molecule, at_indices)):
+        atom_i, atom_j = atom_by_index[i_id], atom_by_index[j_id]
+        if (i_id, j_id) in explicit:
+            func, params = explicit[(i_id, j_id)]
+        elif gen_pairs:
+            func, params = 1, []
+        else:
+            raise ValueError(
+                f"1-4 pair {atom_i.name}-{atom_j.name} has no parameters and gen-pairs is off"
+            )
+        sigma, epsilon = resolve_pair_lj_params(topology, atom_i, atom_j, func, params)
         system.cross_pairs.append(
             LammpsCrossPair(
                 i=i_id,
@@ -1023,7 +1056,7 @@ def _merge_source_atom_types(
     field is not pulled in through ``hybrid.includes``, the AT types live in each
     molecule's source topology; without them the AT LJ parameters would be zero.
     """
-    adopted: tuple[int, float, float] | None = None
+    adopted: tuple[int, float, float, str] | None = None
     for rel in _source_topology_paths(settings):
         path = Path(rel) if Path(rel).is_absolute() else base_dir / rel
         if not path.is_file():
@@ -1035,14 +1068,24 @@ def _merge_source_atom_types(
         # field is included; the AT source then defines the LJ combination rule.
         if top_file.has_defaults or not source.has_defaults:
             continue
-        rule = (source.combination_rule, source.fudge_lj, source.fudge_qq)
+        rule = (
+            source.combination_rule,
+            source.fudge_lj,
+            source.fudge_qq,
+            source.defaults_gen_pairs,
+        )
         if adopted is not None and rule != adopted:
             raise ValueError(
                 f"AT source topologies disagree on [ defaults ]: {adopted} vs {rule} ({path})"
             )
         adopted = rule
     if adopted is not None:
-        top_file.combination_rule, top_file.fudge_lj, top_file.fudge_qq = adopted
+        (
+            top_file.combination_rule,
+            top_file.fudge_lj,
+            top_file.fudge_qq,
+            top_file.defaults_gen_pairs,
+        ) = adopted
 
 
 def build_system_from_hybrid(
@@ -1094,7 +1137,7 @@ def build_system_from_hybrid(
     system.dihedrals = _dihedral_terms(
         system, molecule, top_file, dihedral_defaults, cg_type_names, search_dirs
     )
-    _pair_14_terms(system, molecule, top_file)
+    _pair_14_terms(system, molecule, top_file, cg_type_names)
     system.fudge_lj, system.fudge_qq = top_file.fudge_lj, top_file.fudge_qq
     system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
     _resolve_pair_tables(system, settings, search_dirs)
