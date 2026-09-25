@@ -35,7 +35,7 @@ Design: [design.md](./design.md). Branch `feat/single-hybrid-engine`.
 
 ## 3. Examples
 - [ ] 3.1 Regenerate every example; COM and completeness checks pass
-- [ ] 3.2 GROMACS energy check passes for dodecane, PE, pe4, pe_10, pe_aa,
+- [x] 3.2 GROMACS energy check passes for dodecane, PE, pe4, pe_10, pe_aa,
       melamine, pe-lammps, dodecane-lammps-cg
 - [ ] 3.3 Production inputs take their force-field block from the generated
       input (no restated coefficients)
