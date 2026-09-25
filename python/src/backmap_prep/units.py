@@ -52,6 +52,13 @@ def spring_angle(val: float) -> float:
     return val * SPRING_ANGLE
 
 
+def c6c12_to_sigma_epsilon(c6: float, c12: float) -> tuple[float, float]:
+    """GROMACS comb-rule 1 C6, C12 -> (sigma nm, epsilon kJ/mol); zeros stay zero."""
+    if c6 <= 0.0 or c12 <= 0.0:
+        return 0.0, 0.0
+    return (c12 / c6) ** (1.0 / 6.0), c6 * c6 / (4.0 * c12)
+
+
 def lj_pair_params(
     eps_i: float,
     eps_j: float,
@@ -61,7 +68,15 @@ def lj_pair_params(
     combination_rule: int = 2,
     fudge_lj: float = 1.0,
 ) -> tuple[float, float]:
-    """GROMACS func-1 pair lookup → LAMMPS real sigma (Å), epsilon (kcal/mol)."""
+    """GROMACS func-1 pair lookup → LAMMPS real sigma (Å), epsilon (kcal/mol).
+
+    For combination rule 1 the atom-type values are C6 and C12; they are
+    converted to sigma and epsilon first (geometric mixing in C6, C12 equals
+    geometric mixing in sigma, epsilon).
+    """
+    if combination_rule == 1:
+        sig_i, eps_i = c6c12_to_sigma_epsilon(sig_i, eps_i)
+        sig_j, eps_j = c6c12_to_sigma_epsilon(sig_j, eps_j)
     epsilon = fudge_lj * (eps_i * eps_j) ** 0.5 if eps_i > 0 and eps_j > 0 else 0.0
     if combination_rule == 2:
         sigma = 0.5 * (sig_i + sig_j)

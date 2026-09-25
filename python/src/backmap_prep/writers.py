@@ -527,11 +527,16 @@ def _write_restart_cmd(f: IO[str], restart_interval: int) -> None:
 
 
 def write_cross_pairs_file(system: System, path: Path) -> None:
-    """Write explicit 1–4 LJ pairs for fix backmap/pairs."""
+    """Write the explicit 1-4 pairs for fix backmap/pairs.
+
+    Columns: atom IDs, LJ sigma (A), LJ epsilon (kcal/mol), 1-4 Coulomb scale.
+    """
     with open(path, "w") as f:
         f.write(f"{len(system.cross_pairs)}\n")
         for pair in system.cross_pairs:
-            f.write(f"{pair.i} {pair.j} {pair.sigma:.10g} {pair.epsilon:.10g}\n")
+            f.write(
+                f"{pair.i} {pair.j} {pair.sigma:.10g} {pair.epsilon:.10g} {pair.qq_scale:.10g}\n"
+            )
 
 
 def write_lammps_input(

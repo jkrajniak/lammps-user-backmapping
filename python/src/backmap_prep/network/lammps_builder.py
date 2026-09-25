@@ -346,9 +346,15 @@ def _pair_14_terms(
     molecule: MoleculeType,
     topology: Topology,
 ) -> None:
+    """All 1-4 pairs: ``[ pairs ]`` (within a bead) and ``[ cross_pairs ]`` (across beads).
+
+    special_bonds excludes every 1-4 pair from the pair style, so each one is
+    applied by fix backmap/pairs with its LJ parameters and the 1-4 Coulomb
+    scale (fudgeQQ).
+    """
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
     seen: set[tuple[int, int]] = set()
-    for pair in molecule.cross_pairs:
+    for pair in [*molecule.pairs, *molecule.cross_pairs]:
         atom_i = atom_by_index.get(pair.i)
         atom_j = atom_by_index.get(pair.j)
         if atom_i is None or atom_j is None:
@@ -362,7 +368,14 @@ def _pair_14_terms(
             continue
         seen.add(key)
         system.cross_pairs.append(
-            LammpsCrossPair(i=i_id, j=j_id, sigma=sigma, epsilon=epsilon, keyword="at")
+            LammpsCrossPair(
+                i=i_id,
+                j=j_id,
+                sigma=sigma,
+                epsilon=epsilon,
+                keyword="at",
+                qq_scale=topology.fudge_qq,
+            )
         )
     if system.cross_pairs:
         system.has_cross_pairs = True

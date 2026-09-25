@@ -59,6 +59,7 @@ class LammpsCrossPair:
     sigma: float
     epsilon: float
     keyword: str = "at"
+    qq_scale: float = 0.0  # 1-4 Coulomb scale (GROMACS fudgeQQ); 0 = LJ only
 
 
 @dataclass

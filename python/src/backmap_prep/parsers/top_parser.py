@@ -84,6 +84,7 @@ class MoleculeType:
     dihedrals: list[TopDihedral] = field(default_factory=list)
     cross_dihedrals: list[TopDihedral] = field(default_factory=list)
     cross_pairs: list[TopPair] = field(default_factory=list)
+    pairs: list[TopPair] = field(default_factory=list)
 
 
 @dataclass
@@ -206,6 +207,9 @@ def _parse_file(
 
         elif section == "cross_pairs" and current_mol:
             _parse_cross_pair(tokens, current_mol)
+
+        elif section == "pairs" and current_mol:
+            _parse_cross_pair(tokens, current_mol, target="pairs")
 
         elif section == "molecules":
             if len(tokens) >= 2:
@@ -633,14 +637,15 @@ def _parse_cross_dihedral(tokens: list[str], mol: MoleculeType) -> None:
     )
 
 
-def _parse_cross_pair(tokens: list[str], mol: MoleculeType) -> None:
+def _parse_cross_pair(tokens: list[str], mol: MoleculeType, target: str = "cross_pairs") -> None:
+    """Parse a ``[ cross_pairs ]`` or (``target="pairs"``) ``[ pairs ]`` line."""
     if len(tokens) < 3:
         return
     try:
         params = [float(t) for t in tokens[3:]]
     except ValueError:
         params = []
-    mol.cross_pairs.append(
+    getattr(mol, target).append(
         TopPair(
             i=int(tokens[0]),
             j=int(tokens[1]),
@@ -664,6 +669,8 @@ def resolve_pair_lj_params(
         raise ValueError(f"Unsupported cross-pair func {func} for {atom_i.name}-{atom_j.name}")
     if len(params) >= 2:
         sigma_nm, eps_kj = params[0], params[1]
+        if top.combination_rule == 1:
+            sigma_nm, eps_kj = units.c6c12_to_sigma_epsilon(sigma_nm, eps_kj)
         return units.distance(sigma_nm), units.energy(eps_kj)
     type_i = top.atom_types.get(atom_i.type)
     type_j = top.atom_types.get(atom_j.type)
