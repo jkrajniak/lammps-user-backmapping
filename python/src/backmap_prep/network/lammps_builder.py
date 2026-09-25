@@ -701,6 +701,11 @@ def _bond_terms(
                 params = [0.0, 0.0]
             else:
                 params = _bondtype_params(topology, atom_i, atom_j)
+        elif bond.func != 1:
+            raise ValueError(
+                f"Unsupported bond func {bond.func} for atoms {atom_i.name}-{atom_j.name} "
+                "(supported: 1 harmonic, 8 table)"
+            )
         elif len(bond.params) >= 2:
             style = "backmap/harmonic"
             params = [units.spring_bond(bond.params[1]), units.distance(bond.params[0])]
@@ -801,6 +806,11 @@ def _angle_terms(
                 params = [0.0, 0.0]
             else:
                 params = _angletype_params(topology, (atom_i, atom_j, atom_k))
+        elif angle.func != 1:
+            raise ValueError(
+                f"Unsupported angle func {angle.func} for atoms "
+                f"{atom_i.name}-{atom_j.name}-{atom_k.name} (supported: 1 harmonic, 8 table)"
+            )
         elif len(angle.params) >= 2:
             params = [units.spring_angle(angle.params[1]), angle.params[0]]
         else:

@@ -65,6 +65,11 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   Lorentz-Berthelot. Rule 1 (C6/C12) is converted before mixing.
 - **Missing AT LJ parameters** for settings-driven builds (the hybrid topology
   lists only CG types; AT types now come from the source topologies).
+- **Bonds and angles are converted by GROMACS function type.** Any bond or
+  angle with two or more parameters was written as harmonic whatever its
+  function, so e.g. MARTINI G96 angles (func 2) or Urey-Bradley angles
+  (func 5) would have been converted wrongly without error. Only func 1
+  (harmonic) and 8 (table) are converted; others are an error.
 - **Charges keep the topology's precision** in the data file (10 significant
   digits; they were rounded to 6 decimals). The rounding left RIM135 with a
   net charge of -0.0027 e instead of ~0 and shifted its Coul-14 by
