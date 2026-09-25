@@ -12,6 +12,14 @@ from .network.pbc import max_interaction_extent, validate_bond_geometry
 from .schema import Settings, SimulationParams
 
 
+def normalize_file_end(path: Path) -> None:
+    """End a generated text file with exactly one newline and no trailing blanks."""
+    lines = [line.rstrip() for line in path.read_text().splitlines()]
+    while lines and not lines[-1]:
+        lines.pop()
+    path.write_text("\n".join(lines) + "\n")
+
+
 def write_lammps_data(system: System, path: Path) -> None:
     """Write a LAMMPS data file (atom_style full)."""
     with open(path, "w") as f:
@@ -112,6 +120,7 @@ def write_lammps_data(system: System, path: Path) -> None:
             kw = f" {dihtype.keyword}" if dihtype.keyword else ""
             extra = f" (table: {dihtype.table_file})" if dihtype.table_file else ""
             print(f"  Dihedral type {dihtype.type_id} = {dihtype.style}{kw}{extra}")
+    normalize_file_end(path)
 
 
 def _min_image_distance(
@@ -580,6 +589,7 @@ def write_cross_pairs_file(system: System, path: Path) -> None:
             f.write(
                 f"{pair.i} {pair.j} {pair.sigma:.10g} {pair.epsilon:.10g} {pair.qq_scale:.10g}\n"
             )
+    normalize_file_end(path)
 
 
 def read_input_with_includes(path: Path) -> str:
@@ -619,6 +629,8 @@ def write_forcefield_includes(
             "# Include after the integration fixes.\n\n"
         )
         _write_backmap_fixes(f, system, settings, params)
+    normalize_file_end(out_dir / ff_name)
+    normalize_file_end(out_dir / backmap_name)
     return ff_name, backmap_name
 
 
@@ -687,6 +699,21 @@ def _write_robust_protocol(
 
 
 def write_lammps_input(
+    system: System,
+    settings: Settings,
+    path: Path,
+    data_filename: str,
+) -> None:
+    """Write a LAMMPS input script for backmapping.
+
+    When ``settings.simulation.restart_interval`` is set, also generates
+    per-phase scripts and a shared setup include file.
+    """
+    _write_lammps_input(system, settings, path, data_filename)
+    normalize_file_end(path)
+
+
+def _write_lammps_input(
     system: System,
     settings: Settings,
     path: Path,

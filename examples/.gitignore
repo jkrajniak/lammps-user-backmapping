@@ -17,3 +17,6 @@ in.at_check
 log.check
 log.relax_check
 log.at_check
+# bakery keeps numbered backups of files it overwrites
+_*.top.*_
+_*.gro.*_
