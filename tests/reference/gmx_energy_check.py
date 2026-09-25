@@ -125,6 +125,58 @@ def at_coordinates(
     return box, coords, len(by_mol)
 
 
+def complete_pairs(text: str) -> str:
+    """Rewrite each molecule type's [ pairs ] as the full topological 1-4 set.
+
+    Independent of backmap-prep's implementation. A molecule type without a
+    [ pairs ] section keeps none (e.g. united-atom alkanes). Otherwise every
+    atom pair exactly three bonds apart (not closer) appears once: an explicit
+    line with parameters is kept, a missing pair gets ``i j 1`` (gen-pairs),
+    duplicates and non-1-4 lines are dropped.
+    """
+    blocks = re.split(r"(?=^\s*\[\s*moleculetype\s*\])", text, flags=re.MULTILINE)
+    out = []
+    for block in blocks:
+        if not re.search(r"^\s*\[\s*pairs\s*\]", block, re.MULTILINE):
+            out.append(block)
+            continue
+        bonds: list[tuple[int, int]] = []
+        explicit: dict[tuple[int, int], str] = {}
+        section = None
+        kept: list[str] = []
+        for line in block.splitlines():
+            m = re.match(r"^\s*\[\s*(\w+)\s*\]", line)
+            if m:
+                section = m.group(1)
+            body = line.split(";")[0].split()
+            if section == "bonds" and len(body) >= 2 and body[0].isdigit():
+                bonds.append((int(body[0]), int(body[1])))
+            if section == "pairs" and not m:
+                if len(body) >= 4 and body[0].isdigit():
+                    key = (min(int(body[0]), int(body[1])), max(int(body[0]), int(body[1])))
+                    explicit.setdefault(key, " ".join(body))
+                continue
+            kept.append(line)
+        nb: dict[int, set[int]] = {}
+        for i, j in bonds:
+            nb.setdefault(i, set()).add(j)
+            nb.setdefault(j, set()).add(i)
+        pairs = set()
+        for a in nb:
+            first = nb[a]
+            second = {c for b in first for c in nb[b]} - {a}
+            third = {c for b in second for c in nb[b]}
+            for c in third - second - first - {a}:
+                pairs.add((min(a, c), max(a, c)))
+        lines_out = []
+        for line in kept:
+            lines_out.append(line)
+            if re.match(r"^\s*\[\s*pairs\s*\]", line):
+                lines_out += [explicit.get(p, f"{p[0]} {p[1]} 1") for p in sorted(pairs)]
+        out.append("\n".join(lines_out) + "\n")
+    return "".join(out)
+
+
 def hybrid_to_at_top(hyb_top: Path, out: Path) -> tuple[list[int], str]:
     """Standard GROMACS topology of the AT part of a bakery hybrid topology.
 
@@ -250,6 +302,7 @@ def gromacs_energies(
     )
     if zero_charges:
         text = _zero_top_charges(text)
+    text = complete_pairs(text)
     (work / "topol.top").write_text(text)
     (work / "run.mdp").write_text(
         "\n".join(
@@ -266,6 +319,9 @@ def gromacs_energies(
                 f"rcoulomb = {cutoff_nm}",
                 "DispCorr = no",
                 "pbc = xyz",
+                # Networks span the box (a molecule bonded to its own image);
+                # without this GROMACS mishandles their exclusions.
+                "periodic-molecules = yes",
                 "nstcalcenergy = 1",
                 "nstenergy = 1",
                 "constraints = none",
@@ -349,6 +405,19 @@ def _ff_header(input_path: Path, data: Path) -> list[str]:
     if not any(line.startswith("fix bm ") for line in lines):
         raise SystemExit(f"{input_path}: no 'fix bm' found (after expanding includes)")
     return lines
+
+
+def at_lj_cutoff_nm(input_path: Path) -> float:
+    """LJ cutoff of the AT sub-style of ``pair_style backmap`` (nm).
+
+    ``pair_style backmap <cut> <at-style> <lj-cut> [<coul-cut>] <cg-cut> <cg-style> ...``;
+    the global and CG cutoffs can differ from the AT LJ cutoff.
+    """
+    for line in _expanded_lines(input_path):
+        parts = line.split()
+        if parts[:2] == ["pair_style", "backmap"] and len(parts) >= 5:
+            return float(parts[4]) / 10.0
+    raise SystemExit(f"{input_path}: no 'pair_style backmap' found")
 
 
 def relax(lmp: str, input_path: Path, data: Path, steps: int) -> Path:
@@ -447,7 +516,12 @@ def main() -> int:
     ap.add_argument("--top", required=True)
     ap.add_argument("--lmp", required=True)
     ap.add_argument("--gmx", required=True)
-    ap.add_argument("--cutoff", type=float, default=1.4, help="LJ cutoff, nm")
+    ap.add_argument(
+        "--cutoff",
+        type=float,
+        default=None,
+        help="LJ cutoff, nm (default: the AT LJ cutoff of pair_style backmap in the input)",
+    )
     ap.add_argument("--rtol", type=float, default=1e-6)
     ap.add_argument(
         "--atol",
@@ -514,7 +588,7 @@ def main() -> int:
             top,
             work / "conf.g96",
             n_mol,
-            args.cutoff,
+            args.cutoff if args.cutoff is not None else at_lj_cutoff_nm(inp),
             work,
             args.zero_charges,
             args.include_dir.resolve() if args.include_dir else None,
