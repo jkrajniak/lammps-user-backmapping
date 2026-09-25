@@ -12,6 +12,12 @@ if TYPE_CHECKING:
 
     from .builder import System
 
+from .at_system import (
+    at_type_maps,
+    write_at_forcefield,
+    write_at_from_hybrid_frame,
+    write_at_reference,
+)
 from .network.api import build_hybrid_gromacs, build_network_lammps
 from .network.compare_topology import main as compare_topology_main
 from .network.finalize_cg import finalize_cg_from_equil, write_cg_gro
@@ -47,6 +53,9 @@ def _cmd_build(args: argparse.Namespace) -> int:
     input_path = out_dir / f"in.{prefix}"
     write_lammps_input(system, settings, input_path, data_filename=f"{prefix}.data")
     print(f"Wrote {input_path}")
+    at_ff = out_dir / f"{prefix}.at.ff.lmp"
+    write_at_forcefield(system, settings, at_type_maps(system), at_ff, f"{prefix}_at.data")
+    print(f"Wrote {at_ff}")
 
     table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
@@ -56,6 +65,45 @@ def _cmd_build(args: argparse.Namespace) -> int:
     for tf in table_files:
         print(f"Wrote {tf}")
 
+    return 0
+
+
+def _cmd_at_system(args: argparse.Namespace) -> int:
+    """Write an AT-only data file (from a hybrid frame or as a reference) and its force field."""
+    settings = load_settings(args.settings)
+    prefix = args.output_prefix or settings.output.prefix
+    out_dir = args.settings.parent.resolve()
+    if (args.from_frame is None) == (args.reference is None):
+        print("at-system needs exactly one of --from or --reference", file=sys.stderr)
+        return 1
+    system = build_network_lammps(settings, args.settings).system
+    maps = at_type_maps(system)
+    ff_path = out_dir / f"{prefix}.at.ff.lmp"
+    if args.from_frame is not None:
+        out = args.output or out_dir / f"{prefix}_at.data"
+        n = write_at_from_hybrid_frame(system, maps, args.from_frame.resolve(), out)
+        print(f"Wrote {out} ({n} AT atoms)")
+    else:
+        mol = settings.molecules[0]
+        coords = mol.source.coordinates
+        if len(settings.molecules) != 1 or not isinstance(coords, str):
+            print("--reference needs one molecule type with a single .gro source", file=sys.stderr)
+            return 1
+        data_dir = resolve_data_dir(args.settings, settings)
+        template = Path(coords) if Path(coords).is_absolute() else data_dir / coords
+        out = args.output or out_dir / f"{prefix}_at_ref.data"
+        box = write_at_reference(
+            system,
+            maps,
+            out_dir / settings.hybrid.coordinates,
+            template,
+            args.reference,
+            args.seed,
+            out,
+        )
+        print(f"Wrote {out} ({args.reference} molecules, expanded box {box:.2f} A)")
+    write_at_forcefield(system, settings, maps, ff_path, out.name)
+    print(f"Wrote {ff_path}")
     return 0
 
 
@@ -304,6 +352,7 @@ _KNOWN_COMMANDS = {
     "build",
     "rebuild",
     "cg-only",
+    "at-system",
     "finalize-cg",
     "build-hybrid",
     "compare-topology",
@@ -396,6 +445,29 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Equilibrated CG frame: rim135_cg_final.data or unwrapped cg_cl_conf_equil.gro",
     )
+
+    at_parser = subparsers.add_parser(
+        "at-system",
+        help="AT-only data file (from a hybrid frame, or an independent reference) "
+        "and its force field",
+    )
+    _add_common_args(at_parser)
+    at_parser.add_argument(
+        "--from",
+        dest="from_frame",
+        type=Path,
+        default=None,
+        help="Hybrid LAMMPS frame (e.g. <prefix>_hybrid.data after the ramp)",
+    )
+    at_parser.add_argument(
+        "--reference",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Build an independent reference of N molecules on a lattice",
+    )
+    at_parser.add_argument("--seed", type=int, default=42, help="Seed for --reference rotations")
+    at_parser.add_argument("-o", "--output", type=Path, default=None, help="Output data file")
 
     cg_parser = subparsers.add_parser(
         "cg-only",
@@ -491,6 +563,7 @@ def main(argv: list[str] | None = None) -> int:
         "build": _cmd_build,
         "rebuild": _cmd_rebuild,
         "cg-only": _cmd_cg_only,
+        "at-system": _cmd_at_system,
         "finalize-cg": _cmd_finalize_cg,
         "build-hybrid": _cmd_build_hybrid,
         "compare-topology": lambda a: compare_topology_main([str(a.reference), str(a.candidate)]),

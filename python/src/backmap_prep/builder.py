@@ -136,6 +136,8 @@ class System:
     has_cross_pairs: bool = False
     cross_pairs: list[LammpsCrossPair] = field(default_factory=list)
     cross_pairs_file: str = "pairs.dat"
+    fudge_lj: float = 1.0  # 1-4 LJ scale of the AT force field (GROMACS fudgeLJ)
+    fudge_qq: float = 1.0  # 1-4 Coulomb scale (GROMACS fudgeQQ)
     write_image_flags: bool = False  # data file carries image flags
 
     # Atoms-per-bead by CG type ID (fix backmap apb); empty when every bead

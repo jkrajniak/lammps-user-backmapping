@@ -134,6 +134,11 @@ backmap-prep settings.yaml
 backmap-prep settings.yaml --output-prefix mysystem
 ```
 
+`build` also writes `<prefix>.ff.lmp` and `<prefix>.backmap.lmp` (include
+them in your own protocols instead of restating coefficients) and
+`<prefix>.at.ff.lmp` for AT-only runs; `backmap-prep at-system --from
+<frame>` / `--reference N` writes the matching AT-only data files.
+
 Linear melts and cross-linked networks go through the same hybrid builder:
 each AT fragment is placed with its mass-weighted centre of mass on its CG
 bead, and outputs are written next to the settings file.

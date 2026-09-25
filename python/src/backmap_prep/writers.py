@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import math
-from typing import IO, TYPE_CHECKING, Any
+from pathlib import Path
+from typing import IO, Any
 
 from . import units
 from .builder import DihedralTypeInfo, System
 from .network.pbc import max_interaction_extent, validate_bond_geometry
 from .schema import Settings, SimulationParams
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def write_lammps_data(system: System, path: Path) -> None:
@@ -330,25 +328,21 @@ def _write_integration(f: IO[str], sim: SimulationParams, params: dict[str, Any]
         )
 
 
-def _write_setup(
+def _write_forcefield(
     f: IO[str],
     system: System,
     settings: Settings,
     params: dict[str, Any],
-    data_filename: str,
-    *,
-    use_read_data: bool = True,
 ) -> None:
-    """Write the shared setup block (styles, coefficients, groups, fixes)."""
+    """Force-field block: comm cutoff, styles, coefficients, special_bonds, groups.
+
+    Written to ``<prefix>.ff.lmp`` and included by the generated input and by
+    any hand-written protocol, so no script restates coefficients.
+    """
     sim = settings.simulation
     bond_styles = params["bond_styles"]
     angle_styles = params["angle_styles"]
     dihedral_styles = params["dihedral_styles"]
-
-    if use_read_data:
-        f.write(f"read_data {data_filename}\n\n")
-        if system.write_image_flags:
-            f.write("reset_atoms image all\n\n")
 
     f.write(f"comm_modify cutoff {params['comm_cutoff_ang']:.2f}\n\n")
 
@@ -477,13 +471,19 @@ def _write_setup(
     f.write(f"group cg_atoms type {cg_type_str}\n\n")
     f.write("neigh_modify delay 0 every 1 check yes\n\n")
 
-    _write_initial_velocities(f, sim, params)
 
-    # Integration (AT atoms only) — must be defined BEFORE fix backmap so
-    # that NVE/NVT initial_integrate runs first, updating AT positions before
-    # fix backmap tracks the CG→COM.
-    _write_integration(f, sim, params)
+def _write_backmap_fixes(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+) -> None:
+    """fix backmap and fix backmap/pairs, written to ``<prefix>.backmap.lmp``.
 
+    Include it after the integrators: fix order decides whether the CG beads
+    follow the AT atoms within the same step.
+    """
+    sim = settings.simulation
     # Fix backmap
     cg_type_fix_str = " ".join(str(t) for t in params["cg_type_ids"])
     fix_line = (
@@ -501,6 +501,47 @@ def _write_setup(
             f"fix pairs all backmap/pairs at file {system.cross_pairs_file} "
             f"cut {params['lj_cut_ang']:.10g}\n\n"
         )
+
+
+def _write_setup(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+    data_filename: str,
+    *,
+    use_read_data: bool = True,
+    ff_include: str | None = None,
+    backmap_include: str | None = None,
+) -> None:
+    """Write the shared setup block (styles, coefficients, groups, fixes).
+
+    With ``ff_include``/``backmap_include`` the force field and the backmap
+    fixes are included from those files instead of written inline.
+    """
+    sim = settings.simulation
+
+    if use_read_data:
+        f.write(f"read_data {data_filename}\n\n")
+        if system.write_image_flags:
+            f.write("reset_atoms image all\n\n")
+
+    if ff_include:
+        f.write(f"include {ff_include}\n\n")
+    else:
+        _write_forcefield(f, system, settings, params)
+
+    _write_initial_velocities(f, sim, params)
+
+    # Integration (AT atoms only) — must be defined BEFORE fix backmap so
+    # that NVE/NVT initial_integrate runs first, updating AT positions before
+    # fix backmap tracks the CG→COM.
+    _write_integration(f, sim, params)
+
+    if backmap_include:
+        f.write(f"include {backmap_include}\n\n")
+    else:
+        _write_backmap_fixes(f, system, settings, params)
 
     _write_cap_force(f, sim)
 
@@ -539,6 +580,46 @@ def write_cross_pairs_file(system: System, path: Path) -> None:
             )
 
 
+def read_input_with_includes(path: Path) -> str:
+    """Text of a LAMMPS input with ``include`` files expanded in place."""
+    out: list[str] = []
+    for line in path.read_text().splitlines():
+        parts = line.split()
+        if parts[:1] == ["include"] and len(parts) >= 2:
+            out.append(read_input_with_includes(path.parent / parts[1]))
+        else:
+            out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def write_forcefield_includes(
+    system: System,
+    settings: Settings,
+    out_dir: Path,
+    data_filename: str,
+) -> tuple[str, str]:
+    """Write ``<prefix>.ff.lmp`` and ``<prefix>.backmap.lmp``; return their names.
+
+    Hand-written protocols include these instead of restating coefficients:
+    ``include <prefix>.ff.lmp`` after read_data, the integrators, then
+    ``include <prefix>.backmap.lmp``.
+    """
+    params = _compute_params(system, settings)
+    prefix = Path(data_filename).stem
+    ff_name = f"{prefix}.ff.lmp"
+    backmap_name = f"{prefix}.backmap.lmp"
+    with open(out_dir / ff_name, "w") as f:
+        f.write(f"# Force field for {data_filename} -- generated by backmap-prep, do not edit\n\n")
+        _write_forcefield(f, system, settings, params)
+    with open(out_dir / backmap_name, "w") as f:
+        f.write(
+            "# fix backmap and 1-4 pairs -- generated by backmap-prep, do not edit.\n"
+            "# Include after the integration fixes.\n\n"
+        )
+        _write_backmap_fixes(f, system, settings, params)
+    return ff_name, backmap_name
+
+
 def write_lammps_input(
     system: System,
     settings: Settings,
@@ -553,6 +634,7 @@ def write_lammps_input(
     sim = settings.simulation
     params = _compute_params(system, settings)
     restart = sim.restart_interval
+    ff_name, backmap_name = write_forcefield_includes(system, settings, path.parent, data_filename)
 
     with open(path, "w") as f:
         f.write("# LAMMPS input for backmapping — generated by backmap-prep\n")
@@ -563,7 +645,15 @@ def write_lammps_input(
         f.write("atom_style full\n")
         f.write("boundary p p p\n\n")
 
-        _write_setup(f, system, settings, params, data_filename)
+        _write_setup(
+            f,
+            system,
+            settings,
+            params,
+            data_filename,
+            ff_include=ff_name,
+            backmap_include=backmap_name,
+        )
 
         if restart:
             _write_restart_cmd(f, restart)
@@ -638,7 +728,16 @@ def _write_restart_scripts(
     setup_path = parent / f"{stem}.setup"
     with open(setup_path, "w") as f:
         f.write("# Shared setup — generated by backmap-prep (do not edit)\n\n")
-        _write_setup(f, system, settings, params, data_filename, use_read_data=False)
+        _write_setup(
+            f,
+            system,
+            settings,
+            params,
+            data_filename,
+            use_read_data=False,
+            ff_include=f"{Path(data_filename).stem}.ff.lmp",
+            backmap_include=f"{Path(data_filename).stem}.backmap.lmp",
+        )
         _write_restart_cmd(f, restart)
         f.write("\n")
 

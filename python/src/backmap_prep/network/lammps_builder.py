@@ -1013,6 +1013,7 @@ def build_system_from_hybrid(
         system, molecule, top_file, dihedral_defaults, cg_type_names, search_dirs
     )
     _pair_14_terms(system, molecule, top_file)
+    system.fudge_lj, system.fudge_qq = top_file.fudge_lj, top_file.fudge_qq
     system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
     _resolve_pair_tables(system, settings, search_dirs)
     system.has_cross_bonds = any(bond_type.keyword == "at" for bond_type in system.bond_types)

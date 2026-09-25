@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 import pytest
 
 from backmap_prep.cli import main
+from backmap_prep.writers import read_input_with_includes
 
 
 def _write_full_example(base: Path) -> Path:
@@ -123,7 +124,7 @@ class TestCLI:
     def test_input_file_content(self, tmp_path: Path) -> None:
         settings_path = _write_full_example(tmp_path)
         main([str(settings_path)])
-        content = (tmp_path / "in.test_out").read_text()
+        content = read_input_with_includes(tmp_path / "in.test_out")
         assert "units real" in content
         assert "fix bm all backmap" in content
 

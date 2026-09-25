@@ -29,7 +29,12 @@ from backmap_prep.network.api import build_hybrid_gromacs, build_network_lammps
 from backmap_prep.schema import load_settings
 from backmap_prep.table_converter import convert_tables
 from backmap_prep.units import distance, gromacs_rb_to_lammps, spring_angle, spring_bond
-from backmap_prep.writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
+from backmap_prep.writers import (
+    read_input_with_includes,
+    write_cross_pairs_file,
+    write_lammps_data,
+    write_lammps_input,
+)
 
 MF_NETWORK_DIR = Path(__file__).resolve().parents[2] / "examples" / "melamine_network" / "large"
 SETTINGS_YAML = MF_NETWORK_DIR / "settings.yaml"
@@ -428,7 +433,7 @@ def test_mf_network_lammps_crosslink_types_nonzero(tmp_path: Path) -> None:
 
     topology_text = result.topology_path.read_text()
     data_text = data_path.read_text()
-    input_text = input_path.read_text()
+    input_text = read_input_with_includes(input_path)
 
     # --- Step 1: crosslink atom pairs/triples/quadruples tagged by Task 2b's
     # exact cross_interactions param strings, read straight from the fresh

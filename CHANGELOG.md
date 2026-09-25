@@ -7,6 +7,19 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Added
+
+- **Generated force-field includes.** `backmap-prep build` writes
+  `<prefix>.ff.lmp` (styles, coefficients, special_bonds, groups) and
+  `<prefix>.backmap.lmp` (fix backmap, fix backmap/pairs), which `in.<prefix>`
+  includes; hand-written protocols include them instead of restating
+  coefficients. It also writes `<prefix>.at.ff.lmp`, the same force field as
+  plain LAMMPS styles for AT-only runs (1-4 terms via special_bonds).
+- **`backmap-prep at-system`** writes AT-only data files in that force field's
+  numbering: `--from <hybrid frame>` (CG beads removed) or `--reference N`
+  (independent reference: N template molecules on a lattice, expanded box).
+  Replaces the per-example `extract_at_frame.py` / `build_at_reference.py`.
+
 ### Changed
 
 - **One hybrid builder for every system (breaking).** `backmap-prep build`,

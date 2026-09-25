@@ -246,10 +246,22 @@ def gromacs_energies(
     return energies
 
 
+def _expanded_lines(path: Path) -> list[str]:
+    """Input lines with ``include`` files expanded in place (relative to the input)."""
+    out: list[str] = []
+    for line in path.read_text().splitlines():
+        parts = line.split()
+        if parts[:1] == ["include"] and len(parts) >= 2:
+            out.extend(_expanded_lines(path.parent / parts[1]))
+        else:
+            out.append(line)
+    return out
+
+
 def _ff_header(input_path: Path, data: Path) -> list[str]:
     """The generated input up to fix backmap, reading ``data``, at lambda = 1."""
     lines = []
-    text = input_path.read_text().splitlines()
+    text = _expanded_lines(input_path)
     pairs_fix = [line for line in text if re.match(r"^fix\s+\S+\s+\S+\s+backmap/pairs\b", line)]
     for line in text:
         if line.startswith("fix bm "):
@@ -260,6 +272,8 @@ def _ff_header(input_path: Path, data: Path) -> list[str]:
         if line.split()[:1] in (["dump"], ["dump_modify"], ["run"], ["minimize"]):
             continue
         lines.append(f"read_data {data.resolve()}" if line.startswith("read_data") else line)
+    if not any(line.startswith("fix bm ") for line in lines):
+        raise SystemExit(f"{input_path}: no 'fix bm' found (after expanding includes)")
     return lines
 
 
@@ -321,6 +335,35 @@ def lammps_energies(
     return {k: float(v) for k, v in (kv.split("=") for kv in m.group(1).split())}
 
 
+def at_only_energies(
+    lmp: str, at_data: Path, at_ff: Path, workdir: Path, zero_charges: bool
+) -> dict[str, float]:
+    """LAMMPS run 0 of an AT-only data file with its generated force field."""
+    lines = [
+        "units real",
+        "atom_style full",
+        "boundary p p p",
+        f"read_data {at_data.resolve()}",
+        f"include {at_ff.resolve()}",
+        *(["set group all charge 0.0"] if zero_charges else []),
+        "thermo_style custom step ebond eangle edihed evdwl ecoul",
+        "run 0",
+        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) '
+        'evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e)"',
+    ]
+    (workdir / "in.at_check").write_text("\n".join(lines) + "\n")
+    subprocess.run(
+        [lmp, "-in", "in.at_check", "-log", "log.at_check", "-screen", "none"],
+        cwd=workdir,
+        check=True,
+    )
+    log = (workdir / "log.at_check").read_text()
+    m = re.search(r"^RESULT (.*)$", log, re.MULTILINE)
+    if not m:
+        raise SystemExit(log[-2000:])
+    return {k: float(v) for k, v in (kv.split("=") for kv in m.group(1).split())}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--dir", type=Path, required=True)
@@ -356,6 +399,13 @@ def main() -> int:
         default=0,
         help="minimize this many steps at lambda = 1 first and compare on that frame",
     )
+    ap.add_argument(
+        "--at-data",
+        type=Path,
+        default=None,
+        help="AT-only data file with the same coordinates (backmap-prep at-system --from)",
+    )
+    ap.add_argument("--at-ff", type=Path, default=None, help="Its <prefix>.at.ff.lmp")
     args = ap.parse_args()
 
     d = args.dir.resolve()
@@ -398,6 +448,26 @@ def main() -> int:
         ok = rel <= args.rtol or abs(val - ref) <= args.atol
         failed |= not ok
         print(f"{key:8s} {val:18.6f} {ref:18.6f} {rel:10.2e} {'ok' if ok else 'FAIL'}")
+    if args.at_data is not None and args.at_ff is not None:
+        at = at_only_energies(args.lmp, args.at_data, args.at_ff, d, args.zero_charges)
+        # special_bonds puts the 1-4 terms into evdwl/ecoul of the AT-only run
+        at_terms = {
+            "ebond": ["Bond"],
+            "eangle": ["Angle"],
+            "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Improper Dih."],
+            "evdwl": ["LJ (SR)", "LJ-14"],
+        }
+        print("AT-only force field (at-system data + .at.ff.lmp):")
+        for key, gmx_terms in at_terms.items():
+            if key == "evdwl" and charged:
+                print(f"  {key:8s} skipped: charges present; rerun with --zero-charges")
+                continue
+            ref = sum(gmx.get(t, 0.0) for t in gmx_terms)
+            val = at[key] * KCAL_TO_KJ
+            rel = abs(val - ref) / max(abs(ref), 1e-12)
+            ok = rel <= args.rtol or abs(val - ref) <= args.atol
+            failed |= not ok
+            print(f"  {key:8s} {val:18.6f} {ref:18.6f} {rel:10.2e} {'ok' if ok else 'FAIL'}")
     for term in REPORTED:
         if term in gmx:
             print(f"{term:12s} GROMACS {gmx[term]:14.6f} kJ/mol (no LAMMPS thermo counterpart)")

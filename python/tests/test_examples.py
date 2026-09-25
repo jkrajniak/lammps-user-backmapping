@@ -12,6 +12,7 @@ import pytest
 from backmap_prep.cli import main
 from backmap_prep.parsers import parse_top
 from backmap_prep.schema import load_settings
+from backmap_prep.writers import read_input_with_includes
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 
@@ -402,7 +403,7 @@ def test_lj_mixing_follows_source_combination_rule(example_workdir: Path) -> Non
     come from the AT source; it used to fall back to Lorentz-Berthelot.
     """
     data = _build_example(example_workdir)
-    script = (example_workdir / f"in.{data.stem}").read_text()
+    script = read_input_with_includes(example_workdir / f"in.{data.stem}")
     sigmas = {
         float(line.split()[5])
         for line in script.splitlines()
