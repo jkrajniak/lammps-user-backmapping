@@ -66,12 +66,12 @@ def write_lammps_data(system: System, path: Path) -> None:
                 wy = a.y % by if by > 0 else a.y
                 wz = a.z % bz if bz > 0 else a.z
                 f.write(
-                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} "
+                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.10g} "
                     f"{wx:.6f} {wy:.6f} {wz:.6f}\n"
                 )
             else:
                 f.write(
-                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} "
+                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.10g} "
                     f"{a.x:.6f} {a.y:.6f} {a.z:.6f} {a.ix} {a.iy} {a.iz}\n"
                 )
         f.write("\n")

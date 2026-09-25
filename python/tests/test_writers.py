@@ -109,6 +109,15 @@ class TestWriteLammpsData:
         assert "14.000000" in content
         assert "(CG)" in content
 
+    def test_charges_keep_topology_precision(self, tmp_path: Path) -> None:
+        # bakery/OPLS charges carry ~12 digits; rounding to 6 decimals left
+        # RIM135 with a net charge of -0.0027 e and Coul-14 off by 0.12 kJ/mol.
+        system = _make_system()
+        system.atoms[2].charge = 0.538254177778
+        p = tmp_path / "test.data"
+        write_lammps_data(system, p)
+        assert " 0.5382541778 " in p.read_text()
+
     def test_atoms_section(self, tmp_path: Path) -> None:
         system = _make_system()
         p = tmp_path / "test.data"
@@ -154,7 +163,7 @@ class TestWriteLammpsData:
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
         content = read_input_with_includes(p)
-        assert "1 1 1 0.000000 1.000000 2.000000 3.000000 0 0 0" in content
+        assert "1 1 1 0 1.000000 2.000000 3.000000 0 0 0" in content
 
     def test_coordinates_wrapped_into_box(self, tmp_path: Path) -> None:
         system = _make_system()

@@ -65,6 +65,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   Lorentz-Berthelot. Rule 1 (C6/C12) is converted before mixing.
 - **Missing AT LJ parameters** for settings-driven builds (the hybrid topology
   lists only CG types; AT types now come from the source topologies).
+- **Charges keep the topology's precision** in the data file (10 significant
+  digits; they were rounded to 6 decimals). The rounding left RIM135 with a
+  net charge of -0.0027 e instead of ~0 and shifted its Coul-14 by
+  0.12 kJ/mol against GROMACS.
 - **kJ -> kcal** is exactly 1/4.184 (was 0.239006); force-field coefficients
   are written with 10 significant digits.
 - **Communication cutoff** from minimum-image extents; it used folded
