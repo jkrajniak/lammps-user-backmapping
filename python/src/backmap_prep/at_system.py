@@ -39,6 +39,8 @@ __all__ = [
 ]
 
 _BOND_ANGLE_STYLE = {"harmonic": "harmonic", "backmap/harmonic": "harmonic"}
+_ANGLE_STYLE = {**_BOND_ANGLE_STYLE, "backmap/charmm": "charmm"}
+_IMPROPER_STYLE = {"backmap/harmonic": "harmonic"}
 _DIHEDRAL_STYLE = {
     "ryckaert": "ryckaert",
     "backmap/ryckaert": "ryckaert",
@@ -46,6 +48,7 @@ _DIHEDRAL_STYLE = {
     "backmap/harmonic": "harmonic",
     "charmm": "charmm",
     "backmap/charmm": "charmm",
+    "backmap/fourier": "fourier",
 }
 _DATA_SECTIONS = ("Masses", "Atoms", "Velocities", "Bonds", "Angles", "Dihedrals", "Impropers")
 
@@ -64,9 +67,11 @@ class AtTypeMaps:
     bond: dict[int, int] = field(default_factory=dict)
     angle: dict[int, int] = field(default_factory=dict)
     dihedral: dict[int, int] = field(default_factory=dict)
+    improper: dict[int, int] = field(default_factory=dict)
     bond_types: list[_AtType] = field(default_factory=list)
     angle_types: list[_AtType] = field(default_factory=list)
     dihedral_types: list[_AtType] = field(default_factory=list)
+    improper_types: list[_AtType] = field(default_factory=list)
 
 
 def _map_types(
@@ -95,9 +100,12 @@ def at_type_maps(system: System) -> AtTypeMaps:
         if not at.is_cg:
             maps.atom[at.type_id] = len(maps.atom) + 1
     maps.bond, maps.bond_types = _map_types(system.bond_types, _BOND_ANGLE_STYLE, "bond")
-    maps.angle, maps.angle_types = _map_types(system.angle_types, _BOND_ANGLE_STYLE, "angle")
+    maps.angle, maps.angle_types = _map_types(system.angle_types, _ANGLE_STYLE, "angle")
     maps.dihedral, maps.dihedral_types = _map_types(
         system.dihedral_types, _DIHEDRAL_STYLE, "dihedral"
+    )
+    maps.improper, maps.improper_types = _map_types(
+        system.improper_types, _IMPROPER_STYLE, "improper"
     )
     return maps
 
@@ -110,8 +118,15 @@ def _style_block(kind: str, types: list[_AtType]) -> list[str]:
     lines = [f"{kind}_style {'hybrid ' if hybrid else ''}{' '.join(styles)}"]
     for n, t in enumerate(types, start=1):
         p = list(t.params)
-        if kind == "angle":
+        if kind == "angle" and t.style == "charmm":
+            values = " ".join(f"{v:.10g}" for v in p[:4])
+        elif kind == "angle":
             values = f"{p[0]:.10g} {p[1]:.10g}"
+        elif t.style == "fourier":
+            m = int(p[0])
+            values = f"{m} " + " ".join(
+                f"{p[1 + 3 * i]:.10g} {int(p[2 + 3 * i])} {p[3 + 3 * i]:.10g}" for i in range(m)
+            )
         elif t.style == "harmonic" and kind == "dihedral":
             values = f"{p[0]:.10g} {int(p[1])} {int(p[2])}"
         elif t.style == "charmm":
@@ -144,6 +159,7 @@ def write_at_forcefield(
     lines += _style_block("bond", maps.bond_types)
     lines += _style_block("angle", maps.angle_types)
     lines += _style_block("dihedral", maps.dihedral_types)
+    lines += _style_block("improper", maps.improper_types)
     if system.has_cross_pairs:
         lj14, qq14 = system.fudge_lj, system.fudge_qq
     else:
@@ -192,12 +208,13 @@ def _write_data(
         f"{len(terms['Bonds'])} bonds",
         f"{len(terms['Angles'])} angles",
         f"{len(terms['Dihedrals'])} dihedrals",
-        "0 impropers",
+        f"{len(terms.get('Impropers', []))} impropers",
         "",
         f"{len(masses)} atom types",
         f"{len(maps.bond_types)} bond types",
         f"{len(maps.angle_types)} angle types",
         f"{len(maps.dihedral_types)} dihedral types",
+        f"{len(maps.improper_types)} improper types",
         "",
     ]
     out = [title, "", *counts]
@@ -208,8 +225,8 @@ def _write_data(
     out += ["", "Atoms # full", "", *atoms]
     if velocities:
         out += ["", "Velocities", "", *velocities]
-    for name in ("Bonds", "Angles", "Dihedrals"):
-        if terms[name]:
+    for name in ("Bonds", "Angles", "Dihedrals", "Impropers"):
+        if terms.get(name):
             out += ["", name, "", *terms[name]]
     path.write_text("\n".join(out) + "\n")
 
@@ -238,7 +255,12 @@ def write_at_from_hybrid_frame(system: System, maps: AtTypeMaps, frame: Path, ou
         for p in sec["Velocities"]
         if int(p[0]) in new_id
     ]
-    type_map = {"Bonds": maps.bond, "Angles": maps.angle, "Dihedrals": maps.dihedral}
+    type_map = {
+        "Bonds": maps.bond,
+        "Angles": maps.angle,
+        "Dihedrals": maps.dihedral,
+        "Impropers": maps.improper,
+    }
     terms: dict[str, list[str]] = {}
     for name, tmap in type_map.items():
         rows: list[str] = []
@@ -322,6 +344,9 @@ def write_at_reference(
         "Angles": [(maps.angle.get(t.type_id), [t.i, t.j, t.k]) for t in system.angles],
         "Dihedrals": [
             (maps.dihedral.get(d.type_id), [d.i, d.j, d.k, d.l]) for d in system.dihedrals
+        ],
+        "Impropers": [
+            (maps.improper.get(d.type_id), [d.i, d.j, d.k, d.l]) for d in system.impropers
         ],
     }
     terms: dict[str, list[str]] = {}

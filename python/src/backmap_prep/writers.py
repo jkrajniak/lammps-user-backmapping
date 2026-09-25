@@ -29,13 +29,13 @@ def write_lammps_data(system: System, path: Path) -> None:
         f.write(f"{len(system.bonds)} bonds\n")
         f.write(f"{len(system.angles)} angles\n")
         f.write(f"{len(system.dihedrals)} dihedrals\n")
-        f.write("0 impropers\n\n")
+        f.write(f"{len(system.impropers)} impropers\n\n")
 
         f.write(f"{len(system.atom_types)} atom types\n")
         f.write(f"{len(system.bond_types)} bond types\n")
         f.write(f"{len(system.angle_types)} angle types\n")
         f.write(f"{len(system.dihedral_types)} dihedral types\n")
-        f.write("0 improper types\n\n")
+        f.write(f"{len(system.improper_types)} improper types\n\n")
 
         bx, by, bz = system.box
         f.write(f"0.0 {bx:.6f} xlo xhi\n")
@@ -94,6 +94,12 @@ def write_lammps_data(system: System, path: Path) -> None:
             f.write("Dihedrals\n\n")
             for dih in system.dihedrals:
                 f.write(f"{dih.dihedral_id} {dih.type_id} {dih.i} {dih.j} {dih.k} {dih.l}\n")
+            f.write("\n")
+
+        if system.impropers:
+            f.write("Impropers\n\n")
+            for imp in system.impropers:
+                f.write(f"{imp.improper_id} {imp.type_id} {imp.i} {imp.j} {imp.k} {imp.l}\n")
             f.write("\n")
 
     # Print type mapping tables
@@ -178,12 +184,15 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     has_static_angles = any(at.style == "harmonic" for at in system.angle_types)
     has_backmap_angles = any(at.style == "backmap/harmonic" for at in system.angle_types)
     has_backmap_angle_table = any(at.style == "backmap/table" for at in system.angle_types)
+    has_backmap_ub = any(at.style == "backmap/charmm" for at in system.angle_types)
 
     angle_styles: list[str] = []
     if has_static_angles:
         angle_styles.append("harmonic")
     if has_backmap_angles:
         angle_styles.append("backmap/harmonic")
+    if has_backmap_ub:
+        angle_styles.append("backmap/charmm")
     if has_backmap_angle_table:
         angle_styles.append("backmap/table linear 1000")
 
@@ -210,6 +219,8 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         dihedral_styles.append("backmap/harmonic")
     if has_backmap_charmm:
         dihedral_styles.append("backmap/charmm")
+    if any(dt.style == "backmap/fourier" for dt in system.dihedral_types):
+        dihedral_styles.append("backmap/fourier")
     if has_backmap_dihedral_table:
         dihedral_styles.append("backmap/table linear 1000")
 
@@ -284,6 +295,15 @@ def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} charmm {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
+    if dihtype.style == "backmap/fourier":
+        m = int(dihtype.params[0])
+        terms = dihtype.params[1 : 1 + 3 * m]
+        coeffs = f"{m} " + " ".join(
+            f"{terms[3 * t]:.10g} {int(terms[3 * t + 1])} {terms[3 * t + 2]:.10g}" for t in range(m)
+        )
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} backmap/fourier {dihtype.keyword} {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
     if dihtype.style == "backmap/charmm":
         k_val, n_val, delta = dihtype.params[:3]
         shift = round(delta)
@@ -434,6 +454,12 @@ def _write_forcefield(
                         f"angle_coeff {angtype.type_id} backmap/table "
                         f"{angtype.keyword} {angtype.table_file} {angtype.table_keyword}\n"
                     )
+                elif angtype.style == "backmap/charmm":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} backmap/charmm {angtype.keyword} "
+                        + " ".join(f"{p:.10g}" for p in angtype.params)
+                        + "\n"
+                    )
             else:
                 if angtype.style == "harmonic":
                     f.write(
@@ -450,6 +476,12 @@ def _write_forcefield(
                         f"angle_coeff {angtype.type_id} "
                         f"{angtype.keyword} {angtype.table_file} {angtype.table_keyword}\n"
                     )
+                elif angtype.style == "backmap/charmm":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} {angtype.keyword} "
+                        + " ".join(f"{p:.10g}" for p in angtype.params)
+                        + "\n"
+                    )
         f.write("\n")
 
     # Dihedral style
@@ -462,6 +494,16 @@ def _write_forcefield(
         for dihtype in system.dihedral_types:
             coeff = _format_dihedral_coeff(dihtype, dihedral_styles)
             f.write(coeff)
+        f.write("\n")
+
+    # Improper style (func-2 harmonic impropers only)
+    if system.improper_types:
+        f.write("improper_style backmap/harmonic\n")
+        for imptype in system.improper_types:
+            k_val, chi0 = imptype.params
+            f.write(
+                f"improper_coeff {imptype.type_id} {imptype.keyword} {k_val:.10g} {chi0:.10g}\n"
+            )
         f.write("\n")
 
     # Special bonds (exclusions)

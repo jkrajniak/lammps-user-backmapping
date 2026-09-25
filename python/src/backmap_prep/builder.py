@@ -53,6 +53,16 @@ class LammpsDihedral:
 
 
 @dataclass
+class LammpsImproper:
+    improper_id: int
+    type_id: int
+    i: int
+    j: int
+    k: int
+    l: int
+
+
+@dataclass
 class LammpsCrossPair:
     i: int
     j: int
@@ -93,6 +103,14 @@ class DihedralTypeInfo:
 
 
 @dataclass
+class ImproperTypeInfo:
+    type_id: int
+    style: str  # "backmap/harmonic"
+    keyword: str
+    params: list[float]  # K (energy/rad^2, E = K dchi^2), chi0 (deg)
+
+
+@dataclass
 class AtomTypeInfo:
     type_id: int
     name: str
@@ -123,10 +141,12 @@ class System:
     bonds: list[LammpsBond] = field(default_factory=list)
     angles: list[LammpsAngle] = field(default_factory=list)
     dihedrals: list[LammpsDihedral] = field(default_factory=list)
+    impropers: list[LammpsImproper] = field(default_factory=list)
     atom_types: list[AtomTypeInfo] = field(default_factory=list)
     bond_types: list[BondTypeInfo] = field(default_factory=list)
     angle_types: list[AngleTypeInfo] = field(default_factory=list)
     dihedral_types: list[DihedralTypeInfo] = field(default_factory=list)
+    improper_types: list[ImproperTypeInfo] = field(default_factory=list)
     pair_types: list[PairTypeInfo] = field(default_factory=list)
     box: tuple[float, float, float] = (0.0, 0.0, 0.0)  # Angstrom
     cg_type_id: int = 0

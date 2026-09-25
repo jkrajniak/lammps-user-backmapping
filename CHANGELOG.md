@@ -9,6 +9,17 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **CHARMM-type terms in `backmap-prep`.** GROMACS angle func 5
+  (Urey-Bradley) -> `angle_style backmap/charmm`; dihedral func 4/9 ->
+  `dihedral_style backmap/fourier` (consecutive func-9 lines, in the topology
+  or in `[ dihedraltypes ]`, become one multi-term dihedral); improper func 2
+  -> `improper_style backmap/harmonic` (the data file now has an `Impropers`
+  section). func 2/4/9 types resolve by the most specific `[ dihedraltypes ]`
+  match, including middle wildcards (`X`). The AT-only force field maps them
+  to stock `charmm` / `fourier` / `harmonic`. Bonded types of the AT source
+  topologies are adopted when the hybrid topology lacks them. Needs the styles
+  of the CHARMM-type bonded styles PR.
+
 - **Generated force-field includes.** `backmap-prep build` writes
   `<prefix>.ff.lmp` (styles, coefficients, special_bonds, groups) and
   `<prefix>.backmap.lmp` (fix backmap, fix backmap/pairs), which `in.<prefix>`

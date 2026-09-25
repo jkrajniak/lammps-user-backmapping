@@ -11,20 +11,25 @@ from backmap_prep.builder import (
     AtomTypeInfo,
     BondTypeInfo,
     DihedralTypeInfo,
+    ImproperTypeInfo,
     LammpsAngle,
     LammpsAtom,
     LammpsBond,
     LammpsCrossPair,
     LammpsDihedral,
+    LammpsImproper,
     PairTypeInfo,
     System,
 )
 from backmap_prep.network.pbc import prepare_network_coordinates, validate_bond_geometry
 from backmap_prep.parsers import parse_gro, parse_top
 from backmap_prep.parsers.top_parser import (
+    TopDihedral,
     resolve_dihedral_params,
+    resolve_improper_harmonic,
     resolve_opls_improper_params,
     resolve_pair_lj_params,
+    resolve_periodic_terms,
 )
 
 if TYPE_CHECKING:
@@ -35,7 +40,6 @@ if TYPE_CHECKING:
         TopAngle,
         TopAtom,
         TopBond,
-        TopDihedral,
         Topology,
     )
     from backmap_prep.schema import CrossAngle, CrossBond, CrossDihedral, Settings
@@ -291,16 +295,14 @@ def _add_bond_type(
 
 def _add_angle_type(
     system: System,
-    angle_type_map: dict[tuple[str, str, str, str, float, float], int],
+    angle_type_map: dict[tuple[str, str, str, tuple[float, ...]], int],
     *,
     style: str = "backmap/harmonic",
     keyword: str,
     params: list[float],
     table_file: str | None = None,
 ) -> int:
-    p0 = round(params[0], 8) if params else 0.0
-    p1 = round(params[1], 8) if len(params) > 1 else 0.0
-    key = (style, keyword, table_file or "", p0, p1)
+    key = (style, keyword, table_file or "", tuple(round(p, 8) for p in params))
     type_id = angle_type_map.get(key)
     if type_id is not None:
         return type_id
@@ -451,6 +453,8 @@ def _add_dihedral_type(
     table_file: str | None = None,
 ) -> int:
     coeff_key = tuple(round(value, 8) for value in params[:6])
+    if style in {"fourier", "backmap/fourier"}:
+        coeff_key = tuple(round(value, 8) for value in params)
     if style in {"charmm", "backmap/charmm", "harmonic", "backmap/harmonic"}:
         coeff_key = tuple(round(value, 8) for value in params[:3])
     key = (style, keyword, table_file or "", coeff_key)
@@ -510,9 +514,13 @@ def _dihedral_terms(
     atom_type_by_index = {atom.index: atom.type for atom in molecule.atoms}
     dihedrals: list[LammpsDihedral] = []
     dihedral_type_map: dict[tuple[str, str, str, tuple[float, ...], str], int] = {}
-    all_dihedrals = [*molecule.dihedrals, *molecule.cross_dihedrals]
+    all_dihedrals = [
+        d
+        for d in _merge_func9_lines([*molecule.dihedrals, *molecule.cross_dihedrals])
+        if d.func != 2
+    ]
 
-    for dihedral_index, dih in enumerate(all_dihedrals, start=1):
+    for dih in all_dihedrals:
         atom_i = atom_by_index[dih.i]
         atom_j = atom_by_index[dih.j]
         atom_k = atom_by_index[dih.k]
@@ -571,6 +579,14 @@ def _dihedral_terms(
             else:
                 style = "backmap/harmonic"
                 keyword = "at"
+        elif func in (4, 9):
+            terms = dih.merged_terms or resolve_periodic_terms(
+                dih, atom_type_by_index, topology.dihedraltypes, topology.atom_types
+            )
+            style = "backmap/fourier"
+            params = [float(len(terms))]
+            for phase, k_kj, n in terms:
+                params += [units.energy(k_kj), float(n), phase]
         elif func == 0:
             default = dihedral_defaults.get(quad)
             if default:
@@ -601,7 +617,7 @@ def _dihedral_terms(
         )
         dihedrals.append(
             LammpsDihedral(
-                dihedral_id=dihedral_index,
+                dihedral_id=len(dihedrals) + 1,
                 type_id=type_id,
                 i=dih.i,
                 j=dih.j,
@@ -610,6 +626,81 @@ def _dihedral_terms(
             )
         )
     return dihedrals
+
+
+def _merge_func9_lines(dihedrals: list[TopDihedral]) -> list[TopDihedral]:
+    """Combine consecutive explicit func-9 lines on the same atoms into one multi-term dihedral."""
+    out: list[TopDihedral] = []
+    for dih in dihedrals:
+        prev = out[-1] if out else None
+        same = (
+            prev is not None
+            and dih.func == 9
+            and prev.func == 9
+            and dih.params
+            and prev.params
+            and (dih.i, dih.j, dih.k, dih.atom_l) == (prev.i, prev.j, prev.k, prev.atom_l)
+        )
+        if same:
+            prev.merged_terms.append((dih.params[0], dih.params[1], int(dih.params[2])))
+            continue
+        if dih.func == 9 and len(dih.params) >= 3:
+            dih = TopDihedral(
+                i=dih.i,
+                j=dih.j,
+                k=dih.k,
+                atom_l=dih.atom_l,
+                func=dih.func,
+                params=dih.params,
+                param_tokens=dih.param_tokens,
+                merged_terms=[(dih.params[0], dih.params[1], int(dih.params[2]))],
+            )
+        out.append(dih)
+    return out
+
+
+def _improper_terms(
+    system: System,
+    molecule: MoleculeType,
+    topology: Topology,
+    cg_type_names: set[str],
+) -> list[LammpsImproper]:
+    """GROMACS func-2 (harmonic) impropers -> improper_style backmap/harmonic."""
+    atom_by_index = {atom.index: atom for atom in molecule.atoms}
+    atom_type_by_index = {atom.index: atom.type for atom in molecule.atoms}
+    type_map: dict[tuple[str, tuple[float, ...]], int] = {}
+    impropers: list[LammpsImproper] = []
+    for dih in [*molecule.dihedrals, *molecule.cross_dihedrals]:
+        if dih.func != 2:
+            continue
+        atoms = [atom_by_index[i] for i in (dih.i, dih.j, dih.k, dih.atom_l)]
+        is_cg = all(a.type in cg_type_names or _single_letter_cg(a.type) for a in atoms)
+        keyword = "cg" if is_cg else "at"
+        xi0, k_kj = resolve_improper_harmonic(
+            dih, atom_type_by_index, topology.dihedraltypes, topology.atom_types
+        )
+        params = [units.spring_angle(k_kj), xi0]
+        key = (keyword, tuple(round(p, 8) for p in params))
+        type_id = type_map.get(key)
+        if type_id is None:
+            type_id = len(system.improper_types) + 1
+            system.improper_types.append(
+                ImproperTypeInfo(
+                    type_id=type_id, style="backmap/harmonic", keyword=keyword, params=params
+                )
+            )
+            type_map[key] = type_id
+        impropers.append(
+            LammpsImproper(
+                improper_id=len(impropers) + 1,
+                type_id=type_id,
+                i=dih.i,
+                j=dih.j,
+                k=dih.k,
+                l=dih.atom_l,
+            )
+        )
+    return impropers
 
 
 def _bond_class(topology: Topology | None, atom: TopAtom) -> str:
@@ -648,6 +739,32 @@ def _angletype_params(
         )
     theta0, k = params
     return [units.spring_angle(k), theta0]
+
+
+def _urey_bradley_params(
+    topology: Topology | None, angle: TopAngle, atoms: tuple[TopAtom, TopAtom, TopAtom]
+) -> list[float]:
+    """LAMMPS backmap/charmm (K, theta0, K_ub, r_ub) of a GROMACS func-5 angle.
+
+    GROMACS: E = 1/2 k_theta (theta - theta0)^2 + 1/2 k_UB (r13 - r_UB)^2.
+    """
+    if len(angle.params) >= 4:
+        theta0, k_theta, r13, k_ub = angle.params[:4]
+    else:
+        key = tuple(_bond_class(topology, a) for a in atoms)
+        found = topology.angletypes_ub.get(key) if topology else None  # type: ignore[arg-type]
+        if found is None:
+            names = "-".join(a.name for a in atoms)
+            raise ValueError(
+                f"angle {names} (classes {key}) has no parameters and no func-5 [ angletypes ] entry"
+            )
+        theta0, k_theta, r13, k_ub = found
+    return [
+        units.spring_angle(k_theta),
+        theta0,
+        units.spring_bond(k_ub),
+        units.distance(r13),
+    ]
 
 
 def _bond_terms(
@@ -764,7 +881,7 @@ def _angle_terms(
 ) -> list[LammpsAngle]:
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
     angles: list[LammpsAngle] = []
-    angle_type_map: dict[tuple[str, str, str, str, float, float], int] = {}
+    angle_type_map: dict[tuple[str, str, str, tuple[float, ...]], int] = {}
     all_angles = [*molecule.angles, *molecule.cross_angles]
     for angle_index, angle in enumerate(all_angles, start=1):
         atom_i = atom_by_index[angle.i]
@@ -806,10 +923,14 @@ def _angle_terms(
                 params = [0.0, 0.0]
             else:
                 params = _angletype_params(topology, (atom_i, atom_j, atom_k))
+        elif angle.func == 5:
+            style = "backmap/charmm"
+            params = _urey_bradley_params(topology, angle, (atom_i, atom_j, atom_k))
         elif angle.func != 1:
             raise ValueError(
                 f"Unsupported angle func {angle.func} for atoms "
-                f"{atom_i.name}-{atom_j.name}-{atom_k.name} (supported: 1 harmonic, 8 table)"
+                f"{atom_i.name}-{atom_j.name}-{atom_k.name} "
+                "(supported: 1 harmonic, 5 Urey-Bradley, 8 table)"
             )
         elif len(angle.params) >= 2:
             params = [units.spring_angle(angle.params[1]), angle.params[0]]
@@ -1074,6 +1195,21 @@ def _merge_source_atom_types(
         source = parse_top(path, include_dirs=[path.parent, base_dir], forcefield_dirs=ff_dirs)
         for name, entry in source.atom_types.items():
             top_file.atom_types.setdefault(name, entry)
+        # Bonded types too, for terms listed without parameters (hybrid lines
+        # copy the source lines); the hybrid topology's own entries win.
+        for bkey, bparams in source.bondtypes.items():
+            top_file.bondtypes.setdefault(bkey, bparams)
+        for akey, aparams in source.angletypes.items():
+            top_file.angletypes.setdefault(akey, aparams)
+        for ukey, uparams in source.angletypes_ub.items():
+            top_file.angletypes_ub.setdefault(ukey, uparams)
+        for ti, j_map in source.dihedraltypes.items():
+            for tj, k_map in j_map.items():
+                for tk, l_map in k_map.items():
+                    for tl, dentry in l_map.items():
+                        top_file.dihedraltypes.setdefault(ti, {}).setdefault(tj, {}).setdefault(
+                            tk, {}
+                        ).setdefault(tl, dentry)
         # bakery writes no [ defaults ] into the hybrid topology unless the force
         # field is included; the AT source then defines the LJ combination rule.
         if top_file.has_defaults or not source.has_defaults:
@@ -1147,6 +1283,7 @@ def build_system_from_hybrid(
     system.dihedrals = _dihedral_terms(
         system, molecule, top_file, dihedral_defaults, cg_type_names, search_dirs
     )
+    system.impropers = _improper_terms(system, molecule, top_file, cg_type_names)
     _pair_14_terms(system, molecule, top_file, cg_type_names)
     system.fudge_lj, system.fudge_qq = top_file.fudge_lj, top_file.fudge_qq
     system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)

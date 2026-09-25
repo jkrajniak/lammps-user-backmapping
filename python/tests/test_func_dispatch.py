@@ -33,7 +33,7 @@ def test_harmonic_bond_and_angle_convert() -> None:
     assert system.angle_types[0].params == pytest.approx([units.spring_angle(488.273), 112.7])
 
 
-@pytest.mark.parametrize("func", [2, 5, 6])
+@pytest.mark.parametrize("func", [2, 6])
 def test_other_angle_functions_are_an_error(func: int) -> None:
     mol = _molecule()
     mol.angles = [TopAngle(1, 2, 3, func, [108.0, 21.5, 0.25, 1000.0])]

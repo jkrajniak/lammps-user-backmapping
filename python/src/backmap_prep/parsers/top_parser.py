@@ -56,6 +56,8 @@ class TopDihedral:
     func: int
     params: list[float] = field(default_factory=list)
     param_tokens: list[str] = field(default_factory=list)
+    # func 9 with explicit parameters: (phase, k, n) of every consecutive line
+    merged_terms: list[tuple[float, float, int]] = field(default_factory=list)
 
 
 @dataclass
@@ -70,6 +72,9 @@ class TopPair:
 class DihedralTypeEntry:
     func: int
     params: list[float] = field(default_factory=list)
+    # func 9: every (phase, k, n) line of the entry; consecutive lines with the
+    # same atom types add terms, as in GROMACS.
+    terms: list[list[float]] = field(default_factory=list)
 
 
 @dataclass
@@ -104,6 +109,9 @@ class Topology:
     # stored under both atom orders.
     bondtypes: dict[tuple[str, str], list[float]] = field(default_factory=dict)
     angletypes: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
+    # [ angletypes ] func 5 (Urey-Bradley): theta0, k_theta, r13, k_UB
+    angletypes_ub: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
+    _last_dihedraltype: tuple[str, str, str, str, int] | None = None
 
 
 def parse_top(
@@ -134,6 +142,8 @@ def _merge_forcefield_types(top: Topology, forcefield_dirs: list[Path]) -> None:
             top.bondtypes.setdefault(key, params)
         for akey, aparams in ff_top.angletypes.items():
             top.angletypes.setdefault(akey, aparams)
+        for ukey, uparams in ff_top.angletypes_ub.items():
+            top.angletypes_ub.setdefault(ukey, uparams)
         for i, j_map in ff_top.dihedraltypes.items():
             for j, k_map in j_map.items():
                 for k, l_map in k_map.items():
@@ -200,6 +210,10 @@ def _parse_file(
                 params = [float(t) for t in tokens[4:6]]
                 top.angletypes[(tokens[0], tokens[1], tokens[2])] = params
                 top.angletypes[(tokens[2], tokens[1], tokens[0])] = params
+            elif len(tokens) >= 8 and tokens[3] == "5":
+                params = [float(t) for t in tokens[4:8]]
+                top.angletypes_ub[(tokens[0], tokens[1], tokens[2])] = params
+                top.angletypes_ub[(tokens[2], tokens[1], tokens[0])] = params
 
         elif section == "moleculetype":
             if len(tokens) >= 2:
@@ -364,8 +378,17 @@ def _parse_dihedraltype(tokens: list[str], top: Topology) -> None:
         params = [float(t) for t in tokens[5:]]
     except ValueError:
         return
-    entry = DihedralTypeEntry(func=int(tokens[4]), params=params)
+    func = int(tokens[4])
+    key = (tokens[0], tokens[1], tokens[2], tokens[3], func)
+    if func == 9 and top._last_dihedraltype == key:
+        existing = top.dihedraltypes[key[0]][key[1]][key[2]][key[3]]
+        existing.terms.append(params[:3])
+        return
+    entry = DihedralTypeEntry(func=func, params=params)
+    if func == 9:
+        entry.terms = [params[:3]]
     _store_dihedraltype(top, tokens[0], tokens[1], tokens[2], tokens[3], entry)
+    top._last_dihedraltype = key
 
 
 def _lookup_dihedraltype(
@@ -392,6 +415,90 @@ def _lookup_dihedraltype(
         if entry is not None:
             return entry
     return None
+
+
+def lookup_dihedraltype_most_specific(
+    dihedraltypes: dict[str, dict[str, dict[str, dict[str, DihedralTypeEntry]]]],
+    quad: tuple[str, str, str, str],
+    funcs: set[int],
+) -> DihedralTypeEntry | None:
+    """Best [ dihedraltypes ] match for ``quad`` among entries of ``funcs``.
+
+    As in GROMACS, the entry with the fewest ``X`` wildcards wins (any position,
+    either atom order); used for func 2/4/9, where wildcards also sit in the
+    middle (e.g. improper ``OBL X X CL``). func 3 keeps ``_lookup_dihedraltype``.
+    """
+    best: DihedralTypeEntry | None = None
+    best_wild = 5
+    for mask in range(16):
+        wild = bin(mask).count("1")
+        if wild >= best_wild:
+            continue
+        for order in (quad, quad[::-1]):
+            key = tuple("X" if mask >> n & 1 else order[n] for n in range(4))
+            entry = dihedraltypes.get(key[0], {}).get(key[1], {}).get(key[2], {}).get(key[3])
+            if entry is not None and entry.func in funcs:
+                best, best_wild = entry, wild
+                break
+    return best
+
+
+def _dihedral_type_names(
+    dih: TopDihedral, atom_types: dict[int, str], atom_type_defs: dict[str, AtomType] | None
+) -> list[tuple[str, str, str, str]]:
+    names = tuple(atom_types.get(i) for i in (dih.i, dih.j, dih.k, dih.atom_l))
+    if not all(names):
+        raise ValueError(
+            f"Cannot resolve dihedral types for atoms {dih.i}-{dih.j}-{dih.k}-{dih.atom_l}"
+        )
+    variants = [names]
+    if atom_type_defs:
+        mapped = tuple(_interaction_type(n, atom_type_defs) for n in names)
+        if mapped != names:
+            variants.append(mapped)
+    return variants  # type: ignore[return-value]
+
+
+def resolve_periodic_terms(
+    dih: TopDihedral,
+    atom_types: dict[int, str],
+    dihedraltypes: dict[str, dict[str, dict[str, dict[str, DihedralTypeEntry]]]],
+    atom_type_defs: dict[str, AtomType] | None = None,
+) -> list[tuple[float, float, int]]:
+    """(phase deg, k kJ/mol, n) terms of a func 4/9 dihedral, explicit or from types."""
+    if dih.params:
+        if len(dih.params) < 3:
+            raise ValueError(f"func {dih.func} dihedral needs phase, k, n: {dih}")
+        return [(dih.params[0], dih.params[1], int(dih.params[2]))]
+    for quad in _dihedral_type_names(dih, atom_types, atom_type_defs):
+        entry = lookup_dihedraltype_most_specific(dihedraltypes, quad, {dih.func})
+        if entry is not None:
+            rows = entry.terms or [entry.params[:3]]
+            return [(r[0], r[1], int(r[2])) for r in rows]
+    raise ValueError(
+        f"Missing func-{dih.func} dihedraltypes entry for atoms "
+        f"{dih.i}-{dih.j}-{dih.k}-{dih.atom_l}"
+    )
+
+
+def resolve_improper_harmonic(
+    dih: TopDihedral,
+    atom_types: dict[int, str],
+    dihedraltypes: dict[str, dict[str, dict[str, dict[str, DihedralTypeEntry]]]],
+    atom_type_defs: dict[str, AtomType] | None = None,
+) -> tuple[float, float]:
+    """(xi0 deg, k kJ/mol/rad^2) of a func 2 improper, explicit or from types."""
+    if dih.params:
+        if len(dih.params) < 2:
+            raise ValueError(f"func 2 improper needs xi0, k: {dih}")
+        return dih.params[0], dih.params[1]
+    for quad in _dihedral_type_names(dih, atom_types, atom_type_defs):
+        entry = lookup_dihedraltype_most_specific(dihedraltypes, quad, {2})
+        if entry is not None:
+            return entry.params[0], entry.params[1]
+    raise ValueError(
+        f"Missing func-2 dihedraltypes entry for improper {dih.i}-{dih.j}-{dih.k}-{dih.atom_l}"
+    )
 
 
 def resolve_dihedral_params(
