@@ -67,8 +67,8 @@ def _cg_types_from_settings(settings: Settings) -> set[str]:
 
 def _cross_bond_defaults(
     settings: Settings,
-) -> dict[frozenset[str], tuple[str, list[float], str | None]]:
-    defaults: dict[frozenset[str], tuple[str, list[float], str | None]] = {}
+) -> dict[frozenset[str], tuple[str, list[float] | None, str | None]]:
+    defaults: dict[frozenset[str], tuple[str, list[float] | None, str | None]] = {}
     for cross_bond in settings.cross_interactions.bonds:
         default_keyword = "cg" if cross_bond.cg_bonded else "at"
         default_params = _cross_bond_params(cross_bond)
@@ -80,8 +80,8 @@ def _cross_bond_defaults(
 
 def _cross_angle_defaults(
     settings: Settings,
-) -> dict[tuple[str, str, str], tuple[str, list[float]]]:
-    defaults: dict[tuple[str, str, str], tuple[str, list[float]]] = {}
+) -> dict[tuple[str, str, str], tuple[str, list[float] | None]]:
+    defaults: dict[tuple[str, str, str], tuple[str, list[float] | None]] = {}
     for cross_angle in settings.cross_interactions.angles:
         keyword = "cg" if cross_angle.cg_bonded else "at"
         params = _cross_angle_params(cross_angle)
@@ -90,18 +90,21 @@ def _cross_angle_defaults(
     return defaults
 
 
-def _cross_bond_params(cross_bond: CrossBond) -> list[float]:
+def _cross_bond_params(cross_bond: CrossBond) -> list[float] | None:
+    """(K, r0) from a settings params string; None when none is given (resolve
+    from [ bondtypes ] like GROMACS)."""
     values = _parse_float_tokens(cross_bond.params)
     if len(values) >= 3:
         return [units.spring_bond(values[2]), units.distance(values[1])]
-    return [0.0, 0.0]
+    return None
 
 
-def _cross_angle_params(cross_angle: CrossAngle) -> list[float]:
+def _cross_angle_params(cross_angle: CrossAngle) -> list[float] | None:
+    """(K, theta0) from a settings params string; None when none is given."""
     values = _parse_float_tokens(cross_angle.params)
     if len(values) >= 3:
         return [units.spring_angle(values[2]), values[1]]
-    return [0.0, 0.0]
+    return None
 
 
 def _topology_molecule(topology: Topology) -> MoleculeType:
@@ -576,14 +579,53 @@ def _dihedral_terms(
     return dihedrals
 
 
+def _bond_class(topology: Topology | None, atom: TopAtom) -> str:
+    """GROMACS bonded-interaction class of an atom (atomtype bond_type, else its type)."""
+    entry = topology.atom_types.get(atom.type) if topology else None
+    return entry.bond_type if entry is not None and entry.bond_type else atom.type
+
+
+def _bondtype_params(topology: Topology | None, atom_i: TopAtom, atom_j: TopAtom) -> list[float]:
+    """LAMMPS harmonic (K, r0) from [ bondtypes ] for a bond given without parameters.
+
+    GROMACS resolves such bonds (e.g. bakery's crosslink cross_bonds, written as
+    ``i j``) from the force field's bondtypes; so must we. No silent zero.
+    """
+    key = (_bond_class(topology, atom_i), _bond_class(topology, atom_j))
+    params = topology.bondtypes.get(key) if topology else None
+    if params is None:
+        raise ValueError(
+            f"bond {atom_i.name}-{atom_j.name} (classes {key[0]}-{key[1]}) has no parameters "
+            "and no [ bondtypes ] entry"
+        )
+    b0, kb = params
+    return [units.spring_bond(kb), units.distance(b0)]
+
+
+def _angletype_params(
+    topology: Topology | None, atoms: tuple[TopAtom, TopAtom, TopAtom]
+) -> list[float]:
+    """LAMMPS harmonic (K, theta0) from [ angletypes ] for an angle without parameters."""
+    key = tuple(_bond_class(topology, a) for a in atoms)
+    params = topology.angletypes.get(key) if topology else None  # type: ignore[arg-type]
+    if params is None:
+        names = "-".join(a.name for a in atoms)
+        raise ValueError(
+            f"angle {names} (classes {key}) has no parameters and no [ angletypes ] entry"
+        )
+    theta0, k = params
+    return [units.spring_angle(k), theta0]
+
+
 def _bond_terms(
     system: System,
     molecule: MoleculeType,
-    bond_defaults: dict[frozenset[str], tuple[str, list[float], str | None]],
+    bond_defaults: dict[frozenset[str], tuple[str, list[float] | None, str | None]],
     cg_type_names: set[str],
     search_dirs: list[Path],
     *,
     plain_cg: bool = False,
+    topology: Topology | None = None,
 ) -> list[LammpsBond]:
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
     bonds: list[LammpsBond] = []
@@ -612,12 +654,20 @@ def _bond_terms(
                 frozenset((_token_name(atom_i.name), _token_name(atom_j.name)))
             )
             if default:
-                keyword, params, table_file_src = default
+                keyword, default_params, table_file_src = default
+                if default_params is not None:
+                    params = default_params
+                elif is_cg_bond or table_file_src:
+                    params = [0.0, 0.0]
+                else:
+                    params = _bondtype_params(topology, atom_i, atom_j)
                 if table_file_src:
                     style = "backmap/table"
                     table_file = _register_bond_table(system, table_file_src, search_dirs)
-            else:
+            elif is_cg_bond:
                 params = [0.0, 0.0]
+            else:
+                params = _bondtype_params(topology, atom_i, atom_j)
         elif len(bond.params) >= 2:
             style = "backmap/harmonic"
             params = [units.spring_bond(bond.params[1]), units.distance(bond.params[0])]
@@ -627,12 +677,20 @@ def _bond_terms(
                 frozenset((_token_name(atom_i.name), _token_name(atom_j.name)))
             )
             if default:
-                keyword, params, table_file_src = default
+                keyword, default_params, table_file_src = default
+                if default_params is not None:
+                    params = default_params
+                elif is_cg_bond or table_file_src:
+                    params = [0.0, 0.0]
+                else:
+                    params = _bondtype_params(topology, atom_i, atom_j)
                 if table_file_src:
                     style = "backmap/table"
                     table_file = _register_bond_table(system, table_file_src, search_dirs)
-            else:
+            elif is_cg_bond:
                 params = [0.0, 0.0]
+            else:
+                params = _bondtype_params(topology, atom_i, atom_j)
 
         export_style = _plain_cg_style(style) if plain_cg else style
         export_keyword = "" if plain_cg else keyword
@@ -659,11 +717,12 @@ def _bond_terms(
 def _angle_terms(
     system: System,
     molecule: MoleculeType,
-    angle_defaults: dict[tuple[str, str, str], tuple[str, list[float]]],
+    angle_defaults: dict[tuple[str, str, str], tuple[str, list[float] | None]],
     cg_type_names: set[str],
     search_dirs: list[Path],
     *,
     plain_cg: bool = False,
+    topology: Topology | None = None,
 ) -> list[LammpsAngle]:
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
     angles: list[LammpsAngle] = []
@@ -696,17 +755,36 @@ def _angle_terms(
             table_file = _register_angle_table(system, xvg_name, search_dirs)
         elif angle.func == 0:
             default = angle_defaults.get(triple)
-            params = default[1] if default else [0.0, 0.0]
-            if default:
+            if default and default[1] is not None:
+                keyword, params = default[0], default[1]
+            elif default:
                 keyword = default[0]
+                params = (
+                    [0.0, 0.0]
+                    if is_cg_angle
+                    else _angletype_params(topology, (atom_i, atom_j, atom_k))
+                )
+            elif is_cg_angle:
+                params = [0.0, 0.0]
+            else:
+                params = _angletype_params(topology, (atom_i, atom_j, atom_k))
         elif len(angle.params) >= 2:
             params = [units.spring_angle(angle.params[1]), angle.params[0]]
         else:
             default = angle_defaults.get(triple)
-            if default:
-                keyword, params = default
-            else:
+            if default and default[1] is not None:
+                keyword, params = default[0], default[1]
+            elif default:
+                keyword = default[0]
+                params = (
+                    [0.0, 0.0]
+                    if is_cg_angle
+                    else _angletype_params(topology, (atom_i, atom_j, atom_k))
+                )
+            elif is_cg_angle:
                 params = [0.0, 0.0]
+            else:
+                params = _angletype_params(topology, (atom_i, atom_j, atom_k))
         export_style = _plain_cg_style(style) if plain_cg else style
         export_keyword = "" if plain_cg else keyword
         type_id = _add_angle_type(
@@ -1007,8 +1085,12 @@ def build_system_from_hybrid(
     angle_defaults = _cross_angle_defaults(settings)
     dihedral_defaults = _cross_dihedral_defaults(settings)
     search_dirs = [base_dir, *(table_search_dirs or [])]
-    system.bonds = _bond_terms(system, molecule, bond_defaults, cg_type_names, search_dirs)
-    system.angles = _angle_terms(system, molecule, angle_defaults, cg_type_names, search_dirs)
+    system.bonds = _bond_terms(
+        system, molecule, bond_defaults, cg_type_names, search_dirs, topology=top_file
+    )
+    system.angles = _angle_terms(
+        system, molecule, angle_defaults, cg_type_names, search_dirs, topology=top_file
+    )
     system.dihedrals = _dihedral_terms(
         system, molecule, top_file, dihedral_defaults, cg_type_names, search_dirs
     )

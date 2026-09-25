@@ -100,6 +100,10 @@ class Topology:
     fudge_qq: float = 1.0
     defaults_gen_pairs: str = "yes"
     has_defaults: bool = False  # True once a [ defaults ] section was read
+    # [ bondtypes ] / [ angletypes ] (func 1): bond classes -> GROMACS params,
+    # stored under both atom orders.
+    bondtypes: dict[tuple[str, str], list[float]] = field(default_factory=dict)
+    angletypes: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
 
 
 def parse_top(
@@ -126,6 +130,10 @@ def _merge_forcefield_types(top: Topology, forcefield_dirs: list[Path]) -> None:
         _parse_file(ff_itp, ff_top, [ff_dir / "oplsaa.ff"], forcefield_dirs)
         for name, entry in ff_top.atom_types.items():
             top.atom_types.setdefault(name, entry)
+        for key, params in ff_top.bondtypes.items():
+            top.bondtypes.setdefault(key, params)
+        for akey, aparams in ff_top.angletypes.items():
+            top.angletypes.setdefault(akey, aparams)
         for i, j_map in ff_top.dihedraltypes.items():
             for j, k_map in j_map.items():
                 for k, l_map in k_map.items():
@@ -178,6 +186,18 @@ def _parse_file(
 
         elif section == "dihedraltypes":
             _parse_dihedraltype(tokens, top)
+
+        elif section == "bondtypes":
+            if len(tokens) >= 5 and tokens[2] == "1":
+                params = [float(t) for t in tokens[3:5]]
+                top.bondtypes[(tokens[0], tokens[1])] = params
+                top.bondtypes[(tokens[1], tokens[0])] = params
+
+        elif section == "angletypes":
+            if len(tokens) >= 6 and tokens[3] == "1":
+                params = [float(t) for t in tokens[4:6]]
+                top.angletypes[(tokens[0], tokens[1], tokens[2])] = params
+                top.angletypes[(tokens[2], tokens[1], tokens[0])] = params
 
         elif section == "moleculetype":
             if len(tokens) >= 2:
@@ -638,9 +658,14 @@ def _parse_cross_dihedral(tokens: list[str], mol: MoleculeType) -> None:
 
 
 def _parse_cross_pair(tokens: list[str], mol: MoleculeType, target: str = "cross_pairs") -> None:
-    """Parse a ``[ cross_pairs ]`` or (``target="pairs"``) ``[ pairs ]`` line."""
-    if len(tokens) < 3:
+    """Parse a ``[ cross_pairs ]`` or (``target="pairs"``) ``[ pairs ]`` line.
+
+    A line with only the two atom indices uses function 1, as in GROMACS.
+    """
+    if len(tokens) < 2:
         return
+    if len(tokens) == 2:
+        tokens = [*tokens, "1"]
     try:
         params = [float(t) for t in tokens[3:]]
     except ValueError:
