@@ -523,8 +523,6 @@ def _write_setup(
 
     if use_read_data:
         f.write(f"read_data {data_filename}\n\n")
-        if system.write_image_flags:
-            f.write("reset_atoms image all\n\n")
 
     if ff_include:
         f.write(f"include {ff_include}\n\n")
@@ -542,6 +540,10 @@ def _write_setup(
         f.write(f"include {backmap_include}\n\n")
     else:
         _write_backmap_fixes(f, system, settings, params)
+
+    if use_read_data and system.write_image_flags:
+        # after the force field and fix backmap (pair_style backmap needs it)
+        f.write("reset_atoms image all\n\n")
 
     _write_cap_force(f, sim)
 
@@ -620,6 +622,70 @@ def write_forcefield_includes(
     return ff_name, backmap_name
 
 
+def _write_robust_protocol(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+    data_filename: str,
+    ff_name: str,
+    backmap_name: str,
+) -> None:
+    """Robust multi-phase protocol for dense melts (``simulation.protocol: robust``).
+
+    Phase 0: minimize and relax the AT overlaps at lambda = 0 with the CG beads
+    frozen (nve/limit, Langevin, 0.01 fs). Phase 1: lambda ramp with nve/limit and
+    Langevin at 0.1 fs for 2 / alpha steps. Phase 2: staged NVT at lambda = 1
+    (0.25, 0.5, 1.0 fs). Optional production at lambda = 1.
+    """
+    sim = settings.simulation
+    temp = sim.temperature
+    seed = sim.rng_seed if sim.rng_seed > 0 else 48279
+    ramp_steps = 2 * math.ceil(1.0 / sim.alpha)
+    prefix = Path(data_filename).stem
+    pairs = " f_pairs[1] f_pairs[2]" if system.has_cross_pairs else ""
+
+    f.write(f"read_data {data_filename}\n\n")
+    f.write(f"include {ff_name}\n\n")
+    f.write(f"include {backmap_name}\n\n")
+    if system.write_image_flags:
+        # after the force field and fix backmap (pair_style backmap needs it)
+        f.write("reset_atoms image all\n\n")
+    _write_cap_force(f, sim)
+    f.write("compute at_temp at_atoms temp\n")
+    f.write(f"thermo {sim.energy_interval}\n")
+    f.write(
+        "thermo_style custom step temp pe ke etotal ebond eangle edihed evdwl ecoul"
+        f"{pairs} press f_bm\n"
+    )
+    f.write("thermo_modify colname f_bm lambda temp at_temp\n\n")
+    f.write(f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n")
+    f.write("dump_modify traj sort id\n\n")
+
+    f.write("# Phase 0a: minimize AT overlaps at lambda = 0 (CG frozen)\n")
+    f.write("fix freeze cg_atoms setforce 0.0 0.0 0.0\n")
+    f.write("minimize 1.0e-4 1.0e-6 1000 10000\n\n")
+    f.write("# Phase 0b: relax AT fragments at lambda = 0 (CG frozen)\n")
+    f.write("fix relax at_atoms nve/limit 0.01\n")
+    f.write(f"fix therm_relax at_atoms langevin {temp:.1f} {temp:.1f} 20.0 {seed + 1}\n")
+    f.write("timestep 0.01\nrun 10000\n")
+    f.write("unfix therm_relax\nunfix relax\nunfix freeze\n\n")
+    f.write(f"# Phase 1: lambda ramp 0 -> 1 ({ramp_steps} steps at 0.1 fs, alpha {sim.alpha})\n")
+    f.write("fix limit_all all nve/limit 0.05\n")
+    f.write(f"fix therm_ramp at_atoms langevin {temp:.1f} {temp:.1f} 100.0 {seed + 2}\n")
+    f.write("fix_modify bm active yes\n")
+    f.write(f"timestep 0.10\nrun {ramp_steps}\n")
+    f.write("unfix limit_all\nunfix therm_ramp\n\n")
+    f.write("# Phase 2: NVT at lambda = 1, staged timestep\n")
+    f.write(f"fix nvt_at at_atoms nvt temp {temp:.1f} {temp:.1f} 100.0\n")
+    f.write(f"fix nvt_cg cg_atoms nvt temp {temp:.1f} {temp:.1f} 100.0\n")
+    f.write("timestep 0.25\nrun 10000\ntimestep 0.50\nrun 5000\ntimestep 1.00\nrun 5000\n\n")
+    f.write(f"write_data {prefix}_hybrid.data\n")
+    if sim.production_steps > 0:
+        f.write(f"\n# Production at lambda = 1\ntimestep {params['timestep_fs']:.2f}\n")
+        f.write(f"run {sim.production_steps}\nwrite_data {prefix}_final.data\n")
+
+
 def write_lammps_input(
     system: System,
     settings: Settings,
@@ -644,6 +710,12 @@ def write_lammps_input(
         f.write("units real\n")
         f.write("atom_style full\n")
         f.write("boundary p p p\n\n")
+
+        if sim.protocol == "robust":
+            _write_robust_protocol(
+                f, system, settings, params, data_filename, ff_name, backmap_name
+            )
+            return
 
         _write_setup(
             f,

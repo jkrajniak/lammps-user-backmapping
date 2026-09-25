@@ -346,6 +346,15 @@ class SimulationParams(BaseModel):
 
     alpha: float = 0.001
     initial_resolution: float = 0.0
+    protocol: Literal["standard", "robust"] = Field(
+        default="standard",
+        description=(
+            "standard: velocity + thermostat, ramp, optional production. "
+            "robust: minimize and nve/limit relaxation at lambda = 0 (CG frozen), "
+            "nve/limit + Langevin ramp, staged NVT at lambda = 1 (used for the "
+            "large melts)."
+        ),
+    )
 
     timestep: float = 0.001
     timestep_backmapping: float = 0.001
