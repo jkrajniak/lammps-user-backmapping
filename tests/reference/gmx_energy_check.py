@@ -431,7 +431,15 @@ def relax(lmp: str, input_path: Path, data: Path, steps: int) -> Path:
     lines = [
         *_ff_header(input_path, data),
         "fix_modify bm active no",
+        # Relax without charges: at lambda = 1 in an overlapping frame,
+        # opposite charges (OPLS hydroxyl H has no LJ core) collapse onto
+        # each other. The comparison itself uses the original charges.
+        "fix qsave all store/state 0 q",
+        "set group all charge 0.0",
         f"minimize 0.0 1.0e-6 {steps} {10 * steps}",
+        "variable qrest atom f_qsave",
+        "set group all charge v_qrest",
+        "unfix qsave",
         f"write_data {out} nocoeff",
     ]
     (input_path.parent / "in.relax_check").write_text("\n".join(lines) + "\n")
