@@ -189,19 +189,29 @@ void FixBackmapPairs::post_force(int vflag) {
   double qqrd2e = force->qqrd2e;
 
   for (const auto &par : pairs) {
+    // atom->map returns the owned (local) index when this rank owns the atom.
     int i = atom->map(par.id1);
     int j = atom->map(par.id2);
     if (i < 0 || j < 0) continue;
-    if (i >= nlocal && j >= nlocal) continue;
-    // atom->map may return a ghost image of a local atom; use the closest.
-    if (i < nlocal)
-      j = domain->closest_image(i, j);
-    else
-      i = domain->closest_image(j, i);
+    bool own_i = i < nlocal;
+    bool own_j = j < nlocal;
+    if (!own_i && !own_j) continue;
 
-    double dx = x[i][0] - x[j][0];
-    double dy = x[i][1] - x[j][1];
-    double dz = x[i][2] - x[j][2];
+    // Geometry from the closest image of the partner; forces go to the owned
+    // atoms themselves. (Using the image index for the force would drop the
+    // force on an owned partner whose closest image is a periodic ghost.)
+    double dx, dy, dz;
+    if (own_i) {
+      int jj = domain->closest_image(i, j);
+      dx = x[i][0] - x[jj][0];
+      dy = x[i][1] - x[jj][1];
+      dz = x[i][2] - x[jj][2];
+    } else {
+      int ii = domain->closest_image(j, i);
+      dx = x[ii][0] - x[j][0];
+      dy = x[ii][1] - x[j][1];
+      dz = x[ii][2] - x[j][2];
+    }
     double rsq = dx * dx + dy * dy + dz * dz;
     if (rsq >= cutsq || rsq <= 0.0) continue;
 
@@ -227,13 +237,13 @@ void FixBackmapPairs::post_force(int vflag) {
 
     int list[2];
     int nlist = 0;
-    if (i < nlocal) {
+    if (own_i) {
       f[i][0] += dx * fpair;
       f[i][1] += dy * fpair;
       f[i][2] += dz * fpair;
       list[nlist++] = i;
     }
-    if (j < nlocal) {
+    if (own_j) {
       f[j][0] -= dx * fpair;
       f[j][1] -= dy * fpair;
       f[j][2] -= dz * fpair;

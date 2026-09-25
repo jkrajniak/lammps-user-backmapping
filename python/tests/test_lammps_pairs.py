@@ -82,8 +82,22 @@ def _lmp() -> Path:
     return Path(path)
 
 
-def _run(tmp_path: Path, pairs_line: str) -> dict[str, float]:
-    (tmp_path / "test.data").write_text(DATA.format(q2=Q2, q5=Q5))
+def _run(tmp_path: Path, pairs_line: str, shift: float = 0.0) -> dict[str, float]:
+    data = DATA.format(q2=Q2, q5=Q5)
+    if shift:
+        # Translate the molecule along x and wrap it into the 40 A box.
+        lines = []
+        section = None
+        for line in data.splitlines():
+            if line.strip() in ("Atoms # full", "Bonds", "Masses"):
+                section = line.strip()
+            parts = line.split()
+            if section == "Atoms # full" and len(parts) == 7:
+                parts[4] = f"{(float(parts[4]) + shift) % 40.0:.4f}"
+                line = " ".join(parts)
+            lines.append(line)
+        data = "\n".join(lines) + "\n"
+    (tmp_path / "test.data").write_text(data)
     (tmp_path / "pairs.dat").write_text(f"1\n{pairs_line}\n")
     (tmp_path / "in.test").write_text(INPUT)
     proc = subprocess.run(
@@ -131,3 +145,19 @@ def test_four_column_pairs_file_is_lj_only(tmp_path: Path) -> None:
 
     assert res["lj"] == pytest.approx(e_lj, rel=1e-10)
     assert res["coul"] == 0.0
+
+
+@pytest.mark.integration
+def test_pair_across_periodic_boundary(tmp_path: Path) -> None:
+    """The 1-4 pair spans the x boundary; both atoms are owned by the one rank.
+
+    The closest image of the partner is then a periodic ghost. Its force must
+    still land on the owned atom and the energy must be counted once.
+    """
+    res = _run(tmp_path, f"2 5 {SIGMA} {EPSILON} {QQ_SCALE}", shift=18.9)
+    e_lj, e_coul, f5 = _expected(3.6, QQ_SCALE)
+
+    assert res["lj"] == pytest.approx(e_lj, rel=1e-10)
+    assert res["coul"] == pytest.approx(e_coul, rel=1e-10)
+    assert res["f5x"] == pytest.approx(f5, rel=1e-10)
+    assert res["f2x"] == pytest.approx(-f5, rel=1e-10)
