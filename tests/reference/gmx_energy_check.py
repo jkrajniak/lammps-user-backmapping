@@ -125,6 +125,80 @@ def at_coordinates(
     return box, coords, len(by_mol)
 
 
+def hybrid_to_at_top(hyb_top: Path, out: Path) -> tuple[list[int], str]:
+    """Standard GROMACS topology of the AT part of a bakery hybrid topology.
+
+    Keeps atoms whose type is not a virtual (CG) type, renumbered in order;
+    merges [ x ] and [ cross_x ] for bonds, angles, dihedrals and pairs, keeping
+    terms whose atoms are all AT. The force-field #include is reduced to
+    ``oplsaa.ff/forcefield.itp`` (resolved with --include-dir). Returns the
+    hybrid indices of the AT atoms (1-based, in order) and the molecule name.
+    """
+    sections: dict[str, list[str]] = {}
+    order: list[str] = []
+    includes: list[str] = []
+    current = None
+    for line in hyb_top.read_text().splitlines():
+        stripped = line.split(";")[0].strip()
+        if stripped.startswith("#include"):
+            name = stripped.split()[1].strip('"')
+            includes.append(
+                f'#include "oplsaa.ff/{Path(name).name}"' if "oplsaa.ff" in name else stripped
+            )
+            continue
+        m = re.match(r"^\[\s*(\w+)\s*\]", stripped)
+        if m:
+            current = m.group(1)
+            if current not in sections:
+                sections[current] = []
+                order.append(current)
+            continue
+        if current and stripped:
+            sections[current].append(stripped)
+    virtual = {
+        ln.split()[0]
+        for ln in sections.get("atomtypes", [])
+        if len(ln.split()) >= 4 and ln.split()[3] == "V"
+    }
+    at_index: dict[int, int] = {}
+    atoms_out: list[str] = []
+    for ln in sections["atoms"]:
+        parts = ln.split()
+        if parts[1] in virtual:
+            continue
+        at_index[int(parts[0])] = len(at_index) + 1
+        parts[0] = str(at_index[int(parts[0])])
+        parts[5] = parts[0]
+        atoms_out.append(" ".join(parts))
+    n_atoms = {"bonds": 2, "angles": 3, "dihedrals": 4, "pairs": 2}
+    body: dict[str, list[str]] = {}
+    for name, n in n_atoms.items():
+        rows = []
+        for ln in sections.get(name, []) + sections.get(f"cross_{name}", []):
+            parts = ln.split()
+            ids = [int(v) for v in parts[:n]]
+            if all(i in at_index for i in ids):
+                rows.append(" ".join([*(str(at_index[i]) for i in ids), *parts[n:]]))
+        body[name] = rows
+    lines = [*includes, ""]
+    type_width = {"bondtypes": 2, "angletypes": 3, "dihedraltypes": 4, "pairtypes": 2}
+    for extra, width in type_width.items():
+        rows = [
+            ln for ln in sections.get(extra, []) if not virtual.intersection(ln.split()[:width])
+        ]
+        if rows:
+            lines += [f"[ {extra} ]", *rows, ""]
+    at_types = [ln for ln in sections.get("atomtypes", []) if ln.split()[0] not in virtual]
+    if at_types:
+        lines += ["[ atomtypes ]", *at_types, ""]
+    lines += ["[ moleculetype ]", "ATSYS 3", "", "[ atoms ]", *atoms_out, ""]
+    for name in n_atoms:
+        lines += [f"[ {name} ]", *body[name], ""]
+    lines += ["[ system ]", "AT part of hybrid", "", "[ molecules ]", "ATSYS 1", ""]
+    out.write_text("\n".join(lines))
+    return sorted(at_index, key=at_index.__getitem__), "ATSYS"
+
+
 def write_g96(
     path: Path, box: list[float], coords: list[list[float]], resname: str, names: list[str]
 ) -> None:
@@ -400,6 +474,12 @@ def main() -> int:
         help="minimize this many steps at lambda = 1 first and compare on that frame",
     )
     ap.add_argument(
+        "--hybrid-top",
+        default=None,
+        help="compare against the AT part of this bakery hybrid topology instead of "
+        "the AT source topology (networks); --top/--gro are then ignored",
+    )
+    ap.add_argument(
         "--at-data",
         type=Path,
         default=None,
@@ -412,10 +492,19 @@ def main() -> int:
     data, inp, gro, top = d / args.data, d / args.input, d / args.gro, d / args.top
     if args.relax:
         data = relax(args.lmp, inp, data, args.relax)
-    _, _, masses = read_data(data)
-    at_types = {t for t, m in masses.items() if m < 20.0}
-    box, coords, n_mol = at_coordinates(data, gro, top, at_types)
-    resname, names = template_order(top)
+    if args.hybrid_top:
+        hyb_top = d / args.hybrid_top
+        top = d / "hybrid_at_check.top"
+        at_ids, resname = hybrid_to_at_top(hyb_top, top)
+        box, atoms_all, _ = read_data(data)
+        coords = [atoms_all[i][2] for i in at_ids]
+        n_mol = 1
+        names = template_order(top)[1]
+    else:
+        _, _, masses = read_data(data)
+        at_types = {t for t, m in masses.items() if m < 20.0}
+        box, coords, n_mol = at_coordinates(data, gro, top, at_types)
+        resname, names = template_order(top)
 
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
