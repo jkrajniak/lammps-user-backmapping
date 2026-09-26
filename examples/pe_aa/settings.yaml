@@ -3,6 +3,10 @@
 # CG interactions: tabulated (IBI-derived, same as PE UA)
 # AT interactions: OPLS/AA (opls_135/136 C, opls_140 H)
 
+prep:
+  # OPLS-AA force field included by topol_aa.top
+  forcefield_dir: ../forcefield
+
 molecules:
 - name: PE
   ident: PE

@@ -307,3 +307,13 @@ void DihedralRyckaert::read_restart(FILE *fp) {
 
   for (int i = 1; i <= atom->ndihedraltypes; i++) setflag[i] = 1;
 }
+
+/* ---------------------------------------------------------------------- */
+
+/* proc 0 writes to data file, one line per type in coeff() argument order */
+
+void DihedralRyckaert::write_data(FILE *fp) {
+  for (int i = 1; i <= atom->ndihedraltypes; i++)
+    fprintf(fp, "%d %.15g %.15g %.15g %.15g %.15g %.15g\n", i, c0[i], c1[i],
+            c2[i], c3[i], c4[i], c5[i]);
+}

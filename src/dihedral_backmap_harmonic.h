@@ -32,6 +32,7 @@ class DihedralBackmapHarmonic : public Dihedral {
   void init_style() override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
+  void write_data(FILE *) override;
 
  protected:
   double *k, *cos_shift, *sin_shift;

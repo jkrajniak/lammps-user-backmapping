@@ -1,4 +1,4 @@
-; CG topology for PE-AA (10 chains, 50 beads each)
+; CG topology for PE-AA (75 chains, 50 beads each)
 
 [ defaults ]
 ; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
@@ -219,4 +219,4 @@ PE      3
 PE
 
 [ molecules ]
-PE           10
+PE           75

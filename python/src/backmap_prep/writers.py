@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import math
-from typing import IO, TYPE_CHECKING, Any
+from pathlib import Path
+from typing import IO, Any
 
 from . import units
 from .builder import DihedralTypeInfo, System
-from .network.pbc import max_bond_length as _max_bond_length_from_pbc
-from .network.pbc import max_euclidean_bond_length, validate_bond_geometry
+from .network.pbc import max_interaction_extent, validate_bond_geometry
 from .schema import Settings, SimulationParams
 
-if TYPE_CHECKING:
-    from pathlib import Path
+
+def normalize_file_end(path: Path) -> None:
+    """End a generated text file with exactly one newline and no trailing blanks."""
+    lines = [line.rstrip() for line in path.read_text().splitlines()]
+    while lines and not lines[-1]:
+        lines.pop()
+    path.write_text("\n".join(lines) + "\n")
 
 
 def write_lammps_data(system: System, path: Path) -> None:
@@ -24,13 +29,13 @@ def write_lammps_data(system: System, path: Path) -> None:
         f.write(f"{len(system.bonds)} bonds\n")
         f.write(f"{len(system.angles)} angles\n")
         f.write(f"{len(system.dihedrals)} dihedrals\n")
-        f.write("0 impropers\n\n")
+        f.write(f"{len(system.impropers)} impropers\n\n")
 
         f.write(f"{len(system.atom_types)} atom types\n")
         f.write(f"{len(system.bond_types)} bond types\n")
         f.write(f"{len(system.angle_types)} angle types\n")
         f.write(f"{len(system.dihedral_types)} dihedral types\n")
-        f.write("0 improper types\n\n")
+        f.write(f"{len(system.improper_types)} improper types\n\n")
 
         bx, by, bz = system.box
         f.write(f"0.0 {bx:.6f} xlo xhi\n")
@@ -61,12 +66,12 @@ def write_lammps_data(system: System, path: Path) -> None:
                 wy = a.y % by if by > 0 else a.y
                 wz = a.z % bz if bz > 0 else a.z
                 f.write(
-                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} "
+                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.10g} "
                     f"{wx:.6f} {wy:.6f} {wz:.6f}\n"
                 )
             else:
                 f.write(
-                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.6f} "
+                    f"{a.atom_id} {a.mol_id} {a.type_id} {a.charge:.10g} "
                     f"{a.x:.6f} {a.y:.6f} {a.z:.6f} {a.ix} {a.iy} {a.iz}\n"
                 )
         f.write("\n")
@@ -89,6 +94,12 @@ def write_lammps_data(system: System, path: Path) -> None:
             f.write("Dihedrals\n\n")
             for dih in system.dihedrals:
                 f.write(f"{dih.dihedral_id} {dih.type_id} {dih.i} {dih.j} {dih.k} {dih.l}\n")
+            f.write("\n")
+
+        if system.impropers:
+            f.write("Impropers\n\n")
+            for imp in system.impropers:
+                f.write(f"{imp.improper_id} {imp.type_id} {imp.i} {imp.j} {imp.k} {imp.l}\n")
             f.write("\n")
 
     # Print type mapping tables
@@ -115,6 +126,7 @@ def write_lammps_data(system: System, path: Path) -> None:
             kw = f" {dihtype.keyword}" if dihtype.keyword else ""
             extra = f" (table: {dihtype.table_file})" if dihtype.table_file else ""
             print(f"  Dihedral type {dihtype.type_id} = {dihtype.style}{kw}{extra}")
+    normalize_file_end(path)
 
 
 def _min_image_distance(
@@ -138,11 +150,6 @@ def _min_image_distance(
     if bz > 0:
         dz = min(dz, bz - dz)
     return math.sqrt(dx * dx + dy * dy + dz * dz)
-
-
-def _max_bond_length(system: System) -> float:
-    """Longest bonded distance in the system (minimum-image, Angstrom)."""
-    return _max_bond_length_from_pbc(system.atoms, system.bonds, system.box)
 
 
 def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
@@ -172,19 +179,22 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if has_backmap_harm:
         bond_styles.append("backmap/harmonic")
     if has_backmap_table:
-        bond_styles.append("backmap/table linear 1000")
+        bond_styles.append(f"backmap/table linear {sim.table_points}")
 
     has_static_angles = any(at.style == "harmonic" for at in system.angle_types)
     has_backmap_angles = any(at.style == "backmap/harmonic" for at in system.angle_types)
     has_backmap_angle_table = any(at.style == "backmap/table" for at in system.angle_types)
+    has_backmap_ub = any(at.style == "backmap/charmm" for at in system.angle_types)
 
     angle_styles: list[str] = []
     if has_static_angles:
         angle_styles.append("harmonic")
     if has_backmap_angles:
         angle_styles.append("backmap/harmonic")
+    if has_backmap_ub:
+        angle_styles.append("backmap/charmm")
     if has_backmap_angle_table:
-        angle_styles.append("backmap/table linear 1000")
+        angle_styles.append(f"backmap/table linear {sim.table_points}")
 
     has_static_dihedrals = any(dt.style == "ryckaert" for dt in system.dihedral_types)
     has_static_harmonic_dihedrals = any(dt.style == "harmonic" for dt in system.dihedral_types)
@@ -209,29 +219,18 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         dihedral_styles.append("backmap/harmonic")
     if has_backmap_charmm:
         dihedral_styles.append("backmap/charmm")
+    if any(dt.style == "backmap/fourier" for dt in system.dihedral_types):
+        dihedral_styles.append("backmap/fourier")
     if has_backmap_dihedral_table:
-        dihedral_styles.append("backmap/table linear 1000")
+        dihedral_styles.append(f"backmap/table linear {sim.table_points}")
 
-    max_bond_ang = _max_bond_length(system)
     interaction_cutoff_ang = max(lj_cut_ang, cg_cut_ang)
     comm_skin_ang = 1.0
     comm_cutoff_ang = interaction_cutoff_ang + comm_skin_ang
-    is_network_hybrid = (
-        system.has_cross_bonds
-        or system.has_cross_angles
-        or system.has_cross_dihedrals
-        or system.has_cross_pairs
-    )
-    if is_network_hybrid and system.write_image_flags:
-        max_euclidean_bond_ang = max_euclidean_bond_length(system.atoms, system.bonds)
-        # Cured networks (rim135): crosslink bonds can span the box in file
-        # coordinates; LAMMPS comm must cover the folded Cartesian extent.
-        # Linear polymer melts use min-image cross-CG bonds only — keep lj+cg cutoff.
-        bond_extent = max(max_bond_ang, max_euclidean_bond_ang)
-        comm_cutoff_ang = max(
-            comm_cutoff_ang,
-            bond_extent + comm_skin_ang,
-        )
+    # Ghost atoms must cover the pair cutoff and the minimum-image extent of
+    # every bonded term and bead (see pbc.max_interaction_extent).
+    comm_cutoff_ang = max(interaction_cutoff_ang, max_interaction_extent(system)) + comm_skin_ang
+    if system.write_image_flags:
         validate_bond_geometry(system, interaction_cutoff_ang)
 
     return {
@@ -255,15 +254,44 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     }
 
 
+# special_bonds factor that keeps a pair in the neighbor list but counts as
+# excluded in pair_style backmap (below its 1e-30 threshold)
+_SPECIAL_TINY = "1.0e-100"
+
+
+def _special_weights(nrexcl: int) -> list[str]:
+    return ["0.0" if level <= nrexcl else "1.0" for level in (1, 2, 3)]
+
+
+def _special_bonds_split(nrexcl_at: int, nrexcl_cg: int) -> str:
+    """special_bonds for AT exclusions; CG pairs get theirs through cg_special.
+
+    A level the AT side excludes but the CG side keeps gets a tiny nonzero
+    factor, so LAMMPS keeps the pair in the neighbor list for cg_special.
+    """
+    at, cg = _special_weights(nrexcl_at), _special_weights(nrexcl_cg)
+    factors = [
+        _SPECIAL_TINY if a == "0.0" and c == "1.0" else a for a, c in zip(at, cg, strict=True)
+    ]
+    joined = " ".join(factors)
+    return f"special_bonds lj {joined} coul {joined}\n\n"
+
+
+def _cg_special(sim: SimulationParams) -> str:
+    if sim.exclusion_nrexcl_cg is None or sim.exclusion_nrexcl_cg == sim.exclusion_nrexcl:
+        return ""
+    return " cg_special " + " ".join(_special_weights(sim.exclusion_nrexcl_cg))
+
+
 def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]) -> str:
     hybrid = len(dihedral_styles) > 1
     if dihtype.style == "ryckaert":
-        coeffs = " ".join(f"{value:.6f}" for value in dihtype.params[:6])
+        coeffs = " ".join(f"{value:.10g}" for value in dihtype.params[:6])
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} ryckaert {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
     if dihtype.style == "backmap/ryckaert":
-        coeffs = " ".join(f"{value:.6f}" for value in dihtype.params[:6])
+        coeffs = " ".join(f"{value:.10g}" for value in dihtype.params[:6])
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/ryckaert {dihtype.keyword} {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
@@ -279,27 +307,36 @@ def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]
         )
     if dihtype.style == "harmonic":
         k_val, sign_val, n_val = dihtype.params[:3]
-        coeffs = f"{k_val:.6f} {int(sign_val)} {int(n_val)}"
+        coeffs = f"{k_val:.10g} {int(sign_val)} {int(n_val)}"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} harmonic {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
     if dihtype.style == "backmap/harmonic":
         k_val, sign_val, n_val = dihtype.params[:3]
-        coeffs = f"{k_val:.6f} {int(sign_val)} {int(n_val)}"
+        coeffs = f"{k_val:.10g} {int(sign_val)} {int(n_val)}"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/harmonic {dihtype.keyword} {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
     if dihtype.style == "charmm":
         k_val, n_val, delta = dihtype.params[:3]
         shift = round(delta)
-        coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
+        coeffs = f"{k_val:.10g} {int(n_val)} {shift} 1.0"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} charmm {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {coeffs}\n"
+    if dihtype.style == "backmap/fourier":
+        m = int(dihtype.params[0])
+        terms = dihtype.params[1 : 1 + 3 * m]
+        coeffs = f"{m} " + " ".join(
+            f"{terms[3 * t]:.10g} {int(terms[3 * t + 1])} {terms[3 * t + 2]:.10g}" for t in range(m)
+        )
+        if hybrid:
+            return f"dihedral_coeff {dihtype.type_id} backmap/fourier {dihtype.keyword} {coeffs}\n"
+        return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
     if dihtype.style == "backmap/charmm":
         k_val, n_val, delta = dihtype.params[:3]
         shift = round(delta)
-        coeffs = f"{k_val:.6f} {int(n_val)} {shift} 1.0"
+        coeffs = f"{k_val:.10g} {int(n_val)} {shift} 1.0"
         if hybrid:
             return f"dihedral_coeff {dihtype.type_id} backmap/charmm {dihtype.keyword} {coeffs}\n"
         return f"dihedral_coeff {dihtype.type_id} {dihtype.keyword} {coeffs}\n"
@@ -319,7 +356,7 @@ def _write_cap_force(f: IO[str], sim: SimulationParams) -> None:
     fmax = units.force(sim.cap_force)
     if sim.cap_force_ramp is not None and sim.cap_force_ramp != 0.0:
         ramp = units.force(sim.cap_force_ramp)
-        f.write(f"fix cap all backmap/capforce {fmax:.4f} ramp {ramp:.6f}\n\n")
+        f.write(f"fix cap all backmap/capforce {fmax:.4f} ramp {ramp:.10g}\n\n")
     else:
         f.write(f"fix cap all backmap/capforce {fmax:.4f}\n\n")
 
@@ -349,25 +386,21 @@ def _write_integration(f: IO[str], sim: SimulationParams, params: dict[str, Any]
         )
 
 
-def _write_setup(
+def _write_forcefield(
     f: IO[str],
     system: System,
     settings: Settings,
     params: dict[str, Any],
-    data_filename: str,
-    *,
-    use_read_data: bool = True,
 ) -> None:
-    """Write the shared setup block (styles, coefficients, groups, fixes)."""
+    """Force-field block: comm cutoff, styles, coefficients, special_bonds, groups.
+
+    Written to ``<prefix>.ff.lmp`` and included by the generated input and by
+    any hand-written protocol, so no script restates coefficients.
+    """
     sim = settings.simulation
     bond_styles = params["bond_styles"]
     angle_styles = params["angle_styles"]
     dihedral_styles = params["dihedral_styles"]
-
-    if use_read_data:
-        f.write(f"read_data {data_filename}\n\n")
-        if system.write_image_flags:
-            f.write("reset_atoms image all\n\n")
 
     f.write(f"comm_modify cutoff {params['comm_cutoff_ang']:.2f}\n\n")
 
@@ -375,11 +408,13 @@ def _write_setup(
     f.write(
         f"pair_style backmap {params['lj_cut_ang']:.2f} lj/cut/coul/cut "
         f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f} "
-        f"{params['cg_cut_ang']:.2f} table linear 1000\n"
+        f"{params['cg_cut_ang']:.2f} table linear {sim.table_points}{_cg_special(sim)}\n"
     )
     for pt in system.pair_types:
         if pt.kind == "atomistic":
-            f.write(f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.6f} {pt.sigma:.6f}\n")
+            f.write(
+                f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.10g} {pt.sigma:.10g}\n"
+            )
         elif pt.kind == "cg":
             if pt.table_file:
                 f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
@@ -398,11 +433,13 @@ def _write_setup(
     for bt in system.bond_types:
         if len(bond_styles) > 1:
             if bt.style == "harmonic":
-                f.write(f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+                f.write(
+                    f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
+                )
             elif bt.style == "backmap/harmonic":
                 f.write(
                     f"bond_coeff {bt.type_id} backmap/harmonic "
-                    f"{bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                    f"{bt.keyword} {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
             elif bt.style == "backmap/table":
                 f.write(
@@ -411,10 +448,10 @@ def _write_setup(
                 )
         else:
             if bt.style == "harmonic":
-                f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.6f} {bt.params[1]:.6f}\n")
+                f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.10g} {bt.params[1]:.10g}\n")
             elif bt.style == "backmap/harmonic":
                 f.write(
-                    f"bond_coeff {bt.type_id} {bt.keyword} {bt.params[0]:.6f} {bt.params[1]:.6f}\n"
+                    f"bond_coeff {bt.type_id} {bt.keyword} {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
             elif bt.style == "backmap/table":
                 f.write(
@@ -434,33 +471,45 @@ def _write_setup(
                 if angtype.style == "harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} harmonic "
-                        f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} backmap/harmonic "
-                        f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.keyword} {angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/table":
                     f.write(
                         f"angle_coeff {angtype.type_id} backmap/table "
                         f"{angtype.keyword} {angtype.table_file} {angtype.table_keyword}\n"
                     )
+                elif angtype.style == "backmap/charmm":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} backmap/charmm {angtype.keyword} "
+                        + " ".join(f"{p:.10g}" for p in angtype.params)
+                        + "\n"
+                    )
             else:
                 if angtype.style == "harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} "
-                        f"{angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/harmonic":
                     f.write(
                         f"angle_coeff {angtype.type_id} "
-                        f"{angtype.keyword} {angtype.params[0]:.6f} {angtype.params[1]:.4f}\n"
+                        f"{angtype.keyword} {angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/table":
                     f.write(
                         f"angle_coeff {angtype.type_id} "
                         f"{angtype.keyword} {angtype.table_file} {angtype.table_keyword}\n"
+                    )
+                elif angtype.style == "backmap/charmm":
+                    f.write(
+                        f"angle_coeff {angtype.type_id} {angtype.keyword} "
+                        + " ".join(f"{p:.10g}" for p in angtype.params)
+                        + "\n"
                     )
         f.write("\n")
 
@@ -476,9 +525,21 @@ def _write_setup(
             f.write(coeff)
         f.write("\n")
 
+    # Improper style (func-2 harmonic impropers only)
+    if system.improper_types:
+        f.write("improper_style backmap/harmonic\n")
+        for imptype in system.improper_types:
+            k_val, chi0 = imptype.params
+            f.write(
+                f"improper_coeff {imptype.type_id} {imptype.keyword} {k_val:.10g} {chi0:.10g}\n"
+            )
+        f.write("\n")
+
     # Special bonds (exclusions)
     nrexcl = sim.exclusion_nrexcl
-    if nrexcl >= 3:
+    if sim.exclusion_nrexcl_cg is not None and sim.exclusion_nrexcl_cg != nrexcl:
+        f.write(_special_bonds_split(nrexcl, sim.exclusion_nrexcl_cg))
+    elif nrexcl >= 3:
         f.write("special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0\n\n")
     elif nrexcl == 2:
         f.write("special_bonds lj 0.0 0.0 1.0 coul 0.0 0.0 1.0\n\n")
@@ -492,13 +553,19 @@ def _write_setup(
     f.write(f"group cg_atoms type {cg_type_str}\n\n")
     f.write("neigh_modify delay 0 every 1 check yes\n\n")
 
-    _write_initial_velocities(f, sim, params)
 
-    # Integration (AT atoms only) — must be defined BEFORE fix backmap so
-    # that NVE/NVT initial_integrate runs first, updating AT positions before
-    # fix backmap tracks the CG→COM.
-    _write_integration(f, sim, params)
+def _write_backmap_fixes(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+) -> None:
+    """fix backmap and fix backmap/pairs, written to ``<prefix>.backmap.lmp``.
 
+    Include it after the integrators: fix order decides whether the CG beads
+    follow the AT atoms within the same step.
+    """
+    sim = settings.simulation
     # Fix backmap
     cg_type_fix_str = " ".join(str(t) for t in params["cg_type_ids"])
     fix_line = (
@@ -512,10 +579,50 @@ def _write_setup(
     f.write(fix_line + "\n\n")
 
     if system.has_cross_pairs:
-        f.write(
-            f"fix pairs all backmap/pairs at file {system.cross_pairs_file} "
-            f"cut {params['lj_cut_ang']:.6f}\n\n"
-        )
+        f.write(f"fix pairs all backmap/pairs at file {system.cross_pairs_file}\n\n")
+
+
+def _write_setup(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+    data_filename: str,
+    *,
+    use_read_data: bool = True,
+    ff_include: str | None = None,
+    backmap_include: str | None = None,
+) -> None:
+    """Write the shared setup block (styles, coefficients, groups, fixes).
+
+    With ``ff_include``/``backmap_include`` the force field and the backmap
+    fixes are included from those files instead of written inline.
+    """
+    sim = settings.simulation
+
+    if use_read_data:
+        f.write(f"read_data {data_filename}\n\n")
+
+    if ff_include:
+        f.write(f"include {ff_include}\n\n")
+    else:
+        _write_forcefield(f, system, settings, params)
+
+    _write_initial_velocities(f, sim, params)
+
+    # Integration (AT atoms only) — must be defined BEFORE fix backmap so
+    # that NVE/NVT initial_integrate runs first, updating AT positions before
+    # fix backmap tracks the CG→COM.
+    _write_integration(f, sim, params)
+
+    if backmap_include:
+        f.write(f"include {backmap_include}\n\n")
+    else:
+        _write_backmap_fixes(f, system, settings, params)
+
+    if use_read_data and system.write_image_flags:
+        # after the force field and fix backmap (pair_style backmap needs it)
+        f.write("reset_atoms image all\n\n")
 
     _write_cap_force(f, sim)
 
@@ -542,11 +649,123 @@ def _write_restart_cmd(f: IO[str], restart_interval: int) -> None:
 
 
 def write_cross_pairs_file(system: System, path: Path) -> None:
-    """Write explicit 1–4 LJ pairs for fix backmap/pairs."""
+    """Write the explicit 1-4 pairs for fix backmap/pairs.
+
+    Columns: atom IDs, LJ sigma (A), LJ epsilon (kcal/mol), 1-4 Coulomb scale.
+    """
     with open(path, "w") as f:
         f.write(f"{len(system.cross_pairs)}\n")
         for pair in system.cross_pairs:
-            f.write(f"{pair.i} {pair.j} {pair.sigma:.6f} {pair.epsilon:.6f}\n")
+            f.write(
+                f"{pair.i} {pair.j} {pair.sigma:.10g} {pair.epsilon:.10g} {pair.qq_scale:.10g}\n"
+            )
+    normalize_file_end(path)
+
+
+def read_input_with_includes(path: Path) -> str:
+    """Text of a LAMMPS input with ``include`` files expanded in place."""
+    out: list[str] = []
+    for line in path.read_text().splitlines():
+        parts = line.split()
+        if parts[:1] == ["include"] and len(parts) >= 2:
+            out.append(read_input_with_includes(path.parent / parts[1]))
+        else:
+            out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def write_forcefield_includes(
+    system: System,
+    settings: Settings,
+    out_dir: Path,
+    data_filename: str,
+) -> tuple[str, str]:
+    """Write ``<prefix>.ff.lmp`` and ``<prefix>.backmap.lmp``; return their names.
+
+    Hand-written protocols include these instead of restating coefficients:
+    ``include <prefix>.ff.lmp`` after read_data, the integrators, then
+    ``include <prefix>.backmap.lmp``.
+    """
+    params = _compute_params(system, settings)
+    prefix = Path(data_filename).stem
+    ff_name = f"{prefix}.ff.lmp"
+    backmap_name = f"{prefix}.backmap.lmp"
+    with open(out_dir / ff_name, "w") as f:
+        f.write(f"# Force field for {data_filename} -- generated by backmap-prep, do not edit\n\n")
+        _write_forcefield(f, system, settings, params)
+    with open(out_dir / backmap_name, "w") as f:
+        f.write(
+            "# fix backmap and 1-4 pairs -- generated by backmap-prep, do not edit.\n"
+            "# Include after the integration fixes.\n\n"
+        )
+        _write_backmap_fixes(f, system, settings, params)
+    normalize_file_end(out_dir / ff_name)
+    normalize_file_end(out_dir / backmap_name)
+    return ff_name, backmap_name
+
+
+def _write_robust_protocol(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+    data_filename: str,
+    ff_name: str,
+    backmap_name: str,
+) -> None:
+    """Robust multi-phase protocol for dense melts (``simulation.protocol: robust``).
+
+    Phase 0: minimize and relax the AT overlaps at lambda = 0 with the CG beads
+    frozen (nve/limit, Langevin, 0.01 fs). Phase 1: lambda ramp with nve/limit and
+    Langevin at 0.1 fs for 2 / alpha steps. Phase 2: staged NVT at lambda = 1
+    (0.25, 0.5, 1.0 fs). Optional production at lambda = 1.
+    """
+    sim = settings.simulation
+    temp = sim.temperature
+    seed = sim.rng_seed if sim.rng_seed > 0 else 48279
+    ramp_steps = 2 * math.ceil(1.0 / sim.alpha)
+    prefix = Path(data_filename).stem
+    pairs = " f_pairs[1] f_pairs[2]" if system.has_cross_pairs else ""
+
+    f.write(f"read_data {data_filename}\n\n")
+    f.write(f"include {ff_name}\n\n")
+    f.write(f"include {backmap_name}\n\n")
+    if system.write_image_flags:
+        # after the force field and fix backmap (pair_style backmap needs it)
+        f.write("reset_atoms image all\n\n")
+    _write_cap_force(f, sim)
+    f.write("compute at_temp at_atoms temp\n")
+    f.write(f"thermo {sim.energy_interval}\n")
+    f.write(
+        "thermo_style custom step temp pe ke etotal ebond eangle edihed"
+        f"{' eimp' if system.impropers else ''} evdwl ecoul{pairs} press f_bm\n"
+    )
+    f.write("thermo_modify colname f_bm lambda temp at_temp\n\n")
+    f.write(f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n")
+    f.write("dump_modify traj sort id\n\n")
+
+    f.write("# Phase 0a: minimize AT overlaps at lambda = 0 (CG frozen)\n")
+    f.write("fix freeze cg_atoms setforce 0.0 0.0 0.0\n")
+    f.write("minimize 1.0e-4 1.0e-6 1000 10000\n\n")
+    f.write("# Phase 0b: relax AT fragments at lambda = 0 (CG frozen)\n")
+    f.write("fix relax at_atoms nve/limit 0.01\n")
+    f.write(f"fix therm_relax at_atoms langevin {temp:.1f} {temp:.1f} 20.0 {seed + 1}\n")
+    f.write("timestep 0.01\nrun 10000\n")
+    f.write("unfix therm_relax\nunfix relax\nunfix freeze\n\n")
+    f.write(f"# Phase 1: lambda ramp 0 -> 1 ({ramp_steps} steps at 0.1 fs, alpha {sim.alpha})\n")
+    f.write("fix limit_all all nve/limit 0.05\n")
+    f.write(f"fix therm_ramp at_atoms langevin {temp:.1f} {temp:.1f} 100.0 {seed + 2}\n")
+    f.write("fix_modify bm active yes\n")
+    f.write(f"timestep 0.10\nrun {ramp_steps}\n")
+    f.write("unfix limit_all\nunfix therm_ramp\n\n")
+    f.write("# Phase 2: NVT at lambda = 1, staged timestep\n")
+    f.write(f"fix nvt_at at_atoms nvt temp {temp:.1f} {temp:.1f} 100.0\n")
+    f.write(f"fix nvt_cg cg_atoms nvt temp {temp:.1f} {temp:.1f} 100.0\n")
+    f.write("timestep 0.25\nrun 10000\ntimestep 0.50\nrun 5000\ntimestep 1.00\nrun 5000\n\n")
+    f.write(f"write_data {prefix}_hybrid.data\n")
+    if sim.production_steps > 0:
+        f.write(f"\n# Production at lambda = 1\ntimestep {params['timestep_fs']:.2f}\n")
+        f.write(f"run {sim.production_steps}\nwrite_data {prefix}_final.data\n")
 
 
 def write_lammps_input(
@@ -560,9 +779,25 @@ def write_lammps_input(
     When ``settings.simulation.restart_interval`` is set, also generates
     per-phase scripts and a shared setup include file.
     """
+    _write_lammps_input(system, settings, path, data_filename)
+    normalize_file_end(path)
+
+
+def _write_lammps_input(
+    system: System,
+    settings: Settings,
+    path: Path,
+    data_filename: str,
+) -> None:
+    """Write a LAMMPS input script for backmapping.
+
+    When ``settings.simulation.restart_interval`` is set, also generates
+    per-phase scripts and a shared setup include file.
+    """
     sim = settings.simulation
     params = _compute_params(system, settings)
     restart = sim.restart_interval
+    ff_name, backmap_name = write_forcefield_includes(system, settings, path.parent, data_filename)
 
     with open(path, "w") as f:
         f.write("# LAMMPS input for backmapping — generated by backmap-prep\n")
@@ -573,7 +808,21 @@ def write_lammps_input(
         f.write("atom_style full\n")
         f.write("boundary p p p\n\n")
 
-        _write_setup(f, system, settings, params, data_filename)
+        if sim.protocol == "robust":
+            _write_robust_protocol(
+                f, system, settings, params, data_filename, ff_name, backmap_name
+            )
+            return
+
+        _write_setup(
+            f,
+            system,
+            settings,
+            params,
+            data_filename,
+            ff_include=ff_name,
+            backmap_include=backmap_name,
+        )
 
         if restart:
             _write_restart_cmd(f, restart)
@@ -648,7 +897,16 @@ def _write_restart_scripts(
     setup_path = parent / f"{stem}.setup"
     with open(setup_path, "w") as f:
         f.write("# Shared setup — generated by backmap-prep (do not edit)\n\n")
-        _write_setup(f, system, settings, params, data_filename, use_read_data=False)
+        _write_setup(
+            f,
+            system,
+            settings,
+            params,
+            data_filename,
+            use_read_data=False,
+            ff_include=f"{Path(data_filename).stem}.ff.lmp",
+            backmap_include=f"{Path(data_filename).stem}.backmap.lmp",
+        )
         _write_restart_cmd(f, restart)
         f.write("\n")
 

@@ -56,6 +56,8 @@ class TopDihedral:
     func: int
     params: list[float] = field(default_factory=list)
     param_tokens: list[str] = field(default_factory=list)
+    # func 9 with explicit parameters: (phase, k, n) of every consecutive line
+    merged_terms: list[tuple[float, float, int]] = field(default_factory=list)
 
 
 @dataclass
@@ -70,6 +72,9 @@ class TopPair:
 class DihedralTypeEntry:
     func: int
     params: list[float] = field(default_factory=list)
+    # func 9: every (phase, k, n) line of the entry; consecutive lines with the
+    # same atom types add terms, as in GROMACS.
+    terms: list[list[float]] = field(default_factory=list)
 
 
 @dataclass
@@ -84,6 +89,7 @@ class MoleculeType:
     dihedrals: list[TopDihedral] = field(default_factory=list)
     cross_dihedrals: list[TopDihedral] = field(default_factory=list)
     cross_pairs: list[TopPair] = field(default_factory=list)
+    pairs: list[TopPair] = field(default_factory=list)
 
 
 @dataclass
@@ -98,6 +104,16 @@ class Topology:
     fudge_lj: float = 1.0
     fudge_qq: float = 1.0
     defaults_gen_pairs: str = "yes"
+    has_defaults: bool = False  # True once a [ defaults ] section was read
+    # [ bondtypes ] / [ angletypes ] (func 1): bond classes -> GROMACS params,
+    # stored under both atom orders.
+    bondtypes: dict[tuple[str, str], list[float]] = field(default_factory=dict)
+    angletypes: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
+    # [ angletypes ] func 5 (Urey-Bradley): theta0, k_theta, r13, k_UB
+    angletypes_ub: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
+    # [ nonbond_params ] func 1: (type_i, type_j) -> (c6/sigma, c12/epsilon) as written
+    nonbond_params: dict[tuple[str, str], tuple[float, float]] = field(default_factory=dict)
+    _last_dihedraltype: tuple[str, str, str, str, int] | None = None
 
 
 def parse_top(
@@ -124,6 +140,12 @@ def _merge_forcefield_types(top: Topology, forcefield_dirs: list[Path]) -> None:
         _parse_file(ff_itp, ff_top, [ff_dir / "oplsaa.ff"], forcefield_dirs)
         for name, entry in ff_top.atom_types.items():
             top.atom_types.setdefault(name, entry)
+        for key, params in ff_top.bondtypes.items():
+            top.bondtypes.setdefault(key, params)
+        for akey, aparams in ff_top.angletypes.items():
+            top.angletypes.setdefault(akey, aparams)
+        for ukey, uparams in ff_top.angletypes_ub.items():
+            top.angletypes_ub.setdefault(ukey, uparams)
         for i, j_map in ff_top.dihedraltypes.items():
             for j, k_map in j_map.items():
                 for k, l_map in k_map.items():
@@ -163,8 +185,11 @@ def _parse_file(
         tokens = stripped.split()
 
         if section == "defaults":
+            top.has_defaults = True
             if len(tokens) >= 2:
                 top.combination_rule = int(tokens[1])
+            if len(tokens) >= 3:
+                top.defaults_gen_pairs = tokens[2].lower()
             if len(tokens) >= 4:
                 top.fudge_lj = float(tokens[3])
             if len(tokens) >= 5:
@@ -175,6 +200,28 @@ def _parse_file(
 
         elif section == "dihedraltypes":
             _parse_dihedraltype(tokens, top)
+
+        elif section == "nonbond_params":
+            if len(tokens) >= 5 and tokens[2] == "1":
+                values = (float(tokens[3]), float(tokens[4]))
+                top.nonbond_params[(tokens[0], tokens[1])] = values
+                top.nonbond_params[(tokens[1], tokens[0])] = values
+
+        elif section == "bondtypes":
+            if len(tokens) >= 5 and tokens[2] == "1":
+                params = [float(t) for t in tokens[3:5]]
+                top.bondtypes[(tokens[0], tokens[1])] = params
+                top.bondtypes[(tokens[1], tokens[0])] = params
+
+        elif section == "angletypes":
+            if len(tokens) >= 6 and tokens[3] == "1":
+                params = [float(t) for t in tokens[4:6]]
+                top.angletypes[(tokens[0], tokens[1], tokens[2])] = params
+                top.angletypes[(tokens[2], tokens[1], tokens[0])] = params
+            elif len(tokens) >= 8 and tokens[3] == "5":
+                params = [float(t) for t in tokens[4:8]]
+                top.angletypes_ub[(tokens[0], tokens[1], tokens[2])] = params
+                top.angletypes_ub[(tokens[2], tokens[1], tokens[0])] = params
 
         elif section == "moleculetype":
             if len(tokens) >= 2:
@@ -204,6 +251,9 @@ def _parse_file(
 
         elif section == "cross_pairs" and current_mol:
             _parse_cross_pair(tokens, current_mol)
+
+        elif section == "pairs" and current_mol:
+            _parse_cross_pair(tokens, current_mol, target="pairs")
 
         elif section == "molecules":
             if len(tokens) >= 2:
@@ -336,8 +386,17 @@ def _parse_dihedraltype(tokens: list[str], top: Topology) -> None:
         params = [float(t) for t in tokens[5:]]
     except ValueError:
         return
-    entry = DihedralTypeEntry(func=int(tokens[4]), params=params)
+    func = int(tokens[4])
+    key = (tokens[0], tokens[1], tokens[2], tokens[3], func)
+    if func == 9 and top._last_dihedraltype == key:
+        existing = top.dihedraltypes[key[0]][key[1]][key[2]][key[3]]
+        existing.terms.append(params[:3])
+        return
+    entry = DihedralTypeEntry(func=func, params=params)
+    if func == 9:
+        entry.terms = [params[:3]]
     _store_dihedraltype(top, tokens[0], tokens[1], tokens[2], tokens[3], entry)
+    top._last_dihedraltype = key
 
 
 def _lookup_dihedraltype(
@@ -364,6 +423,90 @@ def _lookup_dihedraltype(
         if entry is not None:
             return entry
     return None
+
+
+def lookup_dihedraltype_most_specific(
+    dihedraltypes: dict[str, dict[str, dict[str, dict[str, DihedralTypeEntry]]]],
+    quad: tuple[str, str, str, str],
+    funcs: set[int],
+) -> DihedralTypeEntry | None:
+    """Best [ dihedraltypes ] match for ``quad`` among entries of ``funcs``.
+
+    As in GROMACS, the entry with the fewest ``X`` wildcards wins (any position,
+    either atom order); used for func 2/4/9, where wildcards also sit in the
+    middle (e.g. improper ``OBL X X CL``). func 3 keeps ``_lookup_dihedraltype``.
+    """
+    best: DihedralTypeEntry | None = None
+    best_wild = 5
+    for mask in range(16):
+        wild = bin(mask).count("1")
+        if wild >= best_wild:
+            continue
+        for order in (quad, quad[::-1]):
+            key = tuple("X" if mask >> n & 1 else order[n] for n in range(4))
+            entry = dihedraltypes.get(key[0], {}).get(key[1], {}).get(key[2], {}).get(key[3])
+            if entry is not None and entry.func in funcs:
+                best, best_wild = entry, wild
+                break
+    return best
+
+
+def _dihedral_type_names(
+    dih: TopDihedral, atom_types: dict[int, str], atom_type_defs: dict[str, AtomType] | None
+) -> list[tuple[str, str, str, str]]:
+    names = tuple(atom_types.get(i) for i in (dih.i, dih.j, dih.k, dih.atom_l))
+    if not all(names):
+        raise ValueError(
+            f"Cannot resolve dihedral types for atoms {dih.i}-{dih.j}-{dih.k}-{dih.atom_l}"
+        )
+    variants = [names]
+    if atom_type_defs:
+        mapped = tuple(_interaction_type(n, atom_type_defs) for n in names)
+        if mapped != names:
+            variants.append(mapped)
+    return variants  # type: ignore[return-value]
+
+
+def resolve_periodic_terms(
+    dih: TopDihedral,
+    atom_types: dict[int, str],
+    dihedraltypes: dict[str, dict[str, dict[str, dict[str, DihedralTypeEntry]]]],
+    atom_type_defs: dict[str, AtomType] | None = None,
+) -> list[tuple[float, float, int]]:
+    """(phase deg, k kJ/mol, n) terms of a func 4/9 dihedral, explicit or from types."""
+    if dih.params:
+        if len(dih.params) < 3:
+            raise ValueError(f"func {dih.func} dihedral needs phase, k, n: {dih}")
+        return [(dih.params[0], dih.params[1], int(dih.params[2]))]
+    for quad in _dihedral_type_names(dih, atom_types, atom_type_defs):
+        entry = lookup_dihedraltype_most_specific(dihedraltypes, quad, {dih.func})
+        if entry is not None:
+            rows = entry.terms or [entry.params[:3]]
+            return [(r[0], r[1], int(r[2])) for r in rows]
+    raise ValueError(
+        f"Missing func-{dih.func} dihedraltypes entry for atoms "
+        f"{dih.i}-{dih.j}-{dih.k}-{dih.atom_l}"
+    )
+
+
+def resolve_improper_harmonic(
+    dih: TopDihedral,
+    atom_types: dict[int, str],
+    dihedraltypes: dict[str, dict[str, dict[str, dict[str, DihedralTypeEntry]]]],
+    atom_type_defs: dict[str, AtomType] | None = None,
+) -> tuple[float, float]:
+    """(xi0 deg, k kJ/mol/rad^2) of a func 2 improper, explicit or from types."""
+    if dih.params:
+        if len(dih.params) < 2:
+            raise ValueError(f"func 2 improper needs xi0, k: {dih}")
+        return dih.params[0], dih.params[1]
+    for quad in _dihedral_type_names(dih, atom_types, atom_type_defs):
+        entry = lookup_dihedraltype_most_specific(dihedraltypes, quad, {2})
+        if entry is not None:
+            return entry.params[0], entry.params[1]
+    raise ValueError(
+        f"Missing func-2 dihedraltypes entry for improper {dih.i}-{dih.j}-{dih.k}-{dih.atom_l}"
+    )
 
 
 def resolve_dihedral_params(
@@ -631,14 +774,20 @@ def _parse_cross_dihedral(tokens: list[str], mol: MoleculeType) -> None:
     )
 
 
-def _parse_cross_pair(tokens: list[str], mol: MoleculeType) -> None:
-    if len(tokens) < 3:
+def _parse_cross_pair(tokens: list[str], mol: MoleculeType, target: str = "cross_pairs") -> None:
+    """Parse a ``[ cross_pairs ]`` or (``target="pairs"``) ``[ pairs ]`` line.
+
+    A line with only the two atom indices uses function 1, as in GROMACS.
+    """
+    if len(tokens) < 2:
         return
+    if len(tokens) == 2:
+        tokens = [*tokens, "1"]
     try:
         params = [float(t) for t in tokens[3:]]
     except ValueError:
         params = []
-    mol.cross_pairs.append(
+    getattr(mol, target).append(
         TopPair(
             i=int(tokens[0]),
             j=int(tokens[1]),
@@ -662,6 +811,8 @@ def resolve_pair_lj_params(
         raise ValueError(f"Unsupported cross-pair func {func} for {atom_i.name}-{atom_j.name}")
     if len(params) >= 2:
         sigma_nm, eps_kj = params[0], params[1]
+        if top.combination_rule == 1:
+            sigma_nm, eps_kj = units.c6c12_to_sigma_epsilon(sigma_nm, eps_kj)
         return units.distance(sigma_nm), units.energy(eps_kj)
     type_i = top.atom_types.get(atom_i.type)
     type_j = top.atom_types.get(atom_j.type)

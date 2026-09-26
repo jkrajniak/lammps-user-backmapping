@@ -33,6 +33,7 @@ class AngleBackmapHarmonic : public Angle {
   double equilibrium_angle(int) override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
+  void write_data(FILE *) override;
   double single(int, int, int, int) override;
   void *extract(const char *, int &) override;
 

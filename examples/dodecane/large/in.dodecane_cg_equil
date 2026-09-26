@@ -6,17 +6,27 @@ boundary p p p
 
 read_data dodecane_cg.data
 
+comm_modify cutoff 15.00
+
 pair_style table linear 1000
 pair_coeff 1 1 table_A_A.table ENTRY
 pair_coeff 1 2 table_A_B.table ENTRY
 pair_coeff 2 2 table_B_B.table ENTRY
 
-bond_style hybrid harmonic table linear 1000
-bond_coeff 1 harmonic 800.000883 1.530000
-bond_coeff 2 table table_b1.table ENTRY
-bond_coeff 3 table table_b1.table ENTRY
+bond_style table linear 1000
+bond_coeff 1 table_b1.table ENTRY
+
+angle_style table linear 1000
+angle_coeff 1 table_a1.table ENTRY
+angle_coeff 2 table_a2.table ENTRY
+
+special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
+neigh_modify delay 0 every 1 check yes
+reset_atoms image all
 
 fix equil all nvt temp 298.0 298.0 100.0
+
+velocity all create 298.0 48279 mom yes rot yes dist gaussian
 
 timestep 1.00
 thermo 1000
@@ -24,4 +34,5 @@ thermo_style custom step temp pe ke etotal press
 
 run 10000
 
+reset_atoms image all
 write_data dodecane_cg_equil.data

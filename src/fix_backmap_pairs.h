@@ -32,19 +32,27 @@ class FixBackmapPairs : public Fix {
 
   int setmask() override;
   void init() override;
+  void setup(int) override;
+  void min_setup(int) override;
   void post_force(int) override;
+  void min_post_force(int) override;
+  double compute_scalar() override;
+  double compute_vector(int) override;
   double memory_usage() override;
 
  private:
   struct PairEntry {
     tagint id1, id2;
     double sigma, epsilon;
+    double qq_scale;  // 1-4 Coulomb scale (GROMACS fudgeQQ); 0 = LJ only
     int is_cg;
   };
 
   std::vector<PairEntry> pairs;
   double cut;
   double cutsq;
+  bool has_coulomb;
+  double energy_local[2];  // LJ-14, Coulomb-14 on this rank
   class Fix *fix_backmap;
 
   void read_file(const char *filename);

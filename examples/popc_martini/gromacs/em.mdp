@@ -1,0 +1,18 @@
+; Slipids POPC settings after Zenodo 10.5281/zenodo.13887 (md.tpr dump):
+; PME, LJ plain cut-off 1.4 nm, DispCorr EnerPres, all-bond constraints, 2 fs, 310 K.
+; Verlet scheme requires rcoulomb >= rvdw, so rcoulomb = 1.4 (published: 1.0, group scheme).
+cutoff-scheme    = Verlet
+nstlist          = 20
+coulombtype      = PME
+rcoulomb         = 1.4
+fourierspacing   = 0.12
+pme-order        = 4
+vdwtype          = Cut-off
+vdw-modifier     = None
+rvdw             = 1.4
+DispCorr         = EnerPres
+constraints      = all-bonds
+constraint-algorithm = lincs
+integrator = steep
+nsteps     = 5000
+emtol      = 500

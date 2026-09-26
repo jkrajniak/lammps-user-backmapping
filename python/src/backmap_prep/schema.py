@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Literal
 
@@ -200,9 +201,27 @@ class MoleculeDef(BaseModel):
         return data
 
 
+class CGNonbonded(BaseModel):
+    """CG non-bonded force field generated as pair tables from the CG topology.
+
+    ``martini``: LJ from ``[ nonbond_params ]`` (or ``[ atomtypes ]`` with the
+    combination rule) and reaction-field Coulomb from the bead charges, both
+    evaluated as GROMACS does with the MARTINI settings (cut-off ``cutoff``,
+    LJ potential-shift, ``epsilon_r``, ``epsilon_rf``; 0 means infinity).
+    """
+
+    kind: Literal["martini"] = "martini"
+    cutoff: float = 1.1  # nm
+    epsilon_r: float = 15.0
+    epsilon_rf: float = 0.0
+    vdw_modifier: Literal["potential-shift", "none"] = "potential-shift"
+    spacing: float = 0.002  # nm, table grid
+
+
 class CGSystem(BaseModel):
     """CG configuration files."""
 
+    nonbonded: CGNonbonded | None = None
     coordinates: str | None = None
     topology: str | None = None
     data: str | None = None
@@ -311,9 +330,12 @@ class HybridOutputConfig(BaseModel):
 
 
 class PrepConfig(BaseModel):
-    """Which preparation engine to use."""
+    """Paths and options for hybrid preparation."""
 
-    engine: Literal["linear", "network"] = "linear"
+    engine: Literal["linear", "network"] | None = Field(
+        default=None,
+        description="Deprecated and ignored: every system is built by the same engine",
+    )
     bakery_xml: str | None = Field(
         default=None,
         description="Bakery XML settings for network prep (Phase 3 bridge)",
@@ -342,6 +364,15 @@ class SimulationParams(BaseModel):
 
     alpha: float = 0.001
     initial_resolution: float = 0.0
+    protocol: Literal["standard", "robust"] = Field(
+        default="standard",
+        description=(
+            "standard: velocity + thermostat, ramp, optional production. "
+            "robust: minimize and nve/limit relaxation at lambda = 0 (CG frozen), "
+            "nve/limit + Langevin ramp, staged NVT at lambda = 1 (used for the "
+            "large melts)."
+        ),
+    )
 
     timestep: float = 0.001
     timestep_backmapping: float = 0.001
@@ -389,8 +420,15 @@ class SimulationParams(BaseModel):
     coulomb_cutoff: float = 0.9
 
     table_groups: list[str] = Field(default_factory=list)
+    # Points of LAMMPS's internal table interpolation (pair, bond, angle,
+    # dihedral tables). 1000 leaves ~4e-5 relative error on a MARTINI POPC
+    # frame's CG energy; 10000 matches GROMACS to its printed precision.
+    table_points: int = Field(default=1000, ge=2)
 
     exclusion_nrexcl: int = 3
+    # CG exclusions when they differ from the AT ones (bakery `exclusion_cg`),
+    # e.g. 1 for MARTINI with an AT force field at 3.
+    exclusion_nrexcl_cg: int | None = None
 
     energy_interval: int = 1000
     trajectory_interval: int = 1000
@@ -450,7 +488,7 @@ class Settings(BaseModel):
     prep: PrepConfig = Field(default_factory=PrepConfig)
     molecules: list[MoleculeDef] = Field(default_factory=list)
     cg_system: CGSystem | None = None
-    hybrid: HybridOutputConfig | None = None
+    hybrid: HybridOutputConfig = Field(default_factory=HybridOutputConfig)
     cross_interactions: CrossInteractions = Field(default_factory=CrossInteractions)
     simulation: SimulationParams = Field(default_factory=SimulationParams)
     output: OutputConfig = Field(default_factory=OutputConfig)
@@ -459,31 +497,24 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def check_engine_requirements(self) -> Settings:
-        if self.prep.engine == "linear":
+        if self.prep.engine is not None:
+            warnings.warn(
+                "prep.engine is deprecated and ignored: linear and network systems are "
+                "built by the same engine",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if self.prep.bakery_xml is None:
             if not self.molecules:
-                raise ValueError("linear prep requires at least one molecule definition")
+                raise ValueError("prep requires prep.bakery_xml or molecule definitions")
             if self.cg_system is None:
-                raise ValueError("linear prep requires cg_system")
-        elif self.prep.engine == "network":
-            if self.prep.bakery_xml is None:
-                if not self.molecules:
-                    raise ValueError(
-                        "network prep requires prep.bakery_xml or full molecule definitions"
-                    )
-                if self.cg_system is None:
-                    raise ValueError("network v2 prep requires cg_system")
-                if self.hybrid is None:
-                    raise ValueError("network v2 prep requires hybrid output config")
-            if self.cg_system is not None and self.cg_system.format == "lammps":
-                raise ValueError(
-                    "cg_system format 'lammps' is not yet supported for the network engine "
-                    "(planned for a future phase; currently linear engine only)"
-                )
-            if any(mol.source.format == "lammps" for mol in self.molecules):
-                raise ValueError(
-                    "molecules[].source format 'lammps' is not yet supported for the network "
-                    "engine (planned for a future phase; currently linear engine only)"
-                )
+                raise ValueError("prep requires cg_system")
+        nb = self.cg_system.nonbonded if self.cg_system else None
+        if nb is not None and abs(self.simulation.cg_cutoff - nb.cutoff) > 1e-9:
+            raise ValueError(
+                f"simulation.cg_cutoff ({self.simulation.cg_cutoff} nm) must equal "
+                f"cg_system.nonbonded.cutoff ({nb.cutoff} nm): the CG pair tables end there"
+            )
         if self.simulation.two_phase:
             raise ValueError(
                 "Feature 'two_phase' backmapping is not yet implemented (planned for Phase 2)"

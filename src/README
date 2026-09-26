@@ -23,6 +23,12 @@ Components:
                           force=0 and V=V(caprad) for r<=cap_factor*sigma
   bond_style backmap/*  - lambda-weighted cross-CG bond forces
   angle_style backmap/* - lambda-weighted cross-CG angle forces
+                          (harmonic, charmm = harmonic + Urey-Bradley, table)
+  dihedral_style backmap/*
+                        - ryckaert, harmonic, fourier (multi-term periodic,
+                          arbitrary phase), table
+  improper_style backmap/harmonic
+                        - lambda-weighted harmonic improper
 
 Usage:
 

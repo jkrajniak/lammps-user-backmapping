@@ -8,7 +8,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+import pytest
+
 from backmap_prep.cli import main
+from backmap_prep.writers import read_input_with_includes
 
 
 def _write_full_example(base: Path) -> Path:
@@ -50,7 +53,7 @@ def _write_full_example(base: Path) -> Path:
         CH2  14.0  0.0  A  0.395  0.382
 
         [ moleculetype ]
-        TestMol  3
+        MOL  3
 
         [ atoms ]
         1  CH2  1  MOL  C1  1  0.0  14.0
@@ -66,7 +69,7 @@ def _write_full_example(base: Path) -> Path:
     settings = {
         "molecules": [
             {
-                "name": "TestMol",
+                "name": "MOL",
                 "source": {"coordinates": "at.gro", "topology": "at.top"},
                 "beads": [{"name": "B1", "type": "CG1", "atoms": ["C1", "C2"]}],
             }
@@ -90,6 +93,12 @@ class TestCLI:
         assert result == 0
         assert (tmp_path / "test_out.data").exists()
         assert (tmp_path / "in.test_out").exists()
+
+    def test_molecule_name_must_match_cg_residue(self, tmp_path: Path) -> None:
+        settings_path = _write_full_example(tmp_path)
+        settings_path.write_text(settings_path.read_text().replace("name: MOL", "name: Other"))
+        with pytest.raises(ValueError, match="must equal the CG residue name"):
+            main(["build", str(settings_path)])
 
     def test_build_subcommand(self, tmp_path: Path) -> None:
         settings_path = _write_full_example(tmp_path)
@@ -115,7 +124,7 @@ class TestCLI:
     def test_input_file_content(self, tmp_path: Path) -> None:
         settings_path = _write_full_example(tmp_path)
         main([str(settings_path)])
-        content = (tmp_path / "in.test_out").read_text()
+        content = read_input_with_includes(tmp_path / "in.test_out")
         assert "units real" in content
         assert "fix bm all backmap" in content
 

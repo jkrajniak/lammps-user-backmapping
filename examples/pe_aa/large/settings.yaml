@@ -3,6 +3,10 @@
 # CG interactions: tabulated (IBI-derived, same as PE UA)
 # AT interactions: OPLS/AA (opls_135/136 C, opls_140 H)
 
+prep:
+  # OPLS dihedraltypes for the AT topology (examples/forcefield/oplsaa.ff)
+  forcefield_dir: ../../forcefield
+
 molecules:
 - name: PE
   ident: PE
@@ -1907,6 +1911,7 @@ cross_interactions:
       - PE:A50
     cg_bonded: true
 simulation:
+  protocol: robust
   alpha: 0.0001
   initial_resolution: 0.0
   timestep: 0.001

@@ -1,20 +1,8 @@
-; Self-contained MF AT topology (OPLS/AA)
+; MF AT topology (OPLS/AA; force field from prep.forcefield_dir)
 ; Melamine-formaldehyde monomer, 27 atoms.
 
-[ defaults ]
-; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
-1         2          yes        0.5      0.5
-
-[ atomtypes ]
-; name      mass       charge  ptype  sigma(nm)   epsilon(kJ/mol)
-opls_145    12.01100   0.000   A      0.3550      0.29288
-opls_154    15.99940   0.000   A      0.3120      0.71128
-opls_155     1.00800   0.000   A      0.0000      0.00000
-opls_156     1.00800   0.000   A      0.2500      0.12552
-opls_157    12.01100   0.000   A      0.3500      0.27614
-opls_901    14.00670   0.000   A      0.3250      0.71128
-opls_902    14.00670   0.000   A      0.3250      0.71128
-opls_910     1.00800   0.000   A      0.0000      0.00000
+; Force field: OPLS-AA as used by bakery (comb-rule 3, fudgeLJ = fudgeQQ = 0.5).
+#include "oplsaa.ff/forcefield.itp"
 
 [ moleculetype ]
 ; Name            nrexcl

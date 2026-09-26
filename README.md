@@ -134,6 +134,15 @@ backmap-prep settings.yaml
 backmap-prep settings.yaml --output-prefix mysystem
 ```
 
+`build` also writes `<prefix>.ff.lmp` and `<prefix>.backmap.lmp` (include
+them in your own protocols instead of restating coefficients) and
+`<prefix>.at.ff.lmp` for AT-only runs; `backmap-prep at-system --from
+<frame>` / `--reference N` writes the matching AT-only data files.
+
+Linear melts and cross-linked networks go through the same hybrid builder:
+each AT fragment is placed with its mass-weighted centre of mass on its CG
+bead, and outputs are written next to the settings file.
+
 See `examples/dodecane/` for a complete working example with a dodecane system
 (6 CG beads mapped to 12 united-atom carbons). Larger-scale variants (e.g. 75-chain
 PE, 500-molecule melamine) are in each example’s `large/` subdirectory; see
@@ -149,7 +158,8 @@ for details.
 
 The YAML settings file defines:
 
-- **molecules** — CG bead definitions and their constituent AT atoms; each molecule's AT reference is GROMACS `.gro`/`.top` (default) or a native LAMMPS `data` file + input script
+- **prep** — input directories (`data_dir`, `tables_dir`, `forcefield_dir`); only read
+- **molecules** — CG bead definitions and their constituent AT atoms (`name` must equal the CG residue name); each molecule's AT reference is GROMACS `.gro`/`.top` (default) or a native LAMMPS `data` file + input script
 - **cg_system** — paths to CG coordinate and topology files (GROMACS `.gro`/`.top`, or a native LAMMPS `data` file)
 - **cross_interactions** — cross-CG bonds, angles, and dihedrals with parameters
 - **simulation** — backmapping parameters (alpha, timestep, temperature, cutoffs, …)
@@ -170,6 +180,10 @@ make pre-commit     # run pre-commit hooks on staged files
 make pre-commit-all # run pre-commit hooks on all files
 make clean          # remove caches and build artifacts
 ```
+
+LAMMPS regression tests (`python/tests/test_lammps_*.py`) run only when
+`BACKMAP_LMP` points to a LAMMPS binary built with the package:
+`BACKMAP_LMP=/path/to/lmp uv run pytest python/tests/test_lammps_energy.py python/tests/test_lammps_write_data.py`.
 
 ## How to Cite
 

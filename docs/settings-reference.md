@@ -7,11 +7,47 @@ This page documents every field.
 ## Top-Level Structure
 
 ```yaml
+prep:            # Input directories and build options (optional)
 molecules:       # List of CG molecule definitions with AT mapping
 cg_system:       # CG system coordinate and topology files
+hybrid:          # Names of the intermediate hybrid GROMACS files (optional)
 cross_interactions:  # Cross-CG bonded interactions
 simulation:      # Backmapping simulation parameters
 output:          # Output file configuration
+```
+
+Every system, a linear melt or a cross-linked network, is built by the same
+hybrid builder. Each AT fragment is translated so that its mass-weighted
+centre of mass lies on its CG bead. All outputs are written to the directory
+of the settings file; the directories under `prep` are only read.
+
+---
+
+## `prep`
+
+| Field | Default | Meaning |
+|---|---|---|
+| `data_dir` | settings directory | Where relative input paths are resolved. Only read, never written (it may be a published data archive). |
+| `tables_dir` | none | Extra directory searched for CG `.xvg`/`.table` files. |
+| `forcefield_dir` | auto | Directory holding `oplsaa.ff/` for `#include` in AT topologies. Searched automatically in the settings directory and its parent. |
+| `bakery_xml` | none | Build from a legacy bakery `settings.xml` instead of the YAML definitions (runs in the XML's directory). |
+| `chain_rng_seed` | none | Seed for the builder's random choices (e.g. crosslink order). |
+| `allow_no_bonds` | `false` | Skip, instead of failing on, CG bonds without matching active sites. |
+| `engine` | none | **Deprecated and ignored.** Accepted so older settings load; prints a warning. |
+
+## `hybrid`
+
+Names of the intermediate hybrid files the builder writes (GROMACS format).
+Optional; the defaults are shown.
+
+```yaml
+hybrid:
+  coordinates: hyb_conf.gro
+  topology: hyb_topol.top
+  includes: []          # force-field files #included by the hybrid topology
+  molecule_type:
+    name: HYB
+    exclusion: 3
 ```
 
 ---
@@ -25,7 +61,9 @@ atoms.
 
 ### `molecules[].name`
 
-Name of the molecule type (used in cross-interaction references).
+Name of the molecule type (used in cross-interaction references). It must
+equal the residue name of the molecule in the CG topology; the builder maps AT
+fragments to CG residues by this name and reports a mismatch.
 
 | | |
 |---|---|
@@ -588,6 +626,13 @@ Coulomb interaction cutoff (nm).
 |---|---|
 | **Type** | `float` |
 | **Default** | `0.9` |
+
+#### Communication cutoff
+
+Not a setting. The generated `comm_modify cutoff` is the larger of the pair
+cutoffs and the largest minimum-image extent of any bond, angle, dihedral or
+bead (bead to its AT atoms), plus 1 A. Bonded terms that cross the box
+boundary do not enlarge it.
 
 ### Neighbor List and Exclusions
 

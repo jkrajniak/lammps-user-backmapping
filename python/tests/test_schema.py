@@ -85,9 +85,14 @@ class TestPrepConfig:
         assert s.prep.engine == "network"
         assert s.prep.bakery_xml == "settings.xml"
 
-    def test_linear_requires_molecules(self) -> None:
-        with pytest.raises(ValueError, match="linear prep requires"):
-            Settings(prep={"engine": "linear"})
+    def test_requires_molecules(self) -> None:
+        with pytest.raises(ValueError, match=r"requires prep\.bakery_xml or molecule definitions"):
+            Settings()
+
+    def test_engine_is_deprecated_and_ignored(self, minimal_settings_dict: dict) -> None:
+        minimal_settings_dict["prep"] = {"engine": "linear"}
+        with pytest.warns(DeprecationWarning, match=r"prep\.engine is deprecated"):
+            Settings(**minimal_settings_dict)
 
 
 class TestSimulationParams:
@@ -180,15 +185,14 @@ class TestSettings:
         assert s.molecules[0].name == "TestMol"
         assert isinstance(s.cross_interactions, CrossInteractions)
 
-    def test_network_engine_rejects_lammps_at_fragment(self, minimal_settings_dict: dict) -> None:
-        minimal_settings_dict["prep"] = {"engine": "network", "bakery_xml": "settings.xml"}
+    def test_lammps_at_fragment_accepted(self, minimal_settings_dict: dict) -> None:
         minimal_settings_dict["molecules"][0]["source"] = {
             "format": "lammps",
             "data": "at.data",
             "input_script": "in.at",
         }
-        with pytest.raises(ValidationError, match="network"):
-            Settings(**minimal_settings_dict)
+        s = Settings(**minimal_settings_dict)
+        assert s.molecules[0].source.format == "lammps"
 
     def test_atoms_by_degree_accepted(self, minimal_settings_dict: dict) -> None:
         minimal_settings_dict["molecules"][0]["beads"][0]["atoms_by_degree"] = [

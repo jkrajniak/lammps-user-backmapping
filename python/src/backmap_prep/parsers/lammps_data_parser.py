@@ -138,13 +138,13 @@ def parse_cg_system(path: Path) -> tuple[GroFile, Topology]:
 
     Reads box bounds, the ``Masses`` section, and the ``Atoms # full`` section,
     and returns them as :class:`GroFile`/:class:`Topology` objects — the same
-    types the GROMACS ``.gro``/``.top`` CG path produces — so ``build_system()``
-    needs no further branching once this returns.
+    types the GROMACS ``.gro``/``.top`` CG path produces. ``network.lammps_sources``
+    writes them out as GROMACS files for the hybrid builder.
 
     Atom order is assumed to be contiguous per molecule instance: the first
     contiguous run of atoms sharing the first atom's molecule-ID is taken as
     one molecule template (this determines ``cg_atom_count`` the same way
-    ``build_system()`` indexes CG atoms via ``cg_start = mol_idx * cg_atom_count``).
+    the hybrid builder numbers CG molecules).
     ``Bonds``/``Angles``/etc. sections, if present, are tolerated but not read:
     CG-CG bonded connectivity is configured via ``cross_interactions`` in the
     YAML settings for both CG formats, not from ``cg_system`` itself.
@@ -274,10 +274,9 @@ def parse_at_fragment(data_path: Path, script_path: Path) -> tuple[GroFile, Topo
     """Parse a LAMMPS-native AT fragment (``molecules[].source.format: lammps``).
 
     Unlike :func:`parse_cg_system`, the `data` file's ``Bonds``/``Angles``/
-    ``Dihedrals`` sections ARE read here: `builder.py` consumes
-    `at_mol.bonds`/`.angles`/`.dihedrals` directly to build the intra-bead
-    bond/angle/dihedral coefficients, unlike the CG side where the
-    equivalent sections are parsed but never consumed. Coefficients
+    ``Dihedrals`` sections ARE read here: `network.lammps_sources` writes
+    `at_mol.bonds`/`.angles`/`.dihedrals` into the fragment's GROMACS
+    topology for the hybrid builder. Coefficients
     themselves come from *script_path* (see
     :func:`parsers.lammps_script_parser.parse_at_fragment_script`) — a
     `data` file alone cannot supply them.
@@ -355,7 +354,7 @@ def parse_at_fragment(data_path: Path, script_path: Path) -> tuple[GroFile, Topo
             dihedral_rows.append(
                 (int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5]))
             )
-        # Impropers/Velocities: not read (builder.py has no AT-fragment improper handling).
+        # Impropers/Velocities: not read (no AT-fragment improper handling).
 
     if not masses:
         raise ValueError(
@@ -377,7 +376,7 @@ def parse_at_fragment(data_path: Path, script_path: Path) -> tuple[GroFile, Topo
 
     coeffs = parse_at_fragment_script(script_path)
 
-    # Namespaced distinctly from CG numeric type IDs ("1", "2", ...): builder.py
+    # Namespaced distinctly from CG numeric type IDs ("1", "2", ...): the hybrid builder
     # keys its shared `type_map` dict by this string across CG and AT atoms in
     # the same build, so an AT type and a CG type both named "1" would
     # otherwise silently collide and merge into one type.

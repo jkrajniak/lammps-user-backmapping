@@ -10,6 +10,9 @@ from typing import ClassVar
 import pytest
 
 from backmap_prep.cli import main
+from backmap_prep.parsers import parse_top
+from backmap_prep.schema import load_settings
+from backmap_prep.writers import read_input_with_includes
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "examples"
 
@@ -36,6 +39,9 @@ def example_workdir(request, tmp_path: Path) -> Path:
     ff_src = EXAMPLES_DIR / "forcefield"
     if ff_src.is_dir():
         shutil.copytree(ff_src, tmp_path / "forcefield", dirs_exist_ok=True)
+    epoxy_ff = EXAMPLES_DIR / "epoxy" / "forcefield"
+    if epoxy_ff.is_dir():
+        shutil.copytree(epoxy_ff, tmp_path / "epoxy" / "forcefield", dirs_exist_ok=True)
     return dst
 
 
@@ -100,6 +106,9 @@ class TestDeterministicOutput:
         ff_src = EXAMPLES_DIR / "forcefield"
         if ff_src.is_dir():
             shutil.copytree(ff_src, tmp_path / "forcefield", dirs_exist_ok=True)
+        epoxy_ff = EXAMPLES_DIR / "epoxy" / "forcefield"
+        if epoxy_ff.is_dir():
+            shutil.copytree(epoxy_ff, tmp_path / "epoxy" / "forcefield", dirs_exist_ok=True)
         run1 = tmp_path / "run1"
         run2 = tmp_path / "run2"
         shutil.copytree(src, run1)
@@ -271,3 +280,134 @@ class TestLammpsNativeAtFragmentParity:
         gromacs_in = self._normalize((gromacs_dir / "in.pe").read_text())
         lammps_in = (lammps_dir / "in.pe").read_text()
         assert gromacs_in == lammps_in
+
+
+def _build_example(workdir: Path) -> Path:
+    """Run backmap-prep in ``workdir`` and return the generated data file."""
+    settings_path = workdir / "settings.yaml"
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(workdir)
+        assert main([str(settings_path)]) == 0
+    finally:
+        os.chdir(old_cwd)
+    prefix = load_settings(settings_path).output.prefix
+    return workdir / f"{prefix}.data"
+
+
+def _read_hybrid(
+    path: Path,
+) -> tuple[list[float], dict[int, dict], dict[int, float], dict[str, list[list[int]]]]:
+    box: list[float] = []
+    masses: dict[int, float] = {}
+    cg_types: set[int] = set()
+    atoms: dict[int, dict] = {}
+    terms: dict[str, list[list[int]]] = {"Bonds": [], "Angles": [], "Dihedrals": []}
+    section = None
+    for line in path.read_text().splitlines():
+        body = line.split("#")[0].strip()
+        if not body:
+            continue
+        if line.strip().split("#")[0].strip() in (
+            "Masses",
+            "Atoms",
+            "Bonds",
+            "Angles",
+            "Dihedrals",
+            "Impropers",
+            "Velocities",
+        ):
+            section = body
+            continue
+        parts = body.split()
+        if len(parts) >= 4 and parts[2] in ("xlo", "ylo", "zlo"):
+            box.append(float(parts[1]) - float(parts[0]))
+        elif section == "Masses":
+            masses[int(parts[0])] = float(parts[1])
+            if "(CG)" in line:
+                cg_types.add(int(parts[0]))
+        elif section == "Atoms":
+            atoms[int(parts[0])] = {
+                "mol": int(parts[1]),
+                "type": int(parts[2]),
+                "x": [float(v) for v in parts[4:7]],
+                "cg": int(parts[2]) in cg_types,
+            }
+        elif section in terms:
+            terms[section].append([int(v) for v in parts[2:]])
+    return box, atoms, masses, terms
+
+
+class TestHybridInvariants:
+    """Properties every generated hybrid system must have (OpenSpec unify-hybrid-engine)."""
+
+    def test_every_bead_sits_on_its_fragment_com(self, example_workdir: Path) -> None:
+        box, atoms, masses, _ = _read_hybrid(_build_example(example_workdir))
+        by_mol: dict[int, list[dict]] = {}
+        for atom in atoms.values():
+            by_mol.setdefault(atom["mol"], []).append(atom)
+        worst = 0.0
+        for mol_atoms in by_mol.values():
+            beads = [a for a in mol_atoms if a["cg"]]
+            assert len(beads) == 1, "each molecule ID must hold one bead and its fragment"
+            (bead,) = beads
+            fragment = [a for a in mol_atoms if not a["cg"]]
+            total = sum(masses[a["type"]] for a in fragment)
+            shift = [0.0, 0.0, 0.0]
+            for a in fragment:
+                for k in range(3):
+                    d = a["x"][k] - bead["x"][k]
+                    d -= box[k] * round(d / box[k])
+                    shift[k] += masses[a["type"]] * d / total
+            worst = max(worst, sum(c * c for c in shift) ** 0.5)
+        assert worst < 0.01, f"a bead is {worst:.3f} A from its fragment COM"
+
+    def test_cg_bonded_terms_are_complete(self, example_workdir: Path) -> None:
+        settings = load_settings(example_workdir / "settings.yaml")
+        _, atoms, _, terms = _read_hybrid(_build_example(example_workdir))
+        found = {
+            name: sum(all(atoms[i]["cg"] for i in ids) for ids in entries)
+            for name, entries in terms.items()
+        }
+        n_cg = sum(a["cg"] for a in atoms.values())
+        n_beads = sum(len(mol.beads) for mol in settings.molecules)
+        n_mol = n_cg // n_beads
+        cg = settings.cg_system
+        assert cg is not None
+        if cg.format == "gromacs":
+            assert cg.topology is not None
+            top = parse_top(example_workdir / cg.topology, include_dirs=[example_workdir])
+            per_mol = {
+                "Bonds": sum(len(top.molecule_types[m].bonds) * n for m, n in top.molecules),
+                "Angles": sum(len(top.molecule_types[m].angles) * n for m, n in top.molecules),
+                "Dihedrals": sum(
+                    len(top.molecule_types[m].dihedrals) * n for m, n in top.molecules
+                ),
+            }
+            expected = per_mol
+        else:
+            ci = settings.cross_interactions
+            expected = {
+                "Bonds": n_mol * sum(len(e.pairs) for e in ci.bonds if e.cg_bonded),
+                "Angles": n_mol * sum(len(e.triples) for e in ci.angles if e.cg_bonded),
+                "Dihedrals": n_mol * sum(len(e.quadruples) for e in ci.dihedrals if e.cg_bonded),
+            }
+        assert found == expected
+
+
+@pytest.mark.parametrize("example_workdir", ["pe_10"], indirect=True)
+def test_lj_mixing_follows_source_combination_rule(example_workdir: Path) -> None:
+    """pe_10's AT topology uses comb-rule 3 (geometric sigma).
+
+    bakery writes no [ defaults ] into the hybrid topology, so the rule must
+    come from the AT source; it used to fall back to Lorentz-Berthelot.
+    """
+    data = _build_example(example_workdir)
+    script = read_input_with_includes(example_workdir / f"in.{data.stem}")
+    sigmas = {
+        float(line.split()[5])
+        for line in script.splitlines()
+        if line.startswith("pair_coeff") and " atomistic " in line
+    }
+    assert any(abs(s - (3.5 * 2.5) ** 0.5) < 1e-6 for s in sigmas), sorted(sigmas)
+    assert not any(abs(s - 3.0) < 1e-6 for s in sigmas), sorted(sigmas)

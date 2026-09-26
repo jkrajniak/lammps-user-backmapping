@@ -9,6 +9,79 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **MARTINI CG models.** `cg_system.nonbonded: {kind: martini, cutoff,
+  epsilon_r, epsilon_rf}` generates the CG-CG pair tables from the CG
+  topology (`[ nonbond_params ]`, bead charges) as GROMACS evaluates MARTINI:
+  LJ with potential-shift, reaction-field Coulomb. CG G96 angles (func 2)
+  become generated angle tables. `simulation.exclusion_nrexcl_cg` gives the
+  CG model its own exclusions (MARTINI nrexcl 1 with an AT force field at 3),
+  written as `special_bonds` plus `pair_style backmap ... cg_special`.
+  `[ nonbond_params ]` is parsed. The GROMACS energy check maps Urey-Bradley
+  angles and harmonic impropers, and resolves any `<name>.ff` include.
+  `simulation.table_points` sets LAMMPS's table interpolation (default 1000,
+  unchanged). GROMACS adds a reaction-field term for excluded charged pairs
+  and a self term in the Verlet scheme; the tables do not (on a POPC frame,
+  -69.8 kJ/mol of -70715, all but a constant shifting the NC3-PO4 bond length
+  by ~4e-4 nm).
+- **Example `popc_martini`**: MARTINI 3 POPC bilayer in MARTINI water ->
+  Slipids POPC + TIP3P (38 176 atoms). Third-party force-field files are
+  fetched at pinned commits with SHA-256 checks (`fetch_sources.sh`,
+  `SOURCES.md`).
+
+- **CHARMM-type terms in `backmap-prep`.** GROMACS angle func 5
+  (Urey-Bradley) -> `angle_style backmap/charmm`; dihedral func 4/9 ->
+  `dihedral_style backmap/fourier` (consecutive func-9 lines, in the topology
+  or in `[ dihedraltypes ]`, become one multi-term dihedral); improper func 2
+  -> `improper_style backmap/harmonic` (the data file now has an `Impropers`
+  section). func 2/4/9 types resolve by the most specific `[ dihedraltypes ]`
+  match, including middle wildcards (`X`). The AT-only force field maps them
+  to stock `charmm` / `fourier` / `harmonic`. Bonded types of the AT source
+  topologies are adopted when the hybrid topology lacks them. Needs the styles
+  of the CHARMM-type bonded styles PR.
+
+- **Generated force-field includes.** `backmap-prep build` writes
+  `<prefix>.ff.lmp` (styles, coefficients, special_bonds, groups) and
+  `<prefix>.backmap.lmp` (fix backmap, fix backmap/pairs), which `in.<prefix>`
+  includes; hand-written protocols include them instead of restating
+  coefficients. It also writes `<prefix>.at.ff.lmp`, the same force field as
+  plain LAMMPS styles for AT-only runs (1-4 terms via special_bonds).
+- **`backmap-prep at-system`** writes AT-only data files in that force field's
+  numbering: `--from <hybrid frame>` (CG beads removed) or `--reference N`
+  (independent reference: N template molecules on a lattice, expanded box).
+  Replaces the per-example `extract_at_frame.py` / `build_at_reference.py`.
+
+### Changed
+
+- **One hybrid builder for every system (breaking).** `backmap-prep build`,
+  `rebuild` and `cg-only` use the same builder for linear melts and networks;
+  the former linear builder is removed. `prep.engine` is deprecated and
+  ignored, `hybrid` is optional with defaults, and `molecules[].name` must
+  equal the CG residue name. LAMMPS-format `cg_system` and AT fragments are
+  converted to GROMACS files internally. Outputs go to the settings file's
+  directory; `prep.data_dir` is only read. See the OpenSpec change
+  `unify-hybrid-engine`.
+
+### Added
+- **`fix backmap ... peratom full`**: per-atom array with lambda, the bead
+  position (COM) and the CG force share each AT atom received (beads: their
+  CG force), for static decomposition-parity tests. Default output unchanged.
+
+- **`pair_style backmap ... cg_special w12 w13 w14`** and special-bond
+  factors in general. The pair style evaluated every listed pair at factor 1,
+  correct only because generated inputs exclude 1-2..1-4 fully; it now passes
+  the `special_bonds` factors to its sub-styles, and `cg_special` sets
+  separate weights for CG-CG pairs (bakery's `exclusion_cg`), e.g. a MARTINI
+  CG model at nrexcl = 1 with an AT force field at nrexcl = 3. Results of the
+  existing examples (`special_bonds` 0 0 0) are unchanged.
+
+- **CHARMM-type bonded styles.** `angle_style backmap/charmm` (harmonic +
+  Urey-Bradley), `dihedral_style backmap/fourier` (multi-term periodic with
+  arbitrary phase) and `improper_style backmap/harmonic`, with the usual
+  lambda weighting, restart and `write_data`. Kernels are the stock LAMMPS
+  `angle charmm`, `dihedral fourier` and `improper harmonic`; tests check equality
+  with them times the weight (energies and forces). Needed for CHARMM36/Slipids
+  lipids (MARTINI 3 POPC example) and requested in review (impropers).
+
 - **`cg_system.format: lammps`**: the CG side of `backmap-prep` can now be
   supplied as a native LAMMPS `data` file (box, `Masses`, `Atoms # full`)
   instead of GROMACS `.gro`/`.top`. No unit conversion is applied (the file
@@ -29,6 +102,109 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   or GROMACS-virtual-site AT fragments.
 
 ### Fixed
+
+- **Defects of the removed linear builder**, which built every dodecane and
+  polyethylene example: AT fragments were placed relative to the first atom of
+  the whole template molecule instead of with their COM on the bead (PE: 34 A
+  median bead-to-COM distance; the CG configuration collapsed at the first
+  step), all CG angles and dihedrals were dropped, and the GROMACS function
+  code of cross-bead RB dihedrals was read as C0.
+- **LJ mixing** follows the AT topology's combination rule (taken from the AT
+  source when the hybrid topology has no `[ defaults ]`); it was always
+  Lorentz-Berthelot. Rule 1 (C6/C12) is converted before mixing.
+- **Missing AT LJ parameters** for settings-driven builds (the hybrid topology
+  lists only CG types; AT types now come from the source topologies).
+- **Angle/dihedral table fallback force per degree.** When an `.xvg` angle or
+  dihedral table has no usable force column, the converter differentiated
+  the energy per radian, while LAMMPS expects per degree (57x off). No
+  committed table takes this path; generated tables (MARTINI G96 angles) will.
+- **Bonds and angles are converted by GROMACS function type.** Any bond or
+  angle with two or more parameters was written as harmonic whatever its
+  function, so e.g. MARTINI G96 angles (func 2) or Urey-Bradley angles
+  (func 5) would have been converted wrongly without error. Only func 1
+  (harmonic) and 8 (table) are converted; others are an error.
+- **Charges keep the topology's precision** in the data file (10 significant
+  digits; they were rounded to 6 decimals). The rounding left RIM135 with a
+  net charge of -0.0027 e instead of ~0 and shifted its Coul-14 by
+  0.12 kJ/mol against GROMACS.
+- **kJ -> kcal** is exactly 1/4.184 (was 0.239006); force-field coefficients
+  are written with 10 significant digits.
+- **Communication cutoff** from minimum-image extents; it used folded
+  coordinates and reached 85-101 A for systems with bonds across the box.
+- **1-4 pairs come from the bond graph.** When the force field uses 1-4
+  pairs, every AT pair exactly three bonds apart is written to `pairs.dat`
+  once, with the 1-4 Coulomb scale (needs the matching `fix backmap/pairs`).
+  Listed `[ pairs ]` / `[ cross_pairs ]` lines only supply explicit
+  parameters; the rest are generated as with GROMACS `gen-pairs`. bakery's
+  network lists were incomplete and duplicated (PET: 34748 listed against
+  48000 topological, 2000 duplicates; RIM135: 32073 against 35612, plus 472
+  pairs that are not 1-4). Force fields without `[ pairs ]` (united-atom
+  alkanes) keep none. The generated `fix backmap/pairs` line has no cutoff.
+- **Examples**: every large PE variant now has 75 chains (10 chains sat in the
+  75-chain box); CG angle and dihedral tables and topology sections restored
+  from the JCTC 2016 data; melamine and pe_aa include the OPLS-AA force field
+  (melamine had comb-rule 2 and sigma(N) 0.325 nm, not bakery's 3 and 0.33 nm).
+
+- **Inconsistent image flags in `backmap-prep` data files for melts**: the
+  bond-tree image-flag assignment (`network/pbc.py`) walked the bond graph
+  from the lowest atom ID only, so it covered one connected component. Every
+  other molecule, and the AT chain of each hybrid molecule (not bonded to
+  its CG chain), kept per-atom flags. With intra-bead bonds listed before
+  cross-bead bonds, the 8 relaxation passes in the per-molecule unwrap did not
+  repair them. Bonded atoms a bond length apart in the cell then carried flags
+  one box vector apart: LAMMPS warned "Inconsistent image flags", unwrapped
+  analysis saw 60 Å bonds, and multi-rank runs could lose bond partners.
+  Both walks now cover every component. The existing checks used
+  minimum-image lengths and could not see this; the new test checks
+  flag-unwrapped lengths.
+- **`fix backmap` COM update no longer depends on fix order.** It ran in
+  `initial_integrate()`, so with `fix backmap` defined before the
+  integration fix (as in the generated robust protocol, which redefines its
+  integrators at every stage) the beads followed the AT positions of the
+  previous step. It now runs in `post_integrate()`.
+
+- **`fix backmap` distributes the CG forces at setup.** `setup()` did not
+  call `post_force()`, so after the force evaluation that opens every run
+  (and `run 0`) the CG forces stayed on the beads and the AT atoms got none;
+  the first velocity half-kick of each `run` missed them. Affects only the
+  first step of runs where CG forces are active (e.g. the start of a ramp).
+
+- **`fix backmap/pairs` has no cutoff by default.** 1-4 pairs are bonded
+  terms, but the fix skipped any pair beyond the pair-style cutoff (12 Å in
+  the examples). In freshly built network frames 77 of 35612 RIM135 1-4
+  pairs are longer than that, so their LJ and Coulomb terms were dropped
+  (Coul-14 off by 5% against GROMACS, which applies no cutoff). `cut` is now
+  opt-in. A pair whose partner is not present on the owning rank is an error
+  instead of being skipped silently.
+- **`fix backmap/pairs`: 1-4 Coulomb, energy output, setup, minimization and
+  MPI.** The fix applied 1-4 LJ only, so with `special_bonds coul 0 0 0`
+  the scaled 1-4 electrostatics (GROMACS `fudgeQQ`) were absent. It now
+  takes an optional fifth pairs-file column, the 1-4 Coulomb scale. It
+  reported no energy or virial; it now contributes both (scalar: total,
+  vector: LJ-14, Coulomb-14), counted in `pe` and pressure by default. It had
+  no `setup()` or `min_post_force()`, so its forces were missing from the
+  first force evaluation of every run (including `run 0`) and from all
+  minimizations. With `newton_pair on` it added forces to ghost atoms after
+  the reverse communication, so the force on a partner owned by another
+  rank was lost; every rank now evaluates each pair it owns an atom of and
+  applies the force to its own atoms. Regression tests:
+  `python/tests/test_lammps_pairs.py` (needs `BACKMAP_LMP`).
+
+- **`write_data` left empty coefficient sections** for `bond_style
+  backmap/harmonic`, `angle_style backmap/harmonic`, `dihedral_style
+  backmap/harmonic`, `dihedral_style backmap/ryckaert` and `dihedral_style
+  ryckaert`, which then made `read_data` fail ("Unexpected empty line in
+  AngleCoeffs section"). These styles now implement `write_data()`.
+  `backmap/table` bond and angle styles no longer write a section at all,
+  as for stock `bond_style table`. Regression tests:
+  `python/tests/test_lammps_write_data.py` (needs `BACKMAP_LMP`).
+- **`pair_style backmap` reported twice the pair energy**: `PairBackmap::compute()`
+  added each weighted pair energy to `eng_vdwl`/`eatom` by hand and then again
+  through `ev_tally()`. Forces and the virial were always correct, so
+  trajectories, structures and pressures are unaffected; every reported pair
+  energy (`evdwl`, `pe`, `etotal`, `compute pe/atom`) was inflated by the pair
+  term. Regression test: `python/tests/test_lammps_energy.py` (needs
+  `BACKMAP_LMP`).
 
 - **`build_network_lammps` under-sized `comm_modify cutoff` for crosslinked
   networks**: `build_system_from_hybrid` (the code path behind `backmap-prep

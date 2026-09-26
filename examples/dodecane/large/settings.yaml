@@ -87,6 +87,7 @@ cross_interactions:
         - [DOD:C10, DOD:C11, DOD:C12]
 
 simulation:
+  protocol: robust
   alpha: 0.0001
   initial_resolution: 0.0
 

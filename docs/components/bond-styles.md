@@ -158,6 +158,10 @@ fix at each timestep.
 ## Restart
 
 Bond coefficients (K, r0, is_cg) are written to and read from restart files.
+`write_data` writes `backmap/harmonic` coefficients in `bond_coeff` order
+(`N at|cg K r0`), so the data file can be read back directly.
+`backmap/table` coefficients name an external table file and are not
+written; give `bond_coeff` again after `read_data`, as for `bond_style table`.
 
 ## Related
 

@@ -3,6 +3,10 @@
 # CG interactions: tabulated bonds
 # AT interactions: OPLS/AA
 
+prep:
+  # OPLS-AA force field included by topol_aa.top
+  forcefield_dir: ../epoxy/forcefield
+
 molecules:
 - name: MF
   ident: MF
