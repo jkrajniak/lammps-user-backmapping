@@ -38,6 +38,16 @@ run             100000
 # Production: RDFs CH3-CH3, CH3-CH2, CH2-CH2, 25 blocks of 200 ps
 compute         rdf_ref all rdf 200 1 1 1 2 2 2
 fix             rdf_out all ave/time 100 2000 200000 c_rdf_ref[*] file rdf_reference.dat mode vector
+# Trajectory every 10 ps; angle and dihedral distributions per 200 ps block
+dump            traj all dcd 10000 traj_reference.dcd
+dump_modify     traj unwrap yes
+compute         ang all angle/local theta
+compute         dih all dihedral/local phi
+fix             ang_hist all ave/histo 100 2000 200000 0.0 180.0 180 c_ang mode vector kind local file angle_hist_reference.dat
+fix             dih_hist all ave/histo 100 2000 200000 -180.0 180.0 360 c_dih mode vector kind local file dihedral_hist_reference.dat
 run             ${prod_steps}
 unfix           rdf_out
+unfix           ang_hist
+unfix           dih_hist
+undump          traj
 write_data      pe_at_ref_final.data
