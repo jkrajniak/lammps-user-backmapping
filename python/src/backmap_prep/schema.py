@@ -201,9 +201,27 @@ class MoleculeDef(BaseModel):
         return data
 
 
+class CGNonbonded(BaseModel):
+    """CG non-bonded force field generated as pair tables from the CG topology.
+
+    ``martini``: LJ from ``[ nonbond_params ]`` (or ``[ atomtypes ]`` with the
+    combination rule) and reaction-field Coulomb from the bead charges, both
+    evaluated as GROMACS does with the MARTINI settings (cut-off ``cutoff``,
+    LJ potential-shift, ``epsilon_r``, ``epsilon_rf``; 0 means infinity).
+    """
+
+    kind: Literal["martini"] = "martini"
+    cutoff: float = 1.1  # nm
+    epsilon_r: float = 15.0
+    epsilon_rf: float = 0.0
+    vdw_modifier: Literal["potential-shift", "none"] = "potential-shift"
+    spacing: float = 0.002  # nm, table grid
+
+
 class CGSystem(BaseModel):
     """CG configuration files."""
 
+    nonbonded: CGNonbonded | None = None
     coordinates: str | None = None
     topology: str | None = None
     data: str | None = None
@@ -404,6 +422,9 @@ class SimulationParams(BaseModel):
     table_groups: list[str] = Field(default_factory=list)
 
     exclusion_nrexcl: int = 3
+    # CG exclusions when they differ from the AT ones (bakery `exclusion_cg`),
+    # e.g. 1 for MARTINI with an AT force field at 3.
+    exclusion_nrexcl_cg: int | None = None
 
     energy_interval: int = 1000
     trajectory_interval: int = 1000
@@ -484,6 +505,12 @@ class Settings(BaseModel):
                 raise ValueError("prep requires prep.bakery_xml or molecule definitions")
             if self.cg_system is None:
                 raise ValueError("prep requires cg_system")
+        nb = self.cg_system.nonbonded if self.cg_system else None
+        if nb is not None and abs(self.simulation.cg_cutoff - nb.cutoff) > 1e-9:
+            raise ValueError(
+                f"simulation.cg_cutoff ({self.simulation.cg_cutoff} nm) must equal "
+                f"cg_system.nonbonded.cutoff ({nb.cutoff} nm): the CG pair tables end there"
+            )
         if self.simulation.two_phase:
             raise ValueError(
                 "Feature 'two_phase' backmapping is not yet implemented (planned for Phase 2)"

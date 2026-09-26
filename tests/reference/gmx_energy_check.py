@@ -34,8 +34,9 @@ REPORTED = ["Coulomb (SR)"]
 TERMS = {
     # LAMMPS thermo keyword -> GROMACS energy term(s), summed
     "ebond": ["Bond"],
-    "eangle": ["Angle"],
-    "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Improper Dih."],
+    "eangle": ["Angle", "U-B"],
+    "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Per. Imp. Dih."],
+    "eimp": ["Improper Dih."],
     "evdwl": ["LJ (SR)"],
     "lj14": ["LJ-14"],
     "coul14": ["Coulomb-14"],
@@ -182,8 +183,8 @@ def hybrid_to_at_top(hyb_top: Path, out: Path) -> tuple[list[int], str]:
 
     Keeps atoms whose type is not a virtual (CG) type, renumbered in order;
     merges [ x ] and [ cross_x ] for bonds, angles, dihedrals and pairs, keeping
-    terms whose atoms are all AT. The force-field #include is reduced to
-    ``oplsaa.ff/forcefield.itp`` (resolved with --include-dir). Returns the
+    terms whose atoms are all AT. A force-field #include is reduced to
+    ``<name>.ff/<file>`` (resolved with --include-dir). Returns the
     hybrid indices of the AT atoms (1-based, in order) and the molecule name.
     """
     sections: dict[str, list[str]] = {}
@@ -194,9 +195,8 @@ def hybrid_to_at_top(hyb_top: Path, out: Path) -> tuple[list[int], str]:
         stripped = line.split(";")[0].strip()
         if stripped.startswith("#include"):
             name = stripped.split()[1].strip('"')
-            includes.append(
-                f'#include "oplsaa.ff/{Path(name).name}"' if "oplsaa.ff" in name else stripped
-            )
+            ff_dir = next((part for part in Path(name).parts if part.endswith(".ff")), None)
+            includes.append(f'#include "{ff_dir}/{Path(name).name}"' if ff_dir else stripped)
             continue
         m = re.match(r"^\[\s*(\w+)\s*\]", stripped)
         if m:
@@ -468,9 +468,9 @@ def lammps_energies(
     lj14 = f"$(f_{pairs_id}[1]:%.12e)" if pairs_id else "0.0"
     coul14 = f"$(f_{pairs_id}[2]:%.12e)" if pairs_id else "0.0"
     lines += [
-        "thermo_style custom step ebond eangle edihed evdwl ecoul",
+        "thermo_style custom step ebond eangle edihed eimp evdwl ecoul",
         "run 0",
-        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) '
+        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) eimp=$(eimp:%.12e) '
         f'evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e) lj14={lj14} coul14={coul14}"',
     ]
     (input_path.parent / "in.check").write_text("\n".join(lines) + "\n")
@@ -497,9 +497,9 @@ def at_only_energies(
         f"read_data {at_data.resolve()}",
         f"include {at_ff.resolve()}",
         *(["set group all charge 0.0"] if zero_charges else []),
-        "thermo_style custom step ebond eangle edihed evdwl ecoul",
+        "thermo_style custom step ebond eangle edihed eimp evdwl ecoul",
         "run 0",
-        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) '
+        'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) eimp=$(eimp:%.12e) '
         'evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e)"',
     ]
     (workdir / "in.at_check").write_text("\n".join(lines) + "\n")
@@ -624,8 +624,9 @@ def main() -> int:
         # special_bonds puts the 1-4 terms into evdwl/ecoul of the AT-only run
         at_terms = {
             "ebond": ["Bond"],
-            "eangle": ["Angle"],
-            "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Improper Dih."],
+            "eangle": ["Angle", "U-B"],
+            "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Per. Imp. Dih."],
+            "eimp": ["Improper Dih."],
             "evdwl": ["LJ (SR)", "LJ-14"],
         }
         print("AT-only force field (at-system data + .at.ff.lmp):")

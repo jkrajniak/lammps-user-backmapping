@@ -254,6 +254,35 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     }
 
 
+# special_bonds factor that keeps a pair in the neighbor list but counts as
+# excluded in pair_style backmap (below its 1e-30 threshold)
+_SPECIAL_TINY = "1.0e-100"
+
+
+def _special_weights(nrexcl: int) -> list[str]:
+    return ["0.0" if level <= nrexcl else "1.0" for level in (1, 2, 3)]
+
+
+def _special_bonds_split(nrexcl_at: int, nrexcl_cg: int) -> str:
+    """special_bonds for AT exclusions; CG pairs get theirs through cg_special.
+
+    A level the AT side excludes but the CG side keeps gets a tiny nonzero
+    factor, so LAMMPS keeps the pair in the neighbor list for cg_special.
+    """
+    at, cg = _special_weights(nrexcl_at), _special_weights(nrexcl_cg)
+    factors = [
+        _SPECIAL_TINY if a == "0.0" and c == "1.0" else a for a, c in zip(at, cg, strict=True)
+    ]
+    joined = " ".join(factors)
+    return f"special_bonds lj {joined} coul {joined}\n\n"
+
+
+def _cg_special(sim: SimulationParams) -> str:
+    if sim.exclusion_nrexcl_cg is None or sim.exclusion_nrexcl_cg == sim.exclusion_nrexcl:
+        return ""
+    return " cg_special " + " ".join(_special_weights(sim.exclusion_nrexcl_cg))
+
+
 def _format_dihedral_coeff(dihtype: DihedralTypeInfo, dihedral_styles: list[str]) -> str:
     hybrid = len(dihedral_styles) > 1
     if dihtype.style == "ryckaert":
@@ -379,7 +408,7 @@ def _write_forcefield(
     f.write(
         f"pair_style backmap {params['lj_cut_ang']:.2f} lj/cut/coul/cut "
         f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f} "
-        f"{params['cg_cut_ang']:.2f} table linear 1000\n"
+        f"{params['cg_cut_ang']:.2f} table linear 1000{_cg_special(sim)}\n"
     )
     for pt in system.pair_types:
         if pt.kind == "atomistic":
@@ -508,7 +537,9 @@ def _write_forcefield(
 
     # Special bonds (exclusions)
     nrexcl = sim.exclusion_nrexcl
-    if nrexcl >= 3:
+    if sim.exclusion_nrexcl_cg is not None and sim.exclusion_nrexcl_cg != nrexcl:
+        f.write(_special_bonds_split(nrexcl, sim.exclusion_nrexcl_cg))
+    elif nrexcl >= 3:
         f.write("special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0\n\n")
     elif nrexcl == 2:
         f.write("special_bonds lj 0.0 0.0 1.0 coul 0.0 0.0 1.0\n\n")

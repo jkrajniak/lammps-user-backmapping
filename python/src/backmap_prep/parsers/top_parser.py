@@ -111,6 +111,8 @@ class Topology:
     angletypes: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
     # [ angletypes ] func 5 (Urey-Bradley): theta0, k_theta, r13, k_UB
     angletypes_ub: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
+    # [ nonbond_params ] func 1: (type_i, type_j) -> (c6/sigma, c12/epsilon) as written
+    nonbond_params: dict[tuple[str, str], tuple[float, float]] = field(default_factory=dict)
     _last_dihedraltype: tuple[str, str, str, str, int] | None = None
 
 
@@ -198,6 +200,12 @@ def _parse_file(
 
         elif section == "dihedraltypes":
             _parse_dihedraltype(tokens, top)
+
+        elif section == "nonbond_params":
+            if len(tokens) >= 5 and tokens[2] == "1":
+                values = (float(tokens[3]), float(tokens[4]))
+                top.nonbond_params[(tokens[0], tokens[1])] = values
+                top.nonbond_params[(tokens[1], tokens[0])] = values
 
         elif section == "bondtypes":
             if len(tokens) >= 5 and tokens[2] == "1":

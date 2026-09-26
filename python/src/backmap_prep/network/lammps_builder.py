@@ -21,6 +21,8 @@ from backmap_prep.builder import (
     PairTypeInfo,
     System,
 )
+from backmap_prep.martini import cg_type_charges, g96_angle_xvg, pair_xvg, write_if_changed
+from backmap_prep.martini import lj_sigma_epsilon as martini_lj
 from backmap_prep.network.pbc import prepare_network_coordinates, validate_bond_geometry
 from backmap_prep.parsers import parse_gro, parse_top
 from backmap_prep.parsers.top_parser import (
@@ -923,6 +925,15 @@ def _angle_terms(
                 params = [0.0, 0.0]
             else:
                 params = _angletype_params(topology, (atom_i, atom_j, atom_k))
+        elif angle.func == 2 and is_cg_angle and len(angle.params) >= 2:
+            # G96 (MARTINI): E = 1/2 k (cos theta - cos theta0)^2, as a generated table
+            style = "backmap/table"
+            keyword = "cg"
+            params = []
+            theta0, k_g96 = angle.params[0], angle.params[1]
+            xvg_name = f"martini_g96_{theta0:g}_{k_g96:g}.xvg"
+            write_if_changed(search_dirs[0] / xvg_name, g96_angle_xvg(theta0, k_g96))
+            table_file = _register_angle_table(system, xvg_name, search_dirs)
         elif angle.func == 5:
             style = "backmap/charmm"
             params = _urey_bradley_params(topology, angle, (atom_i, atom_j, atom_k))
@@ -930,7 +941,7 @@ def _angle_terms(
             raise ValueError(
                 f"Unsupported angle func {angle.func} for atoms "
                 f"{atom_i.name}-{atom_j.name}-{atom_k.name} "
-                "(supported: 1 harmonic, 5 Urey-Bradley, 8 table)"
+                "(supported: 1 harmonic, 2 G96 for CG, 5 Urey-Bradley, 8 table)"
             )
         elif len(angle.params) >= 2:
             params = [units.spring_angle(angle.params[1]), angle.params[0]]
@@ -1055,6 +1066,34 @@ def _resolve_pair_tables(
             if (xvg_name, table_out) not in system.pair_table_files:
                 system.pair_table_files.append((xvg_name, table_out))
             break
+
+
+def _martini_pair_tables(
+    system: System, settings: Settings, base_dir: Path, search_dirs: list[Path]
+) -> None:
+    """CG-CG pair tables generated from the CG topology (``cg_system.nonbonded``)."""
+    cg = settings.cg_system
+    assert cg is not None and cg.nonbonded is not None and cg.topology
+    cg_top_path = Path(cg.topology) if Path(cg.topology).is_absolute() else base_dir / cg.topology
+    cg_top = parse_top(cg_top_path, include_dirs=[cg_top_path.parent, base_dir])
+    charges = cg_type_charges(cg_top)
+    for pair_type in system.pair_types:
+        if pair_type.kind != "cg":
+            continue
+        name_i = system.atom_types[pair_type.itype - 1].name
+        name_j = system.atom_types[pair_type.jtype - 1].name
+        sigma, epsilon = martini_lj(cg_top, name_i, name_j)
+        text = pair_xvg(
+            sigma, epsilon, charges.get(name_i, 0.0), charges.get(name_j, 0.0), cg.nonbonded
+        )
+        a, b = sorted((name_i, name_j))
+        xvg_name = f"martini_{a}_{b}.xvg"
+        write_if_changed(search_dirs[0] / xvg_name, text)
+        table_out = Path(xvg_name).stem + ".table"
+        pair_type.table_file = table_out
+        pair_type.table_keyword = "ENTRY"
+        if (xvg_name, table_out) not in system.pair_table_files:
+            system.pair_table_files.append((xvg_name, table_out))
 
 
 def _pair_terms(atom_types: list[AtomTypeInfo], combination_rule: int) -> list[PairTypeInfo]:
@@ -1288,6 +1327,8 @@ def build_system_from_hybrid(
     system.fudge_lj, system.fudge_qq = top_file.fudge_lj, top_file.fudge_qq
     system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
     _resolve_pair_tables(system, settings, search_dirs)
+    if settings.cg_system is not None and settings.cg_system.nonbonded is not None:
+        _martini_pair_tables(system, settings, base_dir, search_dirs)
     system.has_cross_bonds = any(bond_type.keyword == "at" for bond_type in system.bond_types)
     system.has_cross_angles = any(angle_type.keyword == "at" for angle_type in system.angle_types)
     system.has_cross_dihedrals = any(

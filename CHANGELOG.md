@@ -9,6 +9,16 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **MARTINI CG models.** `cg_system.nonbonded: {kind: martini, cutoff,
+  epsilon_r, epsilon_rf}` generates the CG-CG pair tables from the CG
+  topology (`[ nonbond_params ]`, bead charges) as GROMACS evaluates MARTINI:
+  LJ with potential-shift, reaction-field Coulomb. CG G96 angles (func 2)
+  become generated angle tables. `simulation.exclusion_nrexcl_cg` gives the
+  CG model its own exclusions (MARTINI nrexcl 1 with an AT force field at 3),
+  written as `special_bonds` plus `pair_style backmap ... cg_special`.
+  `[ nonbond_params ]` is parsed. The GROMACS energy check maps Urey-Bradley
+  angles and harmonic impropers, and resolves any `<name>.ff` include.
+
 - **CHARMM-type terms in `backmap-prep`.** GROMACS angle func 5
   (Urey-Bradley) -> `angle_style backmap/charmm`; dihedral func 4/9 ->
   `dihedral_style backmap/fourier` (consecutive func-9 lines, in the topology
