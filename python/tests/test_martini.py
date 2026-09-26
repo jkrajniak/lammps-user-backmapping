@@ -41,8 +41,10 @@ def test_pair_table_matches_gromacs_formulas_and_vanishes_at_cutoff() -> None:
     assert rows[-1][1] == pytest.approx(0.0, abs=1e-8)
     # force column = -dV/dr (fine-step derivative of the analytic potential)
     h = 1e-6
-    for k in range(200, 540, 37):
-        r = rows[k][0]
+    assert rows[0][0] == pytest.approx(0.236)  # table starts at sigma / 2
+    for r_probe in (0.3, 0.42, 0.55, 0.8, 1.05):
+        r = next(row[0] for row in rows if row[0] >= r_probe)
+        k = next(i for i, row in enumerate(rows) if row[0] == r)
         assert rows[k][2] == pytest.approx(-(v(r + h) - v(r - h)) / (2 * h), rel=1e-7)
 
 

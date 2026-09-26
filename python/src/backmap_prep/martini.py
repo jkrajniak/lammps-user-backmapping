@@ -86,12 +86,15 @@ def pair_xvg(sigma: float, epsilon: float, q_i: float, q_j: float, nb: CGNonbond
 
     shift = lj(rc)[0] if nb.vdw_modifier == "potential-shift" else 0.0
     n = round(rc / nb.spacing)
+    # Start at half sigma (V ~ 1e4 eps): below it the converter adds its capped
+    # wall; a table reaching r -> 0 holds energies of ~1e29 kJ/mol.
+    first = max(1, math.ceil(0.5 * sigma / nb.spacing)) if sigma > 0.0 else 1
     lines = [
         f"# MARTINI pair table: sigma={sigma:.10g} nm epsilon={epsilon:.10g} kJ/mol "
         f"qi={q_i:g} qj={q_j:g} rc={rc:g} eps_r={nb.epsilon_r:g} eps_rf={nb.epsilon_rf:g} "
         f"vdw-modifier={nb.vdw_modifier}",
     ]
-    for step in range(1, n + 1):
+    for step in range(first, n + 1):
         r = step * nb.spacing
         v_lj, f_lj = lj(r)
         v = v_lj - shift + qq * (1.0 / r + k_rf * r * r - c_rf)
