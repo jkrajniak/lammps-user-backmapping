@@ -24,3 +24,10 @@ relaxed_check.data
 in.check
 in.relax_check
 log.*
+# Tier B outputs
+popc_hybrid.data
+popc_final.data
+dump.backmap
+at_backmapped.gro
+at_continue/
+in.popc_run0

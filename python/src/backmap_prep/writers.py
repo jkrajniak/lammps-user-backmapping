@@ -737,8 +737,8 @@ def _write_robust_protocol(
     f.write("compute at_temp at_atoms temp\n")
     f.write(f"thermo {sim.energy_interval}\n")
     f.write(
-        "thermo_style custom step temp pe ke etotal ebond eangle edihed evdwl ecoul"
-        f"{pairs} press f_bm\n"
+        "thermo_style custom step temp pe ke etotal ebond eangle edihed"
+        f"{' eimp' if system.impropers else ''} evdwl ecoul{pairs} press f_bm\n"
     )
     f.write("thermo_modify colname f_bm lambda temp at_temp\n\n")
     f.write(f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n")

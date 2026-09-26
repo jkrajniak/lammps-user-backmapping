@@ -1,0 +1,12 @@
+; Slipids POPC + TIP3P for the GROMACS continuation of the backmapped frame
+; (same force field and settings as the independent AT reference).
+#include "amber99sb-ildn_slipids.ff/forcefield.itp"
+#include "POPC.itp"
+#include "tip3p.itp"
+
+[ system ]
+Backmapped MARTINI 3 POPC bilayer
+
+[ molecules ]
+POPC 128
+SOL  7008
