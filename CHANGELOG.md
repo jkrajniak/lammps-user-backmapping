@@ -9,6 +9,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`fix backmap ... peratom full`**: per-atom array with lambda, the bead
+  position (COM) and the CG force share each AT atom received (beads: their
+  CG force), for static decomposition-parity tests. Default output unchanged.
+
 - **`pair_style backmap ... cg_special w12 w13 w14`** and special-bond
   factors in general. The pair style evaluated every listed pair at factor 1,
   correct only because generated inputs exclude 1-2..1-4 fully; it now passes
@@ -45,6 +49,12 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   or GROMACS-virtual-site AT fragments.
 
 ### Fixed
+
+- **`fix backmap` distributes the CG forces at setup.** `setup()` did not
+  call `post_force()`, so after the force evaluation that opens every run
+  (and `run 0`) the CG forces stayed on the beads and the AT atoms got none;
+  the first velocity half-kick of each `run` missed them. Affects only the
+  first step of runs where CG forces are active (e.g. the start of a ramp).
 
 - **`fix backmap/pairs` has no cutoff by default.** 1-4 pairs are bonded
   terms, but the fix skipped any pair beyond the pair-style cutoff (12 Å in

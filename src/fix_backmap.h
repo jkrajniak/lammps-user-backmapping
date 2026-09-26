@@ -73,6 +73,11 @@ class FixBackmap : public Fix {
                            // dump/thermo output only -- not read by any
                            // interaction style
   double lambda_global;    // single authoritative global lambda scalar
+
+  // `peratom full`: per-atom array (lambda, bead position x/y/z, CG force
+  // x/y/z) instead of the lambda vector; filled in post_force().
+  int peratom_full;
+  double **peratom_array;
   int maxatom;
 
   // MPI-correct partner map and communication scratch
