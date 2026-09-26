@@ -1,0 +1,247 @@
+# MARTINI 3 POPC bilayer in MARTINI water -> Slipids POPC + TIP3P
+# CG: MARTINI 3.0.0 (12-bead POPC, W = 4 waters), pair tables generated
+#     from the CG topology (LJ potential-shift + reaction field, eps_r 15).
+# AT: Slipids (amber99sb-ildn_slipids.ff), TIP3P, flexible during backmapping.
+# Mapping: CG2AT martini_3-0_slipids fragments. Run fetch_sources.sh first.
+
+molecules:
+  - name: POPC
+    ident: POPC
+    source:
+      coordinates: popc_single.gro
+      topology: topol_popc.top
+    beads:
+      - name: NC3
+        type: Q1
+        atoms:
+          - 1:POPC:N
+          - 1:POPC:C12
+          - 1:POPC:H12A
+          - 1:POPC:H12B
+          - 1:POPC:C13
+          - 1:POPC:H13A
+          - 1:POPC:H13B
+          - 1:POPC:H13C
+          - 1:POPC:C14
+          - 1:POPC:H14A
+          - 1:POPC:H14B
+          - 1:POPC:H14C
+          - 1:POPC:C15
+          - 1:POPC:H15A
+          - 1:POPC:H15B
+          - 1:POPC:H15C
+          - 1:POPC:C11
+          - 1:POPC:H11A
+          - 1:POPC:H11B
+      - name: PO4
+        type: Q5
+        atoms:
+          - 1:POPC:P
+          - 1:POPC:O13
+          - 1:POPC:O14
+          - 1:POPC:O12
+          - 1:POPC:O11
+      - name: GL1
+        type: SN4a
+        atoms:
+          - 1:POPC:C1
+          - 1:POPC:HA
+          - 1:POPC:HB
+          - 1:POPC:C2
+          - 1:POPC:HS
+          - 1:POPC:O21
+          - 1:POPC:C21
+          - 1:POPC:O22
+          - 1:POPC:C22
+          - 1:POPC:H2R
+          - 1:POPC:H2S
+      - name: GL2
+        type: N4a
+        atoms:
+          - 1:POPC:C3
+          - 1:POPC:HX
+          - 1:POPC:HY
+          - 1:POPC:O31
+          - 1:POPC:C31
+          - 1:POPC:O32
+          - 1:POPC:C32
+          - 1:POPC:H2X
+          - 1:POPC:H2Y
+      - name: C1A
+        type: C1
+        atoms:
+          - 1:POPC:C23
+          - 1:POPC:H3R
+          - 1:POPC:H3S
+          - 1:POPC:C24
+          - 1:POPC:H4R
+          - 1:POPC:H4S
+          - 1:POPC:C25
+          - 1:POPC:H5R
+          - 1:POPC:H5S
+          - 1:POPC:C26
+          - 1:POPC:H6R
+          - 1:POPC:H6S
+          - 1:POPC:C27
+          - 1:POPC:H7R
+          - 1:POPC:H7S
+      - name: D2A
+        type: C4h
+        atoms:
+          - 1:POPC:C28
+          - 1:POPC:H8R
+          - 1:POPC:H8S
+          - 1:POPC:C29
+          - 1:POPC:H91
+          - 1:POPC:C210
+          - 1:POPC:H101
+          - 1:POPC:C211
+          - 1:POPC:H11R
+          - 1:POPC:H11S
+      - name: C3A
+        type: C1
+        atoms:
+          - 1:POPC:C212
+          - 1:POPC:H12R
+          - 1:POPC:H12S
+          - 1:POPC:C213
+          - 1:POPC:H13R
+          - 1:POPC:H13S
+          - 1:POPC:C214
+          - 1:POPC:H14R
+          - 1:POPC:H14S
+      - name: C4A
+        type: C1
+        atoms:
+          - 1:POPC:C215
+          - 1:POPC:H15R
+          - 1:POPC:H15S
+          - 1:POPC:C216
+          - 1:POPC:H16R
+          - 1:POPC:H16S
+          - 1:POPC:C217
+          - 1:POPC:H17R
+          - 1:POPC:H17S
+          - 1:POPC:C218
+          - 1:POPC:H18R
+          - 1:POPC:H18S
+          - 1:POPC:H18T
+      - name: C1B
+        type: C1
+        atoms:
+          - 1:POPC:C33
+          - 1:POPC:H3X
+          - 1:POPC:H3Y
+          - 1:POPC:C34
+          - 1:POPC:H4X
+          - 1:POPC:H4Y
+          - 1:POPC:C35
+          - 1:POPC:H5X
+          - 1:POPC:H5Y
+          - 1:POPC:C36
+          - 1:POPC:H6X
+          - 1:POPC:H6Y
+      - name: C2B
+        type: C1
+        atoms:
+          - 1:POPC:C37
+          - 1:POPC:H7X
+          - 1:POPC:H7Y
+          - 1:POPC:C38
+          - 1:POPC:H8X
+          - 1:POPC:H8Y
+          - 1:POPC:C39
+          - 1:POPC:H9X
+          - 1:POPC:H9Y
+          - 1:POPC:C310
+          - 1:POPC:H10X
+          - 1:POPC:H10Y
+      - name: C3B
+        type: C1
+        atoms:
+          - 1:POPC:C311
+          - 1:POPC:H11X
+          - 1:POPC:H11Y
+          - 1:POPC:C312
+          - 1:POPC:H12X
+          - 1:POPC:H12Y
+          - 1:POPC:C313
+          - 1:POPC:H13X
+          - 1:POPC:H13Y
+      - name: C4B
+        type: C1
+        atoms:
+          - 1:POPC:C314
+          - 1:POPC:H14X
+          - 1:POPC:H14Y
+          - 1:POPC:C315
+          - 1:POPC:H15X
+          - 1:POPC:H15Y
+          - 1:POPC:C316
+          - 1:POPC:H16X
+          - 1:POPC:H16Y
+          - 1:POPC:H16Z
+  - name: W
+    ident: W
+    source:
+      coordinates: w4_single.gro
+      topology: topol_w4.top
+    beads:
+      - name: W
+        type: W
+        atoms:
+          - 1:W:OW1
+          - 1:W:HW11
+          - 1:W:HW12
+          - 1:W:OW2
+          - 1:W:HW21
+          - 1:W:HW22
+          - 1:W:OW3
+          - 1:W:HW31
+          - 1:W:HW32
+          - 1:W:OW4
+          - 1:W:HW41
+          - 1:W:HW42
+
+hybrid:
+  includes:
+    - amber99sb-ildn_slipids.ff/forcefield.itp
+
+cg_system:
+  coordinates: cg_conf.gro
+  topology: topol_cg.top
+  format: gromacs
+  nonbonded:
+    kind: martini
+    cutoff: 1.1
+    epsilon_r: 15.0
+    epsilon_rf: 0.0
+
+simulation:
+  protocol: robust
+  alpha: 0.0001
+  initial_resolution: 0.0
+  timestep: 0.001
+  timestep_backmapping: 0.001
+  equilibration_steps: 0
+  production_steps: 0
+  temperature: 310.0
+  ensemble: nvt
+  thermostat: nose_hoover
+  thermostat_gamma: 30.0
+  thermostat_tdamp: 0.1
+  thermostat_target: atomistic
+  lj_cutoff: 1.4              # nm, Slipids plain LJ cut-off
+  cg_cutoff: 1.1              # nm, MARTINI
+  coulomb_cutoff: 1.4         # nm, cut-off Coulomb during the ramp (PME after)
+  exclusion_nrexcl: 3         # Slipids
+  table_points: 10000         # CG tables match GROMACS to its printed precision
+  exclusion_nrexcl_cg: 1      # MARTINI
+  energy_interval: 1000
+  trajectory_interval: 1000
+  rng_seed: 12345
+
+output:
+  prefix: popc
+  format: lammps
+  units: real

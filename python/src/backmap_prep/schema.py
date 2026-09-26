@@ -420,6 +420,10 @@ class SimulationParams(BaseModel):
     coulomb_cutoff: float = 0.9
 
     table_groups: list[str] = Field(default_factory=list)
+    # Points of LAMMPS's internal table interpolation (pair, bond, angle,
+    # dihedral tables). 1000 leaves ~4e-5 relative error on a MARTINI POPC
+    # frame's CG energy; 10000 matches GROMACS to its printed precision.
+    table_points: int = Field(default=1000, ge=2)
 
     exclusion_nrexcl: int = 3
     # CG exclusions when they differ from the AT ones (bakery `exclusion_cg`),

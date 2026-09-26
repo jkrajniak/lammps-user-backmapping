@@ -179,7 +179,7 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if has_backmap_harm:
         bond_styles.append("backmap/harmonic")
     if has_backmap_table:
-        bond_styles.append("backmap/table linear 1000")
+        bond_styles.append(f"backmap/table linear {sim.table_points}")
 
     has_static_angles = any(at.style == "harmonic" for at in system.angle_types)
     has_backmap_angles = any(at.style == "backmap/harmonic" for at in system.angle_types)
@@ -194,7 +194,7 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if has_backmap_ub:
         angle_styles.append("backmap/charmm")
     if has_backmap_angle_table:
-        angle_styles.append("backmap/table linear 1000")
+        angle_styles.append(f"backmap/table linear {sim.table_points}")
 
     has_static_dihedrals = any(dt.style == "ryckaert" for dt in system.dihedral_types)
     has_static_harmonic_dihedrals = any(dt.style == "harmonic" for dt in system.dihedral_types)
@@ -222,7 +222,7 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if any(dt.style == "backmap/fourier" for dt in system.dihedral_types):
         dihedral_styles.append("backmap/fourier")
     if has_backmap_dihedral_table:
-        dihedral_styles.append("backmap/table linear 1000")
+        dihedral_styles.append(f"backmap/table linear {sim.table_points}")
 
     interaction_cutoff_ang = max(lj_cut_ang, cg_cut_ang)
     comm_skin_ang = 1.0
@@ -408,7 +408,7 @@ def _write_forcefield(
     f.write(
         f"pair_style backmap {params['lj_cut_ang']:.2f} lj/cut/coul/cut "
         f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f} "
-        f"{params['cg_cut_ang']:.2f} table linear 1000{_cg_special(sim)}\n"
+        f"{params['cg_cut_ang']:.2f} table linear {sim.table_points}{_cg_special(sim)}\n"
     )
     for pt in system.pair_types:
         if pt.kind == "atomistic":

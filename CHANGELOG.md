@@ -18,6 +18,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   written as `special_bonds` plus `pair_style backmap ... cg_special`.
   `[ nonbond_params ]` is parsed. The GROMACS energy check maps Urey-Bradley
   angles and harmonic impropers, and resolves any `<name>.ff` include.
+  `simulation.table_points` sets LAMMPS's table interpolation (default 1000,
+  unchanged). GROMACS adds a reaction-field term for excluded charged pairs
+  and a self term in the Verlet scheme; the tables do not (on a POPC frame,
+  -69.8 kJ/mol of -70715, all but a constant shifting the NC3-PO4 bond length
+  by ~4e-4 nm).
+- **Example `popc_martini`**: MARTINI 3 POPC bilayer in MARTINI water ->
+  Slipids POPC + TIP3P (38 176 atoms). Third-party force-field files are
+  fetched at pinned commits with SHA-256 checks (`fetch_sources.sh`,
+  `SOURCES.md`).
 
 - **CHARMM-type terms in `backmap-prep`.** GROMACS angle func 5
   (Urey-Bradley) -> `angle_style backmap/charmm`; dihedral func 4/9 ->
