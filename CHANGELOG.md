@@ -9,6 +9,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`pair_style backmap ... cg_special w12 w13 w14`** and special-bond
+  factors in general. The pair style evaluated every listed pair at factor 1,
+  correct only because generated inputs exclude 1-2..1-4 fully; it now passes
+  the `special_bonds` factors to its sub-styles, and `cg_special` sets
+  separate weights for CG-CG pairs (bakery's `exclusion_cg`), e.g. a MARTINI
+  CG model at nrexcl = 1 with an AT force field at nrexcl = 3. Results of the
+  existing examples (`special_bonds` 0 0 0) are unchanged.
+
 - **CHARMM-type bonded styles.** `angle_style backmap/charmm` (harmonic +
   Urey-Bradley), `dihedral_style backmap/fourier` (multi-term periodic with
   arbitrary phase) and `improper_style backmap/harmonic`, with the usual
