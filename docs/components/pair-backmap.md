@@ -3,7 +3,7 @@
 ## Syntax
 
 ```
-pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ...
+pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ... [cg_special w12 w13 w14]
 ```
 
 - **cut_at** -- cutoff for AT sub-style (distance units)
@@ -12,6 +12,25 @@ pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ...
 - **cut_cg** -- cutoff for CG sub-style (distance units)
 - **cg_style** -- name of the CG pair sub-style (e.g., `table`)
 - **cg_args** -- arguments passed to the CG sub-style
+- **cg_special** (optional) -- special-bond weights for CG-CG pairs at 1-2,
+  1-3 and 1-4, replacing the `special_bonds` factors for those pairs
+
+## Special bonds
+
+Each listed pair is evaluated with its `special_bonds` factors (LJ and
+Coulomb), as a plain pair style would; a factor below 1e-30 counts as an
+exclusion. `cg_special` gives CG-CG pairs their own weights, for a CG model
+that excludes fewer neighbours than the AT force field. A MARTINI model
+(nrexcl = 1) with an AT force field at nrexcl = 3:
+
+```
+special_bonds lj 0.0 1.0e-100 1.0e-100 coul 0.0 1.0e-100 1.0e-100
+pair_style backmap 12.0 lj/cut/coul/cut 12.0 9.0 11.0 table linear 1000 cg_special 0.0 1.0 1.0
+```
+
+The tiny nonzero factors keep 1-3 and 1-4 pairs in the neighbor list (LAMMPS
+drops pairs whose factors are exactly zero); AT pairs stay excluded, CG pairs
+get weight 1.
 
 ## Description
 
@@ -35,6 +54,11 @@ For each pair of atoms *i* and *j*:
 
 Both force and energy are scaled by the weight factor. Interactions with
 negligible weight (< 10<sup>-10</sup>) are skipped for efficiency.
+
+The weighted energy of each pair is tallied once, as van der Waals energy:
+`evdwl` holds the whole sub-style energy (LJ and any cut-off Coulomb part), and
+`ecoul` stays zero. At \( \lambda_\text{global} = 1 \) the pair energy of the
+atomistic part equals that of the plain atomistic pair style.
 
 ## pair_coeff
 

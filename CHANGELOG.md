@@ -62,6 +62,25 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   `unify-hybrid-engine`.
 
 ### Added
+- **`fix backmap ... peratom full`**: per-atom array with lambda, the bead
+  position (COM) and the CG force share each AT atom received (beads: their
+  CG force), for static decomposition-parity tests. Default output unchanged.
+
+- **`pair_style backmap ... cg_special w12 w13 w14`** and special-bond
+  factors in general. The pair style evaluated every listed pair at factor 1,
+  correct only because generated inputs exclude 1-2..1-4 fully; it now passes
+  the `special_bonds` factors to its sub-styles, and `cg_special` sets
+  separate weights for CG-CG pairs (bakery's `exclusion_cg`), e.g. a MARTINI
+  CG model at nrexcl = 1 with an AT force field at nrexcl = 3. Results of the
+  existing examples (`special_bonds` 0 0 0) are unchanged.
+
+- **CHARMM-type bonded styles.** `angle_style backmap/charmm` (harmonic +
+  Urey-Bradley), `dihedral_style backmap/fourier` (multi-term periodic with
+  arbitrary phase) and `improper_style backmap/harmonic`, with the usual
+  lambda weighting, restart and `write_data`. Kernels are the stock LAMMPS
+  `angle charmm`, `dihedral fourier` and `improper harmonic`; tests check equality
+  with them times the weight (energies and forces). Needed for CHARMM36/Slipids
+  lipids (MARTINI 3 POPC example) and requested in review (impropers).
 
 - **`cg_system.format: lammps`**: the CG side of `backmap-prep` can now be
   supplied as a native LAMMPS `data` file (box, `Masses`, `Atoms # full`)
@@ -138,6 +157,54 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   Both walks now cover every component. The existing checks used
   minimum-image lengths and could not see this; the new test checks
   flag-unwrapped lengths.
+- **`fix backmap` COM update no longer depends on fix order.** It ran in
+  `initial_integrate()`, so with `fix backmap` defined before the
+  integration fix (as in the generated robust protocol, which redefines its
+  integrators at every stage) the beads followed the AT positions of the
+  previous step. It now runs in `post_integrate()`.
+
+- **`fix backmap` distributes the CG forces at setup.** `setup()` did not
+  call `post_force()`, so after the force evaluation that opens every run
+  (and `run 0`) the CG forces stayed on the beads and the AT atoms got none;
+  the first velocity half-kick of each `run` missed them. Affects only the
+  first step of runs where CG forces are active (e.g. the start of a ramp).
+
+- **`fix backmap/pairs` has no cutoff by default.** 1-4 pairs are bonded
+  terms, but the fix skipped any pair beyond the pair-style cutoff (12 Å in
+  the examples). In freshly built network frames 77 of 35612 RIM135 1-4
+  pairs are longer than that, so their LJ and Coulomb terms were dropped
+  (Coul-14 off by 5% against GROMACS, which applies no cutoff). `cut` is now
+  opt-in. A pair whose partner is not present on the owning rank is an error
+  instead of being skipped silently.
+- **`fix backmap/pairs`: 1-4 Coulomb, energy output, setup, minimization and
+  MPI.** The fix applied 1-4 LJ only, so with `special_bonds coul 0 0 0`
+  the scaled 1-4 electrostatics (GROMACS `fudgeQQ`) were absent. It now
+  takes an optional fifth pairs-file column, the 1-4 Coulomb scale. It
+  reported no energy or virial; it now contributes both (scalar: total,
+  vector: LJ-14, Coulomb-14), counted in `pe` and pressure by default. It had
+  no `setup()` or `min_post_force()`, so its forces were missing from the
+  first force evaluation of every run (including `run 0`) and from all
+  minimizations. With `newton_pair on` it added forces to ghost atoms after
+  the reverse communication, so the force on a partner owned by another
+  rank was lost; every rank now evaluates each pair it owns an atom of and
+  applies the force to its own atoms. Regression tests:
+  `python/tests/test_lammps_pairs.py` (needs `BACKMAP_LMP`).
+
+- **`write_data` left empty coefficient sections** for `bond_style
+  backmap/harmonic`, `angle_style backmap/harmonic`, `dihedral_style
+  backmap/harmonic`, `dihedral_style backmap/ryckaert` and `dihedral_style
+  ryckaert`, which then made `read_data` fail ("Unexpected empty line in
+  AngleCoeffs section"). These styles now implement `write_data()`.
+  `backmap/table` bond and angle styles no longer write a section at all,
+  as for stock `bond_style table`. Regression tests:
+  `python/tests/test_lammps_write_data.py` (needs `BACKMAP_LMP`).
+- **`pair_style backmap` reported twice the pair energy**: `PairBackmap::compute()`
+  added each weighted pair energy to `eng_vdwl`/`eatom` by hand and then again
+  through `ev_tally()`. Forces and the virial were always correct, so
+  trajectories, structures and pressures are unaffected; every reported pair
+  energy (`evdwl`, `pe`, `etotal`, `compute pe/atom`) was inflated by the pair
+  term. Regression test: `python/tests/test_lammps_energy.py` (needs
+  `BACKMAP_LMP`).
 
 - **`build_network_lammps` under-sized `comm_modify cutoff` for crosslinked
   networks**: `build_system_from_hybrid` (the code path behind `backmap-prep

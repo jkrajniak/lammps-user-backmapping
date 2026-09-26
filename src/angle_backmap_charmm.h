@@ -10,36 +10,39 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#ifdef DIHEDRAL_CLASS
+#ifdef ANGLE_CLASS
 // clang-format off
-DihedralStyle(backmap/ryckaert,DihedralBackmapRyckaert);
+AngleStyle(backmap/charmm,AngleBackmapCharmm);
 // clang-format on
 #else
 
-#ifndef LMP_DIHEDRAL_BACKMAP_RYCKAERT_H
-#define LMP_DIHEDRAL_BACKMAP_RYCKAERT_H
+#ifndef LMP_ANGLE_BACKMAP_CHARMM_H
+#define LMP_ANGLE_BACKMAP_CHARMM_H
 
-#include "dihedral.h"
+#include "angle.h"
 
 namespace LAMMPS_NS {
 
-class DihedralBackmapRyckaert : public Dihedral {
+class AngleBackmapCharmm : public Angle {
  public:
-  DihedralBackmapRyckaert(class LAMMPS *);
-  ~DihedralBackmapRyckaert() override;
+  AngleBackmapCharmm(class LAMMPS *);
+  ~AngleBackmapCharmm() override;
   void compute(int, int) override;
   void coeff(int, char **) override;
   void init_style() override;
+  double equilibrium_angle(int) override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
   void write_data(FILE *) override;
+  double single(int, int, int, int) override;
 
  protected:
-  double *c0, *c1, *c2, *c3, *c4, *c5;
+  double *k, *theta0, *k_ub, *r_ub;
   int *is_cg;
   class Fix *fix_backmap;
 
   virtual void allocate();
+  double weight(int, int, int, int);
 };
 
 }  // namespace LAMMPS_NS

@@ -10,23 +10,23 @@
    See the README file in the top-level LAMMPS directory.
 ------------------------------------------------------------------------- */
 
-#ifdef DIHEDRAL_CLASS
+#ifdef IMPROPER_CLASS
 // clang-format off
-DihedralStyle(backmap/ryckaert,DihedralBackmapRyckaert);
+ImproperStyle(backmap/harmonic,ImproperBackmapHarmonic);
 // clang-format on
 #else
 
-#ifndef LMP_DIHEDRAL_BACKMAP_RYCKAERT_H
-#define LMP_DIHEDRAL_BACKMAP_RYCKAERT_H
+#ifndef LMP_IMPROPER_BACKMAP_HARMONIC_H
+#define LMP_IMPROPER_BACKMAP_HARMONIC_H
 
-#include "dihedral.h"
+#include "improper.h"
 
 namespace LAMMPS_NS {
 
-class DihedralBackmapRyckaert : public Dihedral {
+class ImproperBackmapHarmonic : public Improper {
  public:
-  DihedralBackmapRyckaert(class LAMMPS *);
-  ~DihedralBackmapRyckaert() override;
+  ImproperBackmapHarmonic(class LAMMPS *);
+  ~ImproperBackmapHarmonic() override;
   void compute(int, int) override;
   void coeff(int, char **) override;
   void init_style() override;
@@ -35,7 +35,7 @@ class DihedralBackmapRyckaert : public Dihedral {
   void write_data(FILE *) override;
 
  protected:
-  double *c0, *c1, *c2, *c3, *c4, *c5;
+  double *k, *chi;
   int *is_cg;
   class Fix *fix_backmap;
 

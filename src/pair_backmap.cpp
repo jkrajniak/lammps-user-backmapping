@@ -62,6 +62,10 @@ using namespace LAMMPS_NS;
 // compute_weight() onset suffices; ESPResSo++ has no threshold." Keep it
 // at 0.0 -- do not reintroduce a nonzero value without re-deriving why.
 static constexpr double LAMBDA_AT_ONSET = 0.0;
+// Special-bond factors below this count as an exclusion. A tiny nonzero
+// special_bonds factor keeps a 1-3/1-4 pair in the neighbor list (so that
+// cg_special can include it for CG pairs) while excluding it for AT pairs.
+static constexpr double SPECIAL_OFF = 1.0e-30;
 
 /* ---------------------------------------------------------------------- */
 
@@ -76,6 +80,7 @@ PairBackmap::PairBackmap(LAMMPS *lmp)
       cut_global(0.0),
       cut(nullptr),
       pair_kind(nullptr),
+      has_cg_special(0),
       fix_backmap(nullptr),
       f_at(nullptr),
       f_cg(nullptr),
@@ -89,6 +94,7 @@ PairBackmap::PairBackmap(LAMMPS *lmp)
   allocated = 0;
   memset(virial_at, 0, sizeof(virial_at));
   memset(virial_cg, 0, sizeof(virial_cg));
+  cg_special[0] = cg_special[1] = cg_special[2] = cg_special[3] = 1.0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -131,9 +137,21 @@ void PairBackmap::allocate() {
 
 /* C1: settings — parse pair_style command, create sub-styles.
 
-   pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ... */
+   pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ...
+                      [cg_special w12 w13 w14] */
 
 void PairBackmap::settings(int narg, char **arg) {
+  if (narg >= 4 && strcmp(arg[narg - 4], "cg_special") == 0) {
+    has_cg_special = 1;
+    cg_special[0] = 1.0;
+    for (int k = 1; k <= 3; k++) {
+      cg_special[k] = utils::numeric(FLERR, arg[narg - 4 + k], false, lmp);
+      if (cg_special[k] < 0.0 || cg_special[k] > 1.0)
+        error->all(FLERR,
+                   "pair_style backmap: cg_special weights must be in [0, 1]");
+    }
+    narg -= 4;
+  }
   if (narg < 4) error->all(FLERR, "Illegal pair_style backmap command");
 
   // First argument: AT cutoff
@@ -324,6 +342,8 @@ void PairBackmap::compute(int eflag, int vflag) {
   int *numneigh = list->numneigh;
   int **firstneigh = list->firstneigh;
   int inum = list->inum;
+  double *special_lj = force->special_lj;
+  double *special_coul = force->special_coul;
 
   for (int ii = 0; ii < inum; ii++) {
     int i = ilist[ii];
@@ -336,11 +356,18 @@ void PairBackmap::compute(int eflag, int vflag) {
     int jnum = numneigh[i];
 
     for (int jj = 0; jj < jnum; jj++) {
+      int sb = sbmask(jlist[jj]);
       int j = jlist[jj] & NEIGHMASK;
       int jtype = type[j];
 
       int kind = pair_kind[itype][jtype];
       if (kind == NONE) continue;
+
+      double factor_lj = special_lj[sb];
+      double factor_coul = special_coul[sb];
+      if (kind == CG && has_cg_special)
+        factor_lj = factor_coul = cg_special[sb];
+      if (factor_lj < SPECIAL_OFF && factor_coul < SPECIAL_OFF) continue;
 
       double delx = xi - x[j][0];
       double dely = yi - x[j][1];
@@ -363,7 +390,8 @@ void PairBackmap::compute(int eflag, int vflag) {
 
       Pair *sub = is_cg ? pair_cg : pair_at;
       double fforce = 0.0;
-      double eng = sub->single(i, j, itype, jtype, rsq, 1.0, 1.0, fforce);
+      double eng =
+          sub->single(i, j, itype, jtype, rsq, factor_coul, factor_lj, fforce);
 
       // Scale by lambda weight
       fforce *= w;
@@ -392,16 +420,8 @@ void PairBackmap::compute(int eflag, int vflag) {
         f[j][2] -= delz * fforce;
       }
 
-      // Tally energy and virial
-      if (eflag) {
-        if (eflag_global) eng_vdwl += eng;
-        if (eflag_atom) {
-          double ehalf = 0.5 * eng;
-          if (newton_pair || i < nlocal) eatom[i] += ehalf;
-          if (newton_pair || j < nlocal) eatom[j] += ehalf;
-        }
-      }
-
+      // ev_tally() handles global and per-atom energy as well as the virial;
+      // tallying eng_vdwl/eatom here too would count every pair twice.
       if (evflag) {
         ev_tally(i, j, nlocal, newton_pair, eng, 0.0, fforce, delx, dely, delz);
       }
@@ -463,14 +483,20 @@ void PairBackmap::read_restart(FILE *fp) {
 void PairBackmap::write_restart_settings(FILE *fp) {
   fwrite(&cut_at, sizeof(double), 1, fp);
   fwrite(&cut_cg, sizeof(double), 1, fp);
+  fwrite(&has_cg_special, sizeof(int), 1, fp);
+  fwrite(cg_special, sizeof(double), 4, fp);
 }
 
 void PairBackmap::read_restart_settings(FILE *fp) {
   if (comm->me == 0) {
     utils::sfread(FLERR, &cut_at, sizeof(double), 1, fp, nullptr, error);
     utils::sfread(FLERR, &cut_cg, sizeof(double), 1, fp, nullptr, error);
+    utils::sfread(FLERR, &has_cg_special, sizeof(int), 1, fp, nullptr, error);
+    utils::sfread(FLERR, cg_special, sizeof(double), 4, fp, nullptr, error);
   }
   MPI_Bcast(&cut_at, 1, MPI_DOUBLE, 0, world);
   MPI_Bcast(&cut_cg, 1, MPI_DOUBLE, 0, world);
+  MPI_Bcast(&has_cg_special, 1, MPI_INT, 0, world);
+  MPI_Bcast(cg_special, 4, MPI_DOUBLE, 0, world);
   cut_global = MAX(cut_at, cut_cg);
 }

@@ -12,21 +12,23 @@
 
 #ifdef DIHEDRAL_CLASS
 // clang-format off
-DihedralStyle(backmap/ryckaert,DihedralBackmapRyckaert);
+DihedralStyle(backmap/fourier,DihedralBackmapFourier);
 // clang-format on
 #else
 
-#ifndef LMP_DIHEDRAL_BACKMAP_RYCKAERT_H
-#define LMP_DIHEDRAL_BACKMAP_RYCKAERT_H
+#ifndef LMP_DIHEDRAL_BACKMAP_FOURIER_H
+#define LMP_DIHEDRAL_BACKMAP_FOURIER_H
+
+#include <vector>
 
 #include "dihedral.h"
 
 namespace LAMMPS_NS {
 
-class DihedralBackmapRyckaert : public Dihedral {
+class DihedralBackmapFourier : public Dihedral {
  public:
-  DihedralBackmapRyckaert(class LAMMPS *);
-  ~DihedralBackmapRyckaert() override;
+  DihedralBackmapFourier(class LAMMPS *);
+  ~DihedralBackmapFourier() override;
   void compute(int, int) override;
   void coeff(int, char **) override;
   void init_style() override;
@@ -35,7 +37,13 @@ class DihedralBackmapRyckaert : public Dihedral {
   void write_data(FILE *) override;
 
  protected:
-  double *c0, *c1, *c2, *c3, *c4, *c5;
+  struct Term {
+    double k;
+    int n;
+    double shift;  // degrees
+    double cos_shift, sin_shift;
+  };
+  std::vector<std::vector<Term> > terms;
   int *is_cg;
   class Fix *fix_backmap;
 
