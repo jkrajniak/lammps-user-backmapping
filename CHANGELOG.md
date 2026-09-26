@@ -50,6 +50,12 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`fix backmap` COM update no longer depends on fix order.** It ran in
+  `initial_integrate()`, so with `fix backmap` defined before the
+  integration fix (as in the generated robust protocol, which redefines its
+  integrators at every stage) the beads followed the AT positions of the
+  previous step. It now runs in `post_integrate()`.
+
 - **`fix backmap` distributes the CG forces at setup.** `setup()` did not
   call `post_force()`, so after the force evaluation that opens every run
   (and `run 0`) the CG forces stayed on the beads and the AT atoms got none;

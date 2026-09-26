@@ -103,8 +103,10 @@ fix_modify bm active yes   # resume ramp (backmapping phase)
 ```
 
 When `active no`, per-atom λ values remain frozen. **CG–AT coupling is
-always on:** COM tracking in `initial_integrate()` and CG force distribution
-in `post_force()` run regardless of `active`. This matches ESPResSo++
+always on:** COM tracking in `post_integrate()` and CG force distribution
+in `post_force()` run regardless of `active`. Because the COM update runs
+after every fix has moved its atoms, `fix backmap` may be defined before or
+after the integration fixes. This matches ESPResSo++
 (`DynamicResolution.active` gates only λ increments; `VelocityVerletHybrid`
 always updates virtual sites and distributes forces) and AdResS virtual-site
 semantics — CG beads are computational anchors, not independent particles that

@@ -199,7 +199,7 @@ FixBackmap::~FixBackmap() {
 
 int FixBackmap::setmask() {
   int mask = 0;
-  mask |= INITIAL_INTEGRATE;
+  mask |= POST_INTEGRATE;
   mask |= PRE_FORCE;
   mask |= POST_FORCE;
   mask |= END_OF_STEP;
@@ -243,14 +243,18 @@ void FixBackmap::setup(int vflag) {
 
 /* ---------------------------------------------------------------------- */
 
-void FixBackmap::initial_integrate(int /*vflag*/) {
+void FixBackmap::post_integrate() {
+  // Runs after every fix's initial_integrate(), so the AT positions of this
+  // step are final whatever the order of the fixes (it used to be
+  // initial_integrate(), which lagged the COM by one step when fix backmap
+  // was defined before the integrator).
   // CG–AT kinematic coupling always runs.  fix_modify active yes/no only
   // controls the lambda ramp in end_of_step (matches E++ DynamicResolution
   // vs VelocityVerletHybrid and AdResS virtual-site semantics).
 
   // Rebuild bead map if empty (e.g., after unfix/fix or at start of
   // a new run).  setup() builds it once, but subsequent runs need
-  // to rebuild before initial_integrate uses it.
+  // to rebuild before post_integrate uses it.
   if (bead_map.empty()) build_bead_map();
 
   double **x = atom->x;
