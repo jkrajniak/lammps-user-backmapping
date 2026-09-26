@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
+
+import pytest
 
 from backmap_prep.builder import (
     AngleTypeInfo,
@@ -16,8 +19,13 @@ from backmap_prep.builder import (
     PairTypeInfo,
     System,
 )
-from backmap_prep.schema import Settings
-from backmap_prep.writers import read_input_with_includes, write_lammps_data, write_lammps_input
+from backmap_prep.schema import Settings, SimulationParams
+from backmap_prep.writers import (
+    bead_velocities,
+    read_input_with_includes,
+    write_lammps_data,
+    write_lammps_input,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -57,7 +65,8 @@ def _make_system() -> System:
     )
 
 
-def _make_settings() -> Settings:
+def _make_settings(protocol: str = "standard") -> Settings:
+    """Settings for the writer tests; most exercise the standard protocol."""
     return Settings(
         molecules=[
             {
@@ -67,6 +76,7 @@ def _make_settings() -> Settings:
             }
         ],
         cg_system={"coordinates": "c.gro", "topology": "c.top"},
+        simulation={"protocol": protocol},
     )
 
 
@@ -605,3 +615,58 @@ class TestRestartGeneration:
         assert not (tmp_path / "in.backmap.phase1").exists()
         assert not (tmp_path / "in.backmap.phase2").exists()
         assert not (tmp_path / "in.backmap.phase3").exists()
+
+
+class TestBakeryProtocol:
+    """Default protocol: decisions/2026-07-19-prefer-bakery-protocol-no-frozen-cg."""
+
+    def _input(self, tmp_path: Path, **sim: object) -> str:
+        settings = _make_settings("bakery")
+        for key, value in sim.items():
+            setattr(settings.simulation, key, value)
+        path = tmp_path / "in.test"
+        write_lammps_input(_make_system(), settings, path, "test.data")
+        return read_input_with_includes(path)
+
+    def test_is_the_default(self) -> None:
+        assert SimulationParams().protocol == "bakery"
+
+    def test_energy_capped_at_lj_and_live_cg(self, tmp_path: Path) -> None:
+        text = self._input(tmp_path, lj_cap_factor=0.5)
+        assert "lj/cut/coul/cut/ecap" in text
+        assert re.search(r"lj/cut/coul/cut/ecap \S+ \S+ 0\.5 ", text)
+        # CG beads: no integrator, no thermostat, never frozen
+        assert "fix integrate_at at_atoms nve" in text
+        assert "fix therm_at at_atoms langevin" in text
+        assert "cg_atoms nve" not in text
+        assert "setforce" not in text
+        assert "nve/limit" not in text
+        assert "minimize" not in text
+
+    def test_stages_and_ramp_length(self, tmp_path: Path) -> None:
+        text = self._input(tmp_path, alpha=0.0001, equilibration_steps=2000, production_steps=5000)
+        runs = re.findall(r"^run (\d+)$", text, re.MULTILINE)
+        assert runs == ["2000", "10000", "5000"]
+        assert text.index("fix_modify bm active no") < text.index("fix_modify bm active yes")
+        assert "write_data test_hybrid.data" in text
+
+    def test_capforce_and_coulomb_cap_optional(self, tmp_path: Path) -> None:
+        text = self._input(tmp_path, cap_force=1000.0, coul_cap_radius=0.5)
+        assert "fix cap all backmap/capforce" in text
+        assert re.search(r"lj/cut/coul/cut/ecap \S+ \S+ 0\.5 5 ", text)
+
+
+def test_bead_velocities_shared_within_a_bead() -> None:
+    system = _make_system()  # one molecule: CG bead 1 + atoms 2, 3
+    vel = bead_velocities(system, 300.0, 7)
+    assert vel[1] == vel[2] == vel[3]  # a single bead: shared, then momentum removed
+    assert sum(abs(c) for c in vel[1]) == pytest.approx(0.0, abs=1e-12)
+    two = _make_system()
+    two.atoms[2].mol_id = 2
+    two.atoms.append(LammpsAtom(4, 2, 1, 0.0, 1.0, 1.0, 1.0, "CG1", True))
+    vel2 = bead_velocities(two, 300.0, 7)
+    assert vel2[1] == vel2[2]
+    assert vel2[3] == vel2[4]
+    masses = {1: 72.0, 2: 14.0}
+    p = [sum(masses[a.type_id] * vel2[a.atom_id][k] for a in two.atoms) for k in range(3)]
+    assert p == pytest.approx([0.0, 0.0, 0.0], abs=1e-12)

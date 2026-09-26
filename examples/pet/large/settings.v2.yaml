@@ -132,13 +132,16 @@ cross_interactions:
   dihedrals_file: cross_dihedrals_pete.yaml
 
 simulation:
+  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
+  # parameters: published dacron (JCC 2018 bundle params); SHAKE-H as validated in.pet
+  shake_hydrogens: true
   alpha: 0.0001
   temperature: 298.0
   timestep: 0.001
   timestep_backmapping: 0.001
-  thermostat_gamma: 15.0
-  cap_force: 50000.0
-  equilibration_steps: 0
+  thermostat_gamma: 30
+  cap_force: 50000
+  equilibration_steps: 20000
   lj_cutoff: 1.2
   cg_cutoff: 1.4
   coulomb_cutoff: 0.9

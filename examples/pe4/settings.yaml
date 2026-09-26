@@ -1146,15 +1146,17 @@ cross_interactions:
       - PE:C99
       - PE:C100
 simulation:
-  alpha: 0.0001
+  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
+  # parameters: published pe_4
+  alpha: 1e-05
   initial_resolution: 0.0
   timestep: 0.001
   timestep_backmapping: 0.001
-  equilibration_steps: 10000
-  production_steps: 10000
+  equilibration_steps: 5000
+  production_steps: 5000
   temperature: 423.0
   thermostat: langevin
-  thermostat_gamma: 30.0
+  thermostat_gamma: 5
   thermostat_target: atomistic
   lj_cutoff: 1.4
   cg_cutoff: 1.4

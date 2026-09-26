@@ -364,9 +364,14 @@ class SimulationParams(BaseModel):
 
     alpha: float = 0.001
     initial_resolution: float = 0.0
-    protocol: Literal["standard", "robust"] = Field(
-        default="standard",
+    protocol: Literal["bakery", "standard", "robust"] = Field(
+        default="bakery",
         description=(
+            "bakery (default, decisions/2026-07-19): the published bakery/ESPResSo++ "
+            "path -- CG beads live (virtual sites), one continuous timestep, "
+            "energy-capped AT LJ (lj/cut/coul/cut/ecap), optional CapForce, Langevin "
+            "on the AT atoms, one Maxwell-Boltzmann velocity per bead shared by its "
+            "atoms; lambda = 0 equilibration, ramp, production. "
             "standard: velocity + thermostat, ramp, optional production. "
             "robust: minimize and nve/limit relaxation at lambda = 0 (CG frozen), "
             "nve/limit + Langevin ramp, staged NVT at lambda = 1 (used for the "
@@ -442,6 +447,13 @@ class SimulationParams(BaseModel):
     two_phase: bool = False
     second_phase_em: bool = False
     cap_force: float | None = None
+    # bakery protocol: energy-capped AT LJ (E++ LennardJonesEnergyCapped):
+    # force 0 and V = V(cap_factor * sigma) below cap_factor * sigma.
+    lj_cap_factor: float = Field(default=0.5, gt=0.0)
+    # optional Coulomb cap radius (nm), 0 = off
+    coul_cap_radius: float = Field(default=0.0, ge=0.0)
+    # SHAKE the AT bonds to hydrogen (mass < 1.1) in the bakery protocol
+    shake_hydrogens: bool = False
     cap_force_ramp: float | None = None
     em_steps: int = 0
     em_gamma: float = 0.0001

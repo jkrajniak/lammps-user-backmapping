@@ -142,6 +142,8 @@ class System:
     angles: list[LammpsAngle] = field(default_factory=list)
     dihedrals: list[LammpsDihedral] = field(default_factory=list)
     impropers: list[LammpsImproper] = field(default_factory=list)
+    # atom id -> (vx, vy, vz) in A/fs; written as a Velocities section when set
+    velocities: dict[int, tuple[float, float, float]] = field(default_factory=dict)
     atom_types: list[AtomTypeInfo] = field(default_factory=list)
     bond_types: list[BondTypeInfo] = field(default_factory=list)
     angle_types: list[AngleTypeInfo] = field(default_factory=list)

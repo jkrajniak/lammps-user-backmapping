@@ -9,6 +9,20 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`simulation.protocol: bakery`, the new default.** The published
+  bakery/ESPResSo++ protocol as generated input (decision 2026-07-19,
+  generator default 2026-09-27): CG beads live (no integrator of their own),
+  energy-capped AT LJ (`lj/cut/coul/cut/ecap`, `lj_cap_factor`, optional
+  `coul_cap_radius`), optional CapForce, NVE + Langevin on the AT atoms,
+  one Maxwell-Boltzmann velocity per bead shared by its atoms (Velocities
+  section of the data file), optional SHAKE of X-H bonds
+  (`shake_hydrogens`), stages: lambda = 0 equilibration at `timestep`, ramp
+  of ceil(1/alpha) steps at `timestep_backmapping`, production. Every example
+  uses it with the parameters of its published run or closest published
+  analogue. `standard` and `robust` remain selectable; `standard` blew up on
+  every non-trivial example and `robust` freezes the CG, which the method
+  does not do.
+
 - **MARTINI CG models.** `cg_system.nonbonded: {kind: martini, cutoff,
   epsilon_r, epsilon_rf}` generates the CG-CG pair tables from the CG
   topology (`[ nonbond_params ]`, bead charges) as GROMACS evaluates MARTINI:

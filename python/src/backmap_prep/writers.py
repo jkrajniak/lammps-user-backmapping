@@ -20,6 +20,46 @@ def normalize_file_end(path: Path) -> None:
     path.write_text("\n".join(lines) + "\n")
 
 
+# sqrt(kB T / m) with kB T in kcal/mol and m in g/mol -> A/fs (LAMMPS real)
+_VEL_FACTOR = 0.02045482882
+_KB_REAL = 0.0019872041  # kcal/mol/K
+
+
+def bead_velocities(
+    system: System, temperature: float, seed: int
+) -> dict[int, tuple[float, float, float]]:
+    """Bakery initial velocities: one Maxwell-Boltzmann draw per CG bead.
+
+    As in bakery's start_backmapping.py: each bead's velocity is drawn with the
+    bead mass and copied to every atom of its fragment (same molecule ID), so
+    no atom starts with a velocity relative to its bead. Net momentum removed.
+    """
+    import random
+
+    rng = random.Random(seed if seed > 0 else 48279)
+    mass = {t.type_id: t.mass for t in system.atom_types}
+    by_mol: dict[int, list[int]] = {}
+    for a in system.atoms:
+        by_mol.setdefault(a.mol_id, []).append(a.atom_id)
+    atoms = {a.atom_id: a for a in system.atoms}
+    vel: dict[int, tuple[float, float, float]] = {}
+    for ids in by_mol.values():
+        beads = [i for i in ids if atoms[i].is_cg]
+        if len(beads) == 1:
+            sigma = math.sqrt(_KB_REAL * temperature / mass[atoms[beads[0]].type_id])
+            v = tuple(rng.gauss(0.0, sigma) * _VEL_FACTOR for _ in range(3))
+            for i in ids:
+                vel[i] = v  # type: ignore[assignment]
+        else:
+            for i in ids:
+                sigma = math.sqrt(_KB_REAL * temperature / mass[atoms[i].type_id])
+                vel[i] = tuple(rng.gauss(0.0, sigma) * _VEL_FACTOR for _ in range(3))  # type: ignore[assignment]
+    total_m = sum(mass[atoms[i].type_id] for i in vel)
+    p = [sum(mass[atoms[i].type_id] * vel[i][k] for i in vel) for k in range(3)]
+    vcm = [pk / total_m for pk in p]
+    return {i: (v[0] - vcm[0], v[1] - vcm[1], v[2] - vcm[2]) for i, v in vel.items()}
+
+
 def write_lammps_data(system: System, path: Path) -> None:
     """Write a LAMMPS data file (atom_style full)."""
     with open(path, "w") as f:
@@ -94,6 +134,13 @@ def write_lammps_data(system: System, path: Path) -> None:
             f.write("Dihedrals\n\n")
             for dih in system.dihedrals:
                 f.write(f"{dih.dihedral_id} {dih.type_id} {dih.i} {dih.j} {dih.k} {dih.l}\n")
+            f.write("\n")
+
+        if system.velocities:
+            f.write("Velocities\n\n")
+            for a in system.atoms:
+                vx, vy, vz = system.velocities.get(a.atom_id, (0.0, 0.0, 0.0))
+                f.write(f"{a.atom_id} {vx:.10g} {vy:.10g} {vz:.10g}\n")
             f.write("\n")
 
         if system.impropers:
@@ -405,9 +452,16 @@ def _write_forcefield(
     f.write(f"comm_modify cutoff {params['comm_cutoff_ang']:.2f}\n\n")
 
     # Pair style
+    at_style = "lj/cut/coul/cut"
+    at_extra = ""
+    if sim.protocol == "bakery":
+        at_style = "lj/cut/coul/cut/ecap"
+        at_extra = f" {sim.lj_cap_factor:.10g}"
+        if sim.coul_cap_radius > 0.0:
+            at_extra += f" {units.distance(sim.coul_cap_radius):.10g}"
     f.write(
-        f"pair_style backmap {params['lj_cut_ang']:.2f} lj/cut/coul/cut "
-        f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f} "
+        f"pair_style backmap {params['lj_cut_ang']:.2f} {at_style} "
+        f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f}{at_extra} "
         f"{params['cg_cut_ang']:.2f} table linear {sim.table_points}{_cg_special(sim)}\n"
     )
     for pt in system.pair_types:
@@ -704,6 +758,98 @@ def write_forcefield_includes(
     return ff_name, backmap_name
 
 
+def _hydrogen_bond_types(system: System) -> list[int]:
+    """Bond types of AT bonds with a hydrogen (mass < 1.1) at either end."""
+    mass = {t.type_id: t.mass for t in system.atom_types}
+    atoms = {a.atom_id: a for a in system.atoms}
+    at_bond_types = {bt.type_id for bt in system.bond_types if bt.keyword != "cg"}
+    out: set[int] = set()
+    for b in system.bonds:
+        if b.type_id not in at_bond_types:
+            continue
+        if min(mass[atoms[b.i].type_id], mass[atoms[b.j].type_id]) < 1.1:
+            out.add(b.type_id)
+    return sorted(out)
+
+
+def _write_bakery_protocol(
+    f: IO[str],
+    system: System,
+    settings: Settings,
+    params: dict[str, Any],
+    data_filename: str,
+    ff_name: str,
+    backmap_name: str,
+) -> None:
+    """Bakery/ESPResSo++ protocol (``simulation.protocol: bakery``, the default).
+
+    As decided in research decisions/2026-07-19-prefer-bakery-protocol-no-frozen-cg
+    and validated on PET (2026-07-28): CG beads live as virtual sites (no
+    integrator or thermostat of their own; fix backmap moves them onto their
+    fragment COM), one continuous timestep, energy-capped AT LJ in the pair
+    style, optional CapForce, Langevin on the AT atoms, bead-shared initial
+    velocities (Velocities section of the data file). Stage 1: lambda = 0
+    equilibration; stage 2: lambda ramp 0 -> 1; stage 3: production at lambda = 1.
+    Stages 1 and 3 use ``timestep``, the ramp ``timestep_backmapping`` (bakery's
+    ``dt`` and ``dt_dyn``).
+    """
+    sim = settings.simulation
+    prefix = Path(data_filename).stem
+    ts = units.time(sim.timestep)
+    ts_ramp = units.time(sim.timestep_backmapping)
+    damp = units.time(1.0 / sim.thermostat_gamma) if sim.thermostat_gamma > 0 else 100.0
+    seed = sim.rng_seed if sim.rng_seed > 0 else 48279
+    ramp_steps = math.ceil(1.0 / sim.alpha)
+    f.write(
+        "# Bakery/ESPResSo++ protocol: CG beads live (virtual sites), continuous\n"
+        "# timestep, energy-capped AT LJ, Langevin on AT atoms, bead-shared initial\n"
+        "# velocities (in the data file). Stages: lambda = 0 equilibration, lambda\n"
+        "# ramp, production at lambda = 1.\n\n"
+    )
+    f.write(f"read_data {data_filename}\n")
+    f.write(f"include {ff_name}\n\n")
+    f.write("fix integrate_at at_atoms nve\n")
+    f.write(
+        f"fix therm_at at_atoms langevin {sim.temperature:.1f} {sim.temperature:.1f} {damp:.6g} {seed}\n"
+    )
+    f.write(f"include {backmap_name}\n")
+    if system.write_image_flags:
+        f.write("reset_atoms image all\n")
+    _write_cap_force(f, sim)
+    if sim.shake_hydrogens:
+        htypes = _hydrogen_bond_types(system)
+        if htypes:
+            f.write("# SHAKE after the force-modifying fixes (sees the final force)\n")
+            f.write(f"fix shake_h at_atoms shake 0.0001 20 0 b {' '.join(map(str, htypes))}\n")
+    f.write("\ncompute at_temp at_atoms temp\n")
+    f.write(f"thermo {sim.energy_interval}\n")
+    pairs = " f_pairs[1] f_pairs[2]" if system.has_cross_pairs else ""
+    cap = " f_cap f_cap[2]" if sim.cap_force else ""
+    f.write(
+        "thermo_style custom step temp pe ke etotal ebond eangle edihed"
+        f"{' eimp' if system.impropers else ''} evdwl ecoul{pairs} press f_bm{cap}\n"
+    )
+    f.write("thermo_modify colname f_bm lambda temp at_temp\n")
+    f.write(f"dump traj all custom {sim.trajectory_interval} dump.backmap id mol type x y z f_bm\n")
+    f.write("dump_modify traj sort id\n\n")
+    f.write(f"timestep {ts:.4g}\n\n")
+    f.write("# Stage 1: lambda = 0 equilibration (CG + fragments, no frozen CG)\n")
+    f.write("fix_modify bm active no\n")
+    f.write(f"run {sim.equilibration_steps}\n\n")
+    f.write(f"# Stage 2: lambda ramp 0 -> 1 ({ramp_steps} steps, alpha {sim.alpha:g})\n")
+    f.write("fix_modify bm active yes\n")
+    if ts_ramp != ts:
+        f.write(f"timestep {ts_ramp:.4g}\n")
+    f.write(f"run {ramp_steps}\n")
+    f.write(f"write_data {prefix}_hybrid.data\n\n")
+    if sim.production_steps > 0:
+        f.write("# Stage 3: production at lambda = 1\n")
+        if ts_ramp != ts:
+            f.write(f"timestep {ts:.4g}\n")
+        f.write(f"run {sim.production_steps}\n")
+        f.write(f"write_data {prefix}_final.data\n")
+
+
 def _write_robust_protocol(
     f: IO[str],
     system: System,
@@ -808,6 +954,11 @@ def _write_lammps_input(
         f.write("atom_style full\n")
         f.write("boundary p p p\n\n")
 
+        if sim.protocol == "bakery":
+            _write_bakery_protocol(
+                f, system, settings, params, data_filename, ff_name, backmap_name
+            )
+            return
         if sim.protocol == "robust":
             _write_robust_protocol(
                 f, system, settings, params, data_filename, ff_name, backmap_name

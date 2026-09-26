@@ -218,17 +218,18 @@ cg_system:
     epsilon_rf: 0.0
 
 simulation:
-  protocol: robust
-  alpha: 0.0001
+  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
+  # parameters: no published run; flexible TIP3P -> 0.5 fs
+  alpha: 5e-05
   initial_resolution: 0.0
-  timestep: 0.001
-  timestep_backmapping: 0.001
-  equilibration_steps: 0
-  production_steps: 0
+  timestep: 0.0005
+  timestep_backmapping: 0.0005
+  equilibration_steps: 2000
+  production_steps: 10000
   temperature: 310.0
   ensemble: nvt
   thermostat: nose_hoover
-  thermostat_gamma: 30.0
+  thermostat_gamma: 10
   thermostat_tdamp: 0.1
   thermostat_target: atomistic
   lj_cutoff: 1.4              # nm, Slipids plain LJ cut-off

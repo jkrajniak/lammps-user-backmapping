@@ -31,7 +31,19 @@ from .schema import (
     resolve_tables_dir,
 )
 from .table_converter import convert_tables
-from .writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
+from .writers import (
+    bead_velocities,
+    write_cross_pairs_file,
+    write_lammps_data,
+    write_lammps_input,
+)
+
+
+def _set_protocol_velocities(system: System, settings: Settings) -> None:
+    """Bakery protocol: bead-shared initial velocities in the data file."""
+    sim = settings.simulation
+    if sim.protocol == "bakery":
+        system.velocities = bead_velocities(system, sim.temperature, sim.rng_seed)
 
 
 def _cmd_build(args: argparse.Namespace) -> int:
@@ -40,6 +52,7 @@ def _cmd_build(args: argparse.Namespace) -> int:
     prefix = args.output_prefix or settings.output.prefix
     out_dir = args.settings.parent.resolve()
     system = build_network_lammps(settings, args.settings).system
+    _set_protocol_velocities(system, settings)
 
     data_path = out_dir / f"{prefix}.data"
     write_lammps_data(system, data_path)
@@ -117,6 +130,7 @@ def _cmd_rebuild(args: argparse.Namespace) -> int:
     if tables_dir is not None:
         table_search.append(tables_dir)
     system = rebuild_network_lammps(settings, args.settings, args.cg_frame.resolve()).system
+    _set_protocol_velocities(system, settings)
 
     data_path = out_dir / f"{prefix}.data"
     write_lammps_data(system, data_path)

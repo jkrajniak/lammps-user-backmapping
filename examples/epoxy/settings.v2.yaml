@@ -230,19 +230,21 @@ cross_interactions:
   angles_file: cross_angles_rim135.yaml
 
 simulation:
+  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
+  # parameters: published rim135_small/aa (alpha swept 1e-3..1e-5; middle value)
   # Tier B bakery protocol (PR4): cap_force, gamma=15, velocity init, dt revert to 1 fs
   alpha: 0.0001
   temperature: 298.0
   timestep: 0.001
   timestep_backmapping: 0.001
-  thermostat_gamma: 15.0
+  thermostat_gamma: 15
   cap_force: 50000.0
   equilibration_steps: 0
   lj_cutoff: 1.2
   cg_cutoff: 1.4
   coulomb_cutoff: 0.9
   table_groups: [A, B, E, F, H, I, K, Q]
-  production_steps: 10000
+  production_steps: 20000
 
 output:
   prefix: rim135

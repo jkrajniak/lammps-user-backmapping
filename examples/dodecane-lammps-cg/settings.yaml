@@ -114,19 +114,21 @@ cross_interactions:
       cg_bonded: true
 
 simulation:
-  alpha: 0.0001
+  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
+  # parameters: no published params; pe_4
+  alpha: 1e-05
   initial_resolution: 0.0
 
   timestep: 0.001            # ps
   timestep_backmapping: 0.001
 
-  equilibration_steps: 0
-  production_steps: 0
+  equilibration_steps: 5000
+  production_steps: 5000
 
   temperature: 298.0          # K
   ensemble: nvt
   thermostat: nose_hoover
-  thermostat_gamma: 30.0      # 1/ps (used with langevin thermostat)
+  thermostat_gamma: 5      # 1/ps (used with langevin thermostat)
   thermostat_tdamp: 0.1       # ps — Nosé-Hoover damping time
   thermostat_target: atomistic
 
