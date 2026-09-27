@@ -513,14 +513,24 @@ int FixBackmap::pack_forward_comm(int n, int *list, double *buf,
                                   int /*pbc_flag*/, int * /*pbc*/) {
   double **f = atom->f;
   int *type = atom->type;
+  int nlocal = atom->nlocal;
   int m = 0;
   for (int k = 0; k < n; k++) {
     int i = list[k];
-    if (is_cg_type(type[i])) {
+    if (is_cg_type(type[i]) && i < nlocal) {
       buf[m++] = f[i][0];
       buf[m++] = f[i][1];
       buf[m++] = f[i][2];
       buf[m++] = cg_denom[i];
+    } else if (is_cg_type(type[i])) {
+      // A ghost forwarded again (multi-dimensional or tiled decomposition,
+      // periodic images): send what it received, not its own partial force
+      // and zero mass sum.
+      const double *p = &cg_fwd[i * 4];
+      buf[m++] = p[0];
+      buf[m++] = p[1];
+      buf[m++] = p[2];
+      buf[m++] = p[3];
     } else {
       buf[m++] = 0.0;
       buf[m++] = 0.0;
