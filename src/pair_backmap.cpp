@@ -40,6 +40,7 @@
 #include "memory.h"
 #include "modify.h"
 #include "neigh_list.h"
+#include "neigh_request.h"
 #include "neighbor.h"
 #include "update.h"
 #include "utils.h"
@@ -272,10 +273,19 @@ void PairBackmap::init_style() {
   // Locate fix backmap
   fix_backmap = BackmapLambda::find_fix_backmap(lmp, "pair_style backmap");
 
-  // Sub-styles are only used via single() — they don't need their own
-  // neighbor lists.  Calling their init_style() creates requests that
-  // LAMMPS may merge/copy into ours, causing type-filtered lists.
-  // We request a single full list for pair_backmap.
+  // Sub-styles set per-style state in init_style() (lj/cut its rRESPA
+  // cutoff pointer, which its constructor leaves uninitialized and its
+  // init_one() dereferences; lj/cut/coul/cut its charge check), so run it.
+  // They are only evaluated via single() on our list, so drop the
+  // neighbor requests they add: LAMMPS may merge/copy them into ours,
+  // causing type-filtered lists.  We request a single list for backmap.
+  const int nrequest_before = neighbor->nrequest;
+  if (pair_at) pair_at->init_style();
+  if (pair_cg) pair_cg->init_style();
+  for (int i = nrequest_before; i < neighbor->nrequest; i++)
+    delete neighbor->requests[i];
+  neighbor->nrequest = nrequest_before;
+
   neighbor->add_request(this, NeighConst::REQ_DEFAULT);
 }
 
