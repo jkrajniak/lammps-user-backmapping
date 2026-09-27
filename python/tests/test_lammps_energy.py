@@ -18,35 +18,13 @@ LMP_ENV = "BACKMAP_LMP"
 _REPO = Path(__file__).resolve().parents[2]
 _DODECANE = _REPO / "examples" / "dodecane" / "large"
 
-_AT_PAIR_COEFFS = """\
-pair_coeff 3 3 {tag}0.207266 3.748000
-pair_coeff 3 4 {tag}0.156387 3.826500
-pair_coeff 4 4 {tag}0.117997 3.905000
-"""
-
 _HYBRID = """\
 units real
 atom_style full
 boundary p p p
 read_data dodecane.data
-pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
-pair_coeff 1 1 cg table_A_A.table ENTRY
-pair_coeff 1 2 cg table_A_B.table ENTRY
-pair_coeff 1 3 none
-pair_coeff 1 4 none
-pair_coeff 2 2 cg table_B_B.table ENTRY
-pair_coeff 2 3 none
-pair_coeff 2 4 none
-{at_pairs}\
-bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
-bond_coeff 1 harmonic 800.000883 1.530000
-bond_coeff 2 backmap/table cg table_b1.table ENTRY
-bond_coeff 3 backmap/table cg table_b1.table ENTRY
-bond_coeff 4 backmap/harmonic at 800.000883 1.530000
-angle_style backmap/harmonic
-angle_coeff 1 at 126.673180 111.0000
-special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 1.0
+include dodecane.ff.lmp
+{fix_bm}
 compute pa all pe/atom pair
 compute pa_sum all reduce sum c_pa
 thermo_style custom step evdwl ecoul c_pa_sum
@@ -59,20 +37,44 @@ units real
 atom_style full
 boundary p p p
 read_data dodecane.data
-group cg type 1 2
+group cg type {cg_types}
 delete_atoms group cg bond yes mol no
-pair_style lj/cut 14.00
+pair_style lj/cut {cutoff}
 pair_coeff * * 0.0 1.0
 {at_pairs}\
-bond_style harmonic
-bond_coeff * 800.000883 1.530000
-angle_style harmonic
-angle_coeff 1 126.673180 111.0000
+bond_style zero
+bond_coeff *
+angle_style zero
+angle_coeff *
+dihedral_style zero
+dihedral_coeff *
 special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 thermo_style custom step evdwl
 run 0
 print "RESULT evdwl=$(evdwl:%.10e)"
 """
+
+
+def _example_inputs(workdir: Path) -> tuple[str, str, str, str]:
+    """fix backmap line at lambda = 1, CG types, AT cutoff and plain AT pair coeffs.
+
+    Taken from the example's generated files, so the test follows the example
+    when it is regenerated (type numbering, coefficients).
+    """
+    ff = (workdir / "dodecane.ff.lmp").read_text()
+    bm = (workdir / "dodecane.backmap.lmp").read_text()
+    fix_line = next(ln for ln in bm.splitlines() if ln.startswith("fix bm all backmap"))
+    fix_bm = re.sub(r"lambda0 \S+", "lambda0 1.0", fix_line)
+    cg_types = re.search(r"cg_type ((?:\d+ ?)+)", fix_line).group(1).strip()
+    cutoff = re.search(r"^pair_style backmap \S+ lj/cut/coul/cut (\S+)", ff, re.MULTILINE).group(1)
+    at_pairs = "".join(
+        f"pair_coeff {i} {j} {eps} {sig}\n"
+        for i, j, eps, sig in re.findall(
+            r"^pair_coeff (\d+) (\d+) atomistic (\S+) (\S+)\s*$", ff, re.MULTILINE
+        )
+    )
+    assert at_pairs, "no atomistic pair_coeff lines in dodecane.ff.lmp"
+    return fix_bm, cg_types, cutoff, at_pairs
 
 
 def _lmp() -> Path:
@@ -100,7 +102,8 @@ def _run(lmp: Path, workdir: Path, script: str) -> dict[str, float]:
 
 @pytest.fixture
 def dodecane_dir(tmp_path: Path) -> Path:
-    shutil.copy(_DODECANE / "dodecane.data", tmp_path)
+    for name in ("dodecane.data", "dodecane.ff.lmp", "dodecane.backmap.lmp"):
+        shutil.copy(_DODECANE / name, tmp_path)
     for table in _DODECANE.glob("table_*.table"):
         shutil.copy(table, tmp_path)
     return tmp_path
@@ -114,12 +117,13 @@ def test_pair_backmap_energy_matches_plain_lj_at_lambda_one(dodecane_dir: Path) 
     exactly twice the pair energy while the forces were correct.
     """
     lmp = _lmp()
-    hybrid = _run(
+    fix_bm, cg_types, cutoff, at_pairs = _example_inputs(dodecane_dir)
+    hybrid = _run(lmp, dodecane_dir, _HYBRID.format(fix_bm=fix_bm))
+    plain = _run(
         lmp,
         dodecane_dir,
-        _HYBRID.format(at_pairs=_AT_PAIR_COEFFS.format(tag="atomistic ")),
+        _AT_ONLY.format(cg_types=cg_types, cutoff=cutoff, at_pairs=at_pairs),
     )
-    plain = _run(lmp, dodecane_dir, _AT_ONLY.format(at_pairs=_AT_PAIR_COEFFS.format(tag="")))
 
     assert hybrid["evdwl"] == pytest.approx(plain["evdwl"], rel=1e-10)
     assert hybrid["peratom"] == pytest.approx(hybrid["evdwl"] + hybrid["ecoul"], rel=1e-10)

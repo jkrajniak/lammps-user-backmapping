@@ -23,38 +23,61 @@ LMP_ENV = "BACKMAP_LMP"
 _REPO = Path(__file__).resolve().parents[2]
 _PE = _REPO / "examples" / "pe" / "large"
 
-_PAIR = """\
-pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
-pair_coeff 1 1 cg table_A_A.table ENTRY
-pair_coeff 1 2 cg table_A_B.table ENTRY
-pair_coeff 1 3 none
-pair_coeff 1 4 none
-pair_coeff 2 2 cg table_B_B.table ENTRY
-pair_coeff 2 3 none
-pair_coeff 2 4 none
-pair_coeff 3 3 atomistic 0.207266 3.748000
-pair_coeff 3 4 atomistic 0.156387 3.826500
-pair_coeff 4 4 atomistic 0.117997 3.905000
-"""
-
-_BONDED_COEFFS = """\
-bond_coeff 1 at 316.682950 1.530000
-bond_coeff 2 cg 50.0 4.0
-bond_coeff 3 cg 50.0 4.0
-bond_coeff 4 at 316.682950 1.530000
-angle_coeff 1 cg 10.0 150.0
-angle_coeff 2 cg 10.0 150.0
-angle_coeff 3 at 62.141560 111.0000
-{dihedral_coeffs}\
-"""
-
+# Coefficients by role; the type numbers come from the example's generated
+# force-field file, so the test follows the example when it is regenerated.
+_BOND = {"at": "at 316.682950 1.530000", "cg": "cg 50.0 4.0"}
+_ANGLE = {"at": "at 62.141560 111.0000", "cg": "cg 10.0 150.0"}
 _DIHEDRALS = {
-    "backmap/ryckaert": (
-        "dihedral_coeff 1 cg 0.1 -0.2 0.3 0.4 -0.05 -0.6\n"
-        "dihedral_coeff 2 at 0.717018 -2.217713 2.905285 3.135783 -0.731287 -6.271589\n"
-    ),
-    "backmap/harmonic": "dihedral_coeff 1 cg 1.5 1 3\ndihedral_coeff 2 at 0.7 -1 2\n",
+    "backmap/ryckaert": {
+        "cg": "cg 0.1 -0.2 0.3 0.4 -0.05 -0.6",
+        "at": "at 0.717018 -2.217713 2.905285 3.135783 -0.731287 -6.271589",
+    },
+    "backmap/harmonic": {"cg": "cg 1.5 1 3", "at": "at 0.7 -1 2"},
 }
+
+
+def _roles(ff: str, kind: str) -> dict[int, str]:
+    """Type -> "at" or "cg" for one bonded kind, from ``<kind>_coeff`` lines."""
+    roles = {}
+    for t, role in re.findall(rf"^{kind}_coeff (\d+) \S+ (at|cg)\b", ff, re.MULTILINE):
+        roles[int(t)] = role
+    return roles
+
+
+def _example(workdir: Path) -> dict[str, str]:
+    ff = (workdir / "pe.ff.lmp").read_text()
+    bm = (workdir / "pe.backmap.lmp").read_text()
+    fix_line = next(ln for ln in bm.splitlines() if ln.startswith("fix bm all backmap"))
+    pair = "".join(
+        ln + "\n" for ln in ff.splitlines() if ln.startswith(("pair_style", "pair_coeff"))
+    )
+    at_pairs = "".join(
+        f"pair_coeff {i} {j} {eps} {sig}\n"
+        for i, j, eps, sig in re.findall(
+            r"^pair_coeff (\d+) (\d+) atomistic (\S+) (\S+)\s*$", ff, re.MULTILINE
+        )
+    )
+    return {
+        "ff": ff,
+        "pair": pair,
+        "at_pairs": at_pairs,
+        "cg_types": re.search(r"cg_type ((?:\d+ ?)+)", fix_line).group(1).strip(),
+        "fix_bm": re.sub(r"lambda0 \S+", "lambda0 0.5", fix_line),
+    }
+
+
+def _bonded_coeffs(ff: str, dihedral_style: str) -> str:
+    lines = []
+    for kind, table in (
+        ("bond", _BOND),
+        ("angle", _ANGLE),
+        ("dihedral", _DIHEDRALS[dihedral_style]),
+    ):
+        roles = _roles(ff, kind)
+        assert roles, f"no {kind}_coeff lines in pe.ff.lmp"
+        lines += [f"{kind}_coeff {t} {table[role]}" for t, role in sorted(roles.items())]
+    return "\n".join(lines) + "\n"
+
 
 _HYBRID = """\
 units real
@@ -67,7 +90,7 @@ read_data {data}
 {pair}\
 {coeffs}\
 special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.5
+{fix_bm}
 thermo_style custom step pe ebond eangle edihed evdwl
 run 0
 print "RESULT pe=$(pe:%.12e) ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e)"
@@ -91,15 +114,20 @@ print "RESULT pe=$(pe:%.12e) edihed=$(edihed:%.12e)"
 {tail}\
 """
 
-_AT_ONLY_SETUP = """\
-group cg type 1 2
-delete_atoms group cg bond yes mol no
+# Stock lj/cut and harmonic write their Coeffs with %g and only the i-i pair
+# coefficients (cross terms are re-mixed on read), so they are given again on
+# the re-read; only the Dihedral Coeffs are taken from the written file.
+_AT_ONLY_COEFFS = """\
 pair_coeff * * 0.0 1.0
-pair_coeff 3 3 0.207266 3.748000
-pair_coeff 3 4 0.156387 3.826500
-pair_coeff 4 4 0.117997 3.905000
+{at_pairs}\
 bond_coeff * 316.682950 1.530000
 angle_coeff * 62.141560 111.0000
+"""
+
+_AT_ONLY_SETUP = """\
+group cg type {cg_types}
+delete_atoms group cg bond yes mol no
+{coeffs}\
 dihedral_coeff * 0.717018 -2.217713 2.905285 3.135783 -0.731287 -6.271589
 """
 
@@ -141,7 +169,8 @@ def _empty_coeff_sections(data: Path) -> list[str]:
 
 @pytest.fixture
 def pe_dir(tmp_path: Path) -> Path:
-    shutil.copy(_PE / "pe.data", tmp_path)
+    for name in ("pe.data", "pe.ff.lmp", "pe.backmap.lmp"):
+        shutil.copy(_PE / name, tmp_path)
     for table in ("table_A_A", "table_A_B", "table_B_B"):
         shutil.copy(_PE / f"{table}.table", tmp_path)
     return tmp_path
@@ -151,14 +180,16 @@ def pe_dir(tmp_path: Path) -> Path:
 @pytest.mark.parametrize("dihedral_style", sorted(_DIHEDRALS))
 def test_backmap_bonded_coeffs_round_trip(pe_dir: Path, dihedral_style: str) -> None:
     lmp = _lmp()
-    coeffs = _BONDED_COEFFS.format(dihedral_coeffs=_DIHEDRALS[dihedral_style])
+    ex = _example(pe_dir)
+    coeffs = _bonded_coeffs(ex["ff"], dihedral_style)
     first = _run(
         lmp,
         pe_dir,
         _HYBRID.format(
             dihedral_style=dihedral_style,
             data="pe.data",
-            pair=_PAIR,
+            pair=ex["pair"],
+            fix_bm=ex["fix_bm"],
             coeffs=coeffs,
             tail="write_data written.data\n",
         ),
@@ -172,7 +203,8 @@ def test_backmap_bonded_coeffs_round_trip(pe_dir: Path, dihedral_style: str) -> 
         _HYBRID.format(
             dihedral_style=dihedral_style,
             data="written.data",
-            pair=_PAIR,
+            pair=ex["pair"],
+            fix_bm=ex["fix_bm"],
             coeffs="",
             tail="",
         ),
@@ -184,10 +216,13 @@ def test_backmap_bonded_coeffs_round_trip(pe_dir: Path, dihedral_style: str) -> 
 @pytest.mark.integration
 def test_ryckaert_coeffs_round_trip(pe_dir: Path) -> None:
     lmp = _lmp()
+    ex = _example(pe_dir)
+    coeffs = _AT_ONLY_COEFFS.format(at_pairs=ex["at_pairs"])
+    setup = _AT_ONLY_SETUP.format(cg_types=ex["cg_types"], coeffs=coeffs)
     first = _run(
         lmp,
         pe_dir,
-        _AT_ONLY.format(data="pe.data", setup=_AT_ONLY_SETUP, tail="write_data written.data\n"),
+        _AT_ONLY.format(data="pe.data", setup=setup, tail="write_data written.data\n"),
     )
     written = pe_dir / "written.data"
     assert _empty_coeff_sections(written) == []
@@ -195,7 +230,7 @@ def test_ryckaert_coeffs_round_trip(pe_dir: Path) -> None:
     second = _run(
         lmp,
         pe_dir,
-        _AT_ONLY.format(data="written.data", setup="", tail=""),
+        _AT_ONLY.format(data="written.data", setup=coeffs, tail=""),
     )
     assert first["edihed"] != 0.0
     assert second["edihed"] == pytest.approx(first["edihed"], rel=1e-12)

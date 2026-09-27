@@ -1343,9 +1343,10 @@ def build_system_from_hybrid(
     ):
         # Crosslinked networks (rim135, PET/Dacron): prepare_network_coordinates()
         # already assigned per-atom image flags above; this tells writers.py to
-        # (a) emit them in the data file and (b) widen comm_modify cutoff to
-        # cover the folded Cartesian extent of box-spanning crosslink bonds
-        # (writers.py::_compute_params), not just the LJ/CG interaction cutoff.
+        # (a) emit them in the data file and (b) size comm_modify cutoff to
+        # cover the minimum-image extent of the bonded terms and beads
+        # (writers.py::_compute_params, pbc.max_interaction_extent), not just
+        # the LJ/CG interaction cutoff.
         # Without it, comm_modify cutoff silently under-covers bonded network
         # extent for any consumer of build_network_lammps() (e.g. the CLI
         # `build` command), unlike the `rebuild`/`finalize-cg` paths which

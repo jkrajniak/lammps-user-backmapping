@@ -19,6 +19,7 @@ the other v2 examples (PET, epoxy) already work.
 from __future__ import annotations
 
 import re
+import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -41,9 +42,17 @@ SETTINGS_YAML = MF_NETWORK_DIR / "settings.yaml"
 
 
 def _build():
-    """Build the hybrid GROMACS system from the native v2 settings.yaml."""
+    """Build the hybrid GROMACS system from the native v2 settings.yaml.
+
+    Outputs go to a fresh temporary directory; the example directory is only read.
+    """
     settings = load_settings(SETTINGS_YAML)
-    return build_hybrid_gromacs(settings, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+    return build_hybrid_gromacs(
+        settings,
+        base_dir=MF_NETWORK_DIR,
+        output_dir=Path(tempfile.mkdtemp(prefix="mf_network_")),
+        chain_rng_seed=42,
+    )
 
 
 def test_mf_network_assets_present() -> None:
@@ -421,7 +430,7 @@ def test_mf_network_lammps_crosslink_types_nonzero(tmp_path: Path) -> None:
     just the 675 crosslink ones, and that is not itself a bug.
     """
     settings = load_settings(SETTINGS_YAML)
-    result = build_network_lammps(settings, SETTINGS_YAML)
+    result = build_network_lammps(settings, SETTINGS_YAML, output_dir=tmp_path)
 
     data_path = tmp_path / f"{settings.output.prefix}.data"
     input_path = tmp_path / f"in.{settings.output.prefix}"

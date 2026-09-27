@@ -181,10 +181,16 @@ def build_hybrid_gromacs(
     )
 
 
-def build_network_lammps(settings: Settings, settings_path: Path) -> NetworkLammpsBuildResult:
-    """Build hybrid GRO/TOP for network systems and map them to a LAMMPS `System`."""
+def build_network_lammps(
+    settings: Settings, settings_path: Path, output_dir: Path | None = None
+) -> NetworkLammpsBuildResult:
+    """Build hybrid GRO/TOP for network systems and map them to a LAMMPS `System`.
+
+    Outputs go to ``output_dir`` (default: the settings file's directory); the
+    data directory, which may be a published archive, is only read.
+    """
     work_dir = resolve_data_dir(settings_path, settings)
-    output_dir = settings_path.parent.resolve()
+    output_dir = (output_dir or settings_path.parent).resolve()
     if settings.prep.bakery_xml:
         # Bakery settings.xml passthrough (e.g. melamine_network): the v2
         # Settings object intentionally carries no native molecules/cg_system/
