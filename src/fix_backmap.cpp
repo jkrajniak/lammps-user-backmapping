@@ -27,6 +27,7 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <unordered_map>
 
 #include "atom.h"
 #include "comm.h"
@@ -201,6 +202,10 @@ int FixBackmap::setmask() {
   int mask = 0;
   mask |= POST_INTEGRATE;
   mask |= PRE_FORCE;
+  // The bead map must also be current during minimization: Min::setup()
+  // reaches setup_pre_force() only for MIN_PRE_FORCE fixes, and the map
+  // must be rebuilt after each reneighbor there as well.
+  mask |= MIN_PRE_FORCE;
   mask |= POST_FORCE;
   mask |= END_OF_STEP;
   return mask;
@@ -324,6 +329,10 @@ void FixBackmap::pre_force(int /*vflag*/) {
     build_bead_map();
   }
 }
+
+/* ---------------------------------------------------------------------- */
+
+void FixBackmap::min_pre_force(int vflag) { pre_force(vflag); }
 
 /* ---------------------------------------------------------------------- */
 
@@ -616,6 +625,10 @@ void FixBackmap::build_bead_map() {
   };
 
   std::map<tagint, MolInfo> mol_atoms;
+  // AT tag -> index of its bead (the image chosen below), so that every
+  // local and ghost copy of an AT atom, including all periodic images, can
+  // be given the same bead index (see the pass after the molecule loop).
+  std::unordered_map<tagint, int> bead_of_tag;
 
   for (int i = 0; i < ntotal; i++) {
     tagint mol_id = molecule[i];
@@ -700,6 +713,7 @@ void FixBackmap::build_bead_map() {
       for (int ai = at_offset; ai < at_offset + apb; ai++) {
         int at_idx = at_atoms[ai].local_idx;
         atom2cg[at_idx] = cg_idx;
+        bead_of_tag[at_atoms[ai].gtag] = cg_idx;
       }
 
       // bead_map entry kept for setup logging + validate_masses (local CG
@@ -722,6 +736,18 @@ void FixBackmap::build_bead_map() {
 
       at_offset += apb;
     }
+  }
+
+  // Every other copy of an AT atom (a ghost of a local atom, or another
+  // periodic image) gets the bead of its representative. The bonded and pair
+  // styles decide same-bead membership from atom2cg of the indices in their
+  // lists, which are often such images for terms that cross a periodic or
+  // processor boundary; left at -1, an intra-bead term would be weighted as
+  // inter-bead (lambda instead of 1).
+  for (int i = 0; i < ntotal; i++) {
+    if (atom2cg[i] >= 0 || is_cg_type(type[i]) || molecule[i] <= 0) continue;
+    auto it = bead_of_tag.find(tag[i]);
+    if (it != bead_of_tag.end()) atom2cg[i] = it->second;
   }
 
   // Warn if any local AT atom has no resolvable CG partner on this rank,
