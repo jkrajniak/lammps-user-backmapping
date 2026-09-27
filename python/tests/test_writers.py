@@ -671,3 +671,17 @@ def test_bead_velocities_shared_within_a_bead() -> None:
     masses = {1: 72.0, 2: 14.0}
     p = [sum(masses[a.type_id] * vel2[a.atom_id][k] for a in two.atoms) for k in range(3)]
     assert p == pytest.approx([0.0, 0.0, 0.0], abs=1e-12)
+
+
+def test_robust_capforce_active_until_production(tmp_path: Path) -> None:
+    """Single protocol: CapForce from phase 0 through staged NVT, released before production."""
+    settings = _make_settings("robust")
+    settings.simulation.cap_force = 50000.0
+    settings.simulation.production_steps = 1000
+    path = tmp_path / "in.test"
+    write_lammps_input(_make_system(), settings, path, "test.data")
+    text = read_input_with_includes(path)
+    cap = text.index("fix cap all backmap/capforce")
+    assert cap < text.index("minimize")
+    release = text.index("unfix cap")
+    assert text.index("write_data test_hybrid.data") < release < text.index("# Production")

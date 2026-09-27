@@ -864,7 +864,8 @@ def _write_robust_protocol(
     Phase 0: minimize and relax the AT overlaps at lambda = 0 with the CG beads
     frozen (nve/limit, Langevin, 0.01 fs). Phase 1: lambda ramp with nve/limit and
     Langevin at 0.1 fs for 2 / alpha steps. Phase 2: staged NVT at lambda = 1
-    (0.25, 0.5, 1.0 fs). Optional production at lambda = 1.
+    (0.25, 0.5, 1.0 fs). CapForce (``cap_force``) acts from phase 0 through
+    phase 2 and is released before the optional production at lambda = 1.
     """
     sim = settings.simulation
     temp = sim.temperature
@@ -909,6 +910,9 @@ def _write_robust_protocol(
     f.write(f"fix nvt_cg cg_atoms nvt temp {temp:.1f} {temp:.1f} 100.0\n")
     f.write("timestep 0.25\nrun 10000\ntimestep 0.50\nrun 5000\ntimestep 1.00\nrun 5000\n\n")
     f.write(f"write_data {prefix}_hybrid.data\n")
+    if sim.cap_force is not None and sim.cap_force > 0:
+        f.write("# CapForce released after the ramp and the staged NVT (as bakery does)\n")
+        f.write("unfix cap\n")
     if sim.production_steps > 0:
         f.write(f"\n# Production at lambda = 1\ntimestep {params['timestep_fs']:.2f}\n")
         f.write(f"run {sim.production_steps}\nwrite_data {prefix}_final.data\n")
