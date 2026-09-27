@@ -373,7 +373,10 @@ void AngleBackmapTable::read_table(Table *tb, const char *file,
     values.next_int();
     tb->rfile[i] = values.next_double();
     tb->efile[i] = values.next_double();
-    tb->ffile[i] = values.next_double();
+    // The file gives -dE/dtheta per degree (angle_style table format); the
+    // force expression in compute() needs it per radian, as angle_style
+    // table converts it.
+    tb->ffile[i] = values.next_double() * RAD2DEG;
   }
 
   tb->lo = tb->rfile[0];
