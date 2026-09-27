@@ -21,6 +21,21 @@ while [ $# -ge 3 ]; do
   work="$OUT/$prefix"
   [ -e "$work" ] && { echo "$work exists, not overwriting" >&2; exit 1; }
   mkdir -p "$OUT" && cp -r "$src" "$work"
+  # settings paths relative to the example (data_dir etc.) must still resolve
+  # from the copy
+  python3 - "$src" "$work/$settings" <<'PY'
+import re, sys
+from pathlib import Path
+src, settings = Path(sys.argv[1]).resolve(), Path(sys.argv[2])
+text = settings.read_text()
+text = re.sub(
+    r"^(\s*(?:data_dir|tables_dir|forcefield_dir|bakery_xml):\s*)([^\s#]+)",
+    lambda m: m.group(1) + (m.group(2) if m.group(2).startswith("/") else str((src / m.group(2)).resolve())),
+    text,
+    flags=re.MULTILINE,
+)
+settings.write_text(text)
+PY
   (cd "$work" && $PREP build "$settings" > build.log 2>&1)
   # lambda fixed at LAMBDA, per-bead output
   sed -i -E "s/^(fix bm all backmap .*) lambda0 [^ ]+(.*)$/\1 lambda0 ${LAMBDA}\2 peratom full/" "$work/$prefix.backmap.lmp"

@@ -5,7 +5,9 @@ in ``workdir`` and reports, per run, the largest deviation from the reference
 run of:
 
 - per-atom total force (AT atoms after the CG force redistribution, CG beads),
-  relative to the largest force magnitude in the system;
+  relative to the largest force magnitude in the system, and per atom relative
+  to that atom's own force (floor 1 kcal/mol/A), which large overlap forces in
+  an unrelaxed frame cannot mask;
 - bead COM positions (fix backmap peratom full, columns 2-4), absolute, in A;
 - bead CG forces before redistribution (columns 5-7), relative as above;
 - each energy term, relative to its magnitude.
@@ -68,7 +70,10 @@ def main() -> int:
         f"system {args.workdir.name}: {len(ref)} atoms, {int(is_bead.sum())} beads, "
         f"max |f| {f_scale:.6g} kcal/mol/A, lambda {ref[0, idx['f_bm[1]']]:g}"
     )
-    print(f"{'run':6s} {'force rel':>10s} {'COM abs A':>10s} {'CG f rel':>10s} {'energy rel':>10s}")
+    print(
+        f"{'run':6s} {'force rel':>10s} {'per atom':>10s} {'COM abs A':>10s} "
+        f"{'CG f rel':>10s} {'energy rel':>10s}"
+    )
     worst = 0.0
     for dump in sorted(args.workdir.glob("forces_*.dump")):
         name = dump.stem.removeprefix("forces_")
@@ -79,6 +84,8 @@ def main() -> int:
             print(f"{name}: atom ids differ from the reference run", file=sys.stderr)
             return 1
         d_f = np.max(np.abs(run[:, f_cols] - ref[:, f_cols])) / f_scale
+        d_atom = np.linalg.norm(run[:, f_cols] - ref[:, f_cols], axis=1)
+        d_f_atom = np.max(d_atom / np.maximum(np.linalg.norm(ref[:, f_cols], axis=1), 1.0))
         d_com = (
             np.max(np.abs(run[is_bead][:, com_cols] - ref[is_bead][:, com_cols]))
             if is_bead.any()
@@ -95,8 +102,8 @@ def main() -> int:
             for k in ENERGIES
             if e_ref[k] != 0.0
         )
-        worst = max(worst, d_f, d_fcg)
-        print(f"{name:6s} {d_f:10.2e} {d_com:10.2e} {d_fcg:10.2e} {d_e:10.2e}")
+        worst = max(worst, d_f, d_fcg, d_f_atom)
+        print(f"{name:6s} {d_f:10.2e} {d_f_atom:10.2e} {d_com:10.2e} {d_fcg:10.2e} {d_e:10.2e}")
     verdict = "PASS" if worst <= args.tol else "FAIL"
     print(f"{verdict}: largest relative force deviation {worst:.2e} (tolerance {args.tol:.0e})")
     return 0 if verdict == "PASS" else 2
