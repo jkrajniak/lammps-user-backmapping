@@ -1,0 +1,67 @@
+# Tier C: continue the backmapped network as a plain AT system with the protocol
+# of the published GROMACS references (JCC 2018 data, backmapping/*/template_eq/*.mdp;
+# melamine network: bakery examples/network_backmapping/mf/backmapping/template_eq):
+# 298 K, PME with 1.2 nm cutoffs (here PPPM 1e-5, 12 A), plain LJ cutoff 1.2 nm,
+# no dispersion correction, flexible bonds, 1 fs, anisotropic NPT at 1 atm, then
+# NVT; the trajectory is kept only for the RDF window at the end of the NVT stage.
+# Input: <prefix>_at.data and <prefix>.at.ff.lmp from backmap-prep, plus
+# <prefix>.at.pair_coeffs (the pair_coeff lines of <prefix>.at.ff.lmp).
+# Required: -var prefix <prefix>
+# Optional (defaults = the dacron / rim135 references):
+#   -var T 298.0
+#   -var anneal 0        1 = RIM135: NPT 1000 K -> T over 4.5 ns, 0.5 ns at T, NVT 1 ns
+#   -var npt_steps 5000000
+#   -var nvt_steps 2500000      NVT before the RDF window
+#   -var window_steps 2500000   NVT with the trajectory (every 10 ps)
+#   -var seed 4928459
+
+variable        T index 298.0
+variable        anneal index 0
+variable        npt_steps index 5000000
+variable        nvt_steps index 2500000
+variable        window_steps index 2500000
+variable        seed index 4928459
+
+units           real
+atom_style      full
+boundary        p p p
+read_data       ${prefix}_at.data
+include         ${prefix}.at.ff.lmp
+pair_style      lj/cut/coul/long 12.0 12.0
+include         ${prefix}.at.pair_coeffs
+kspace_style    pppm 1.0e-5
+
+thermo          5000
+thermo_style    custom step temp pe ke etotal ebond eangle edihed eimp evdwl ecoul elong press density vol lx ly lz
+
+minimize        1.0e-4 1.0e-6 5000 50000
+reset_atoms     image all
+reset_timestep  0
+timestep        1.0
+
+if "${anneal} == 1" then &
+  "velocity all create 1000.0 ${seed} mom yes rot yes dist gaussian" &
+  "fix integrate all npt temp 1000.0 ${T} 100.0 aniso 1.0 1.0 1000.0" &
+  "run 4500000" &
+  "unfix integrate" &
+  "fix integrate all npt temp ${T} ${T} 100.0 aniso 1.0 1.0 1000.0" &
+  "run 500000" &
+  "unfix integrate" &
+  "fix integrate all nvt temp ${T} ${T} 100.0" &
+  "run 1000000" &
+  "unfix integrate" &
+else &
+  "velocity all create ${T} ${seed} mom yes rot yes dist gaussian"
+
+fix             integrate all npt temp ${T} ${T} 100.0 aniso 1.0 1.0 1000.0
+run             ${npt_steps}
+unfix           integrate
+write_data      ${prefix}_at_npt.data
+fix             integrate all nvt temp ${T} ${T} 100.0
+run             ${nvt_steps}
+dump            traj all custom 10000 dump.at_prod id mol type x y z
+dump_modify     traj sort id
+run             ${window_steps}
+undump          traj
+unfix           integrate
+write_data      ${prefix}_at_final.data
