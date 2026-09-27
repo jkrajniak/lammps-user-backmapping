@@ -1154,6 +1154,14 @@ def build_system_from_cg(
 
     gro_file = parse_gro(gro_path)
     top_file = parse_top(top_path, include_dirs=[base_dir])
+    n_molecules = sum(count for _, count in top_file.molecules)
+    if len(top_file.molecule_types) > 1 or n_molecules > 1:
+        raise ValueError(
+            f"{top_path.name}: the CG-only system is built for a CG topology of one "
+            f"molecule (a network); this one lists {n_molecules} molecules of "
+            f"{len(top_file.molecule_types)} type(s). Equilibrate a CG melt outside "
+            "backmap-prep (e.g. with the program the CG model was parameterized in)."
+        )
     molecule = _topology_molecule(top_file)
     cg_type_names = {atom.type for atom in molecule.atoms}
 

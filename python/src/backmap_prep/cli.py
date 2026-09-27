@@ -32,6 +32,7 @@ from .schema import (
 )
 from .table_converter import convert_tables
 from .writers import (
+    _special_weights,
     bead_velocities,
     write_cross_pairs_file,
     write_lammps_data,
@@ -219,7 +220,8 @@ def _write_cg_equilibration(
         f.write(f"read_data {data_filename}\n\n")
         f.write(f"comm_modify cutoff {comm_cutoff_ang:.2f}\n\n")
 
-        f.write("pair_style table linear 1000\n")
+        tp = sim.table_points
+        f.write(f"pair_style table linear {tp}\n")
         for pt in system.pair_types:
             if pt.table_file:
                 f.write(f"pair_coeff {pt.itype} {pt.jtype} {pt.table_file} {pt.table_keyword}\n")
@@ -230,9 +232,9 @@ def _write_cg_equilibration(
         has_bond_table = any(bt.table_file for bt in system.bond_types)
         has_bond_harmonic = any(bt.style == "harmonic" and bt.params for bt in system.bond_types)
         if has_bond_table and has_bond_harmonic:
-            f.write("bond_style hybrid harmonic table linear 1000\n")
+            f.write(f"bond_style hybrid harmonic table linear {tp}\n")
         elif has_bond_table:
-            f.write("bond_style table linear 1000\n")
+            f.write(f"bond_style table linear {tp}\n")
         elif has_bond_harmonic:
             f.write("bond_style harmonic\n")
 
@@ -255,9 +257,9 @@ def _write_cg_equilibration(
         has_angle_harmonic = any(at.style == "harmonic" and at.params for at in system.angle_types)
         if has_angle_table or has_angle_harmonic:
             if has_angle_table and has_angle_harmonic:
-                f.write("angle_style hybrid harmonic table linear 1000\n")
+                f.write(f"angle_style hybrid harmonic table linear {tp}\n")
             elif has_angle_table:
-                f.write("angle_style table linear 1000\n")
+                f.write(f"angle_style table linear {tp}\n")
             else:
                 f.write("angle_style harmonic\n")
 
@@ -279,7 +281,28 @@ def _write_cg_equilibration(
                         f.write(f"angle_coeff {at.type_id} {at.params[0]:.6f} {at.params[1]:.4f}\n")
             f.write("\n")
 
-        f.write("special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0\n")
+        styles = sorted({dt.style for dt in system.dihedral_types})
+        if styles:
+            parts = [f"table linear {tp}" if st == "table" else st for st in styles]
+            hybrid = len(styles) > 1
+            f.write(f"dihedral_style {'hybrid ' if hybrid else ''}{' '.join(parts)}\n")
+            for dt in system.dihedral_types:
+                prefix = f"dihedral_coeff {dt.type_id} {dt.style + ' ' if hybrid else ''}"
+                if dt.style == "table":
+                    f.write(f"{prefix}{dt.table_file} {dt.table_keyword}\n")
+                elif dt.style == "harmonic":
+                    k_val, sign_val, n_val = dt.params[:3]
+                    f.write(f"{prefix}{k_val:.10g} {int(sign_val)} {int(n_val)}\n")
+                else:
+                    f.write(f"{prefix}{' '.join(f'{v:.10g}' for v in dt.params)}\n")
+            f.write("\n")
+
+        # CG exclusions as in the hybrid (cg_special there, special_bonds here)
+        nrexcl_cg = (
+            sim.exclusion_nrexcl_cg if sim.exclusion_nrexcl_cg is not None else sim.exclusion_nrexcl
+        )
+        weights = " ".join(_special_weights(nrexcl_cg))
+        f.write(f"special_bonds lj {weights} coul {weights}\n")
         f.write("neigh_modify delay 0 every 1 check yes\n")
         f.write("reset_atoms image all\n\n")
 
