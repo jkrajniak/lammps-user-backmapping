@@ -103,3 +103,37 @@ def test_lj_cut_substyle_init_is_stable(tmp_path: Path) -> None:
         log = (work / "log.test").read_text() if (work / "log.test").exists() else ""
         assert proc.returncode == 0, f"run {k}: rc {proc.returncode}\n{log[-2000:]}"
         assert re.search(r"^RESULT evdwl=", log, re.MULTILINE), log[-2000:]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("at_style", "message"),
+    [
+        ("lj/cut/coul/long 10.0", "needs a long-range solver"),
+        ("lj/cut/tip4p/long 1 2 1 1 0.1 10.0", "needs a long-range solver"),
+    ],
+)
+def test_unsupported_substyle_is_rejected(tmp_path: Path, at_style: str, message: str) -> None:
+    """Sub-styles that need kspace are refused with a clear message."""
+    lmp = os.environ.get(LMP_ENV)
+    if not lmp or not Path(lmp).is_file():
+        pytest.skip(f"set {LMP_ENV} to a LAMMPS binary built with the backmap package")
+    (tmp_path / "test.data").write_text(DATA.format(style="full", atoms=_atoms("full")))
+    (tmp_path / "in.test").write_text(
+        f"""units real
+atom_style full
+boundary p p p
+read_data test.data
+pair_style backmap 10.0 {at_style} 10.0 lj/cut 10.0
+"""
+    )
+    proc = subprocess.run(
+        [lmp, "-in", "in.test", "-log", "log.test", "-screen", "none"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    log = (tmp_path / "log.test").read_text() if (tmp_path / "log.test").exists() else ""
+    assert proc.returncode != 0
+    assert message in log + proc.stdout + proc.stderr, log[-2000:]

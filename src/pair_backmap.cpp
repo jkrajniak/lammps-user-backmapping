@@ -30,6 +30,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <utility>
 
 #include "atom.h"
 #include "backmap_lambda.h"
@@ -197,6 +198,24 @@ void PairBackmap::settings(int narg, char **arg) {
 
   int narg_cg = narg - cg_start - 2;
   if (narg_cg > 0) pair_cg->settings(narg_cg, &arg[cg_start + 2]);
+
+  // Sub-styles are evaluated pair by pair through single(), on this style's
+  // neighbor list; a style without single(), or one that needs a long-range
+  // solver (kspace), cannot be wrapped.
+  for (auto [sub, name] :
+       {std::make_pair(pair_at, style_at), std::make_pair(pair_cg, style_cg)}) {
+    if (!sub->single_enable)
+      error->all(FLERR,
+                 "pair_style backmap: sub-style {} does not implement single() "
+                 "and cannot be used",
+                 name);
+    if (sub->ewaldflag || sub->pppmflag || sub->msmflag ||
+        sub->dispersionflag || sub->tip4pflag || sub->dipoleflag)
+      error->all(FLERR,
+                 "pair_style backmap: sub-style {} needs a long-range solver "
+                 "(kspace), which pair_style backmap does not support",
+                 name);
+  }
 
   cut_global = MAX(cut_at, cut_cg);
 }
