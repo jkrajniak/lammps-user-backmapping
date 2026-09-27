@@ -9,9 +9,16 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
-- **`simulation.protocol: bakery`, the new default.** The published
+- **One protocol for every example: `robust` (default).** The protocol the
+  CPC manuscript describes (CG frozen during minimization and nve/limit
+  relaxation, lambda ramp at 0.1 fs with nve/limit + Langevin, staged NVT at
+  lambda = 1), alpha = 1e-4 in every example. It is the only generated
+  protocol that runs end to end on all examples (research decision
+  2026-09-27-single-protocol-robust). The bakery protocol below stays
+  selectable but is not the default.
+- **`simulation.protocol: bakery`.** The published
   bakery/ESPResSo++ protocol as generated input (decision 2026-07-19,
-  generator default 2026-09-27): CG beads live (no integrator of their own),
+  2026-09-27): CG beads live (no integrator of their own),
   energy-capped AT LJ (`lj/cut/coul/cut/ecap`, `lj_cap_factor`, optional
   `coul_cap_radius`), optional CapForce, NVE + Langevin on the AT atoms,
   one Maxwell-Boltzmann velocity per bead shared by its atoms (Velocities

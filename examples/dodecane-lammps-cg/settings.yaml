@@ -114,9 +114,8 @@ cross_interactions:
       cg_bonded: true
 
 simulation:
-  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
-  # parameters: no published params; pe_4
-  alpha: 1e-05
+  protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
+  alpha: 0.0001
   initial_resolution: 0.0
 
   timestep: 0.001            # ps

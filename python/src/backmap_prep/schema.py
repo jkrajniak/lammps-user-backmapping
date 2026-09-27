@@ -364,10 +364,14 @@ class SimulationParams(BaseModel):
 
     alpha: float = 0.001
     initial_resolution: float = 0.0
-    protocol: Literal["bakery", "standard", "robust"] = Field(
-        default="bakery",
+    protocol: Literal["robust", "bakery", "standard"] = Field(
+        default="robust",
         description=(
-            "bakery (default, decisions/2026-07-19): the published bakery/ESPResSo++ "
+            "robust (default; decisions/2026-09-27-single-protocol-robust): minimize and "
+            "nve/limit relaxation at lambda = 0 with the CG frozen, nve/limit + Langevin "
+            "ramp, staged NVT at lambda = 1 -- the protocol of the CPC manuscript, the one "
+            "that runs on every example. "
+            "bakery: the published bakery/ESPResSo++ "
             "path -- CG beads live (virtual sites), one continuous timestep, "
             "energy-capped AT LJ (lj/cut/coul/cut/ecap), optional CapForce, Langevin "
             "on the AT atoms, one Maxwell-Boltzmann velocity per bead shared by its "

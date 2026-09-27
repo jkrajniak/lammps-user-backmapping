@@ -87,9 +87,8 @@ cross_interactions:
         - [DOD:C10, DOD:C11, DOD:C12]
 
 simulation:
-  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
-  # parameters: no published backmapping params; pe_4 (UA alkane)
-  alpha: 1e-05
+  protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
+  alpha: 0.0001
   initial_resolution: 0.0
 
   timestep: 0.001            # ps

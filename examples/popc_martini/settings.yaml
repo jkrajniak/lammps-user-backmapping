@@ -218,9 +218,8 @@ cg_system:
     epsilon_rf: 0.0
 
 simulation:
-  protocol: bakery  # decisions/2026-09-27-bakery-protocol-generator-default.md
-  # parameters: no published run; flexible TIP3P -> 0.5 fs
-  alpha: 5e-05
+  protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
+  alpha: 0.0001
   initial_resolution: 0.0
   timestep: 0.0005
   timestep_backmapping: 0.0005

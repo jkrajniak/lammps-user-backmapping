@@ -618,7 +618,7 @@ class TestRestartGeneration:
 
 
 class TestBakeryProtocol:
-    """Default protocol: decisions/2026-07-19-prefer-bakery-protocol-no-frozen-cg."""
+    """Optional bakery/ESPResSo++ protocol (not the default since 2026-09-27)."""
 
     def _input(self, tmp_path: Path, **sim: object) -> str:
         settings = _make_settings("bakery")
@@ -628,8 +628,9 @@ class TestBakeryProtocol:
         write_lammps_input(_make_system(), settings, path, "test.data")
         return read_input_with_includes(path)
 
-    def test_is_the_default(self) -> None:
-        assert SimulationParams().protocol == "bakery"
+    def test_robust_is_the_default(self) -> None:
+        # single protocol for every example: decisions/2026-09-27-single-protocol-robust
+        assert SimulationParams().protocol == "robust"
 
     def test_energy_capped_at_lj_and_live_cg(self, tmp_path: Path) -> None:
         text = self._input(tmp_path, lj_cap_factor=0.5)
