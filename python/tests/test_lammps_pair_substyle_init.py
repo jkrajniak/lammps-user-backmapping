@@ -110,11 +110,11 @@ def test_lj_cut_substyle_init_is_stable(tmp_path: Path) -> None:
     ("at_style", "message"),
     [
         ("lj/cut/coul/long 10.0", "needs a long-range solver"),
-        ("lj/cut/tip4p/long 1 2 1 1 0.1 10.0", "needs a long-range solver"),
+        ("lj/cut/tip4p/long 1 2 1 1 0.1 10.0", "does not implement single()"),
     ],
 )
 def test_unsupported_substyle_is_rejected(tmp_path: Path, at_style: str, message: str) -> None:
-    """Sub-styles that need kspace are refused with a clear message."""
+    """Sub-styles without single() or needing kspace are refused with a clear message."""
     lmp = os.environ.get(LMP_ENV)
     if not lmp or not Path(lmp).is_file():
         pytest.skip(f"set {LMP_ENV} to a LAMMPS binary built with the backmap package")
