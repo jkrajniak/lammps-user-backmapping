@@ -12,10 +12,10 @@
 
 /* bond_style backmap/gromos — lambda-weighted GROMOS-96 quartic bond.
 
-   Same functional form as bond_style gromos (GROMACS bond func 2):
-     E = w × ¼ K (r² - r0²)²
-     F = -w × K r (r² - r0²)   (fbond = -w·K·(r² - r0²))
-   with K the GROMACS kb converted to energy/distance^4.
+   Same functional form and coefficients as bond_style gromos:
+     E = w × K (r² - r0²)²
+     F = -w × 4 K r (r² - r0²)   (fbond = -4·w·K·(r² - r0²))
+   GROMACS bond func 2 writes E = ¼ kb (b² - b0²)², so K = kb/4.
 
    w comes from the single global lambda and CG-bead co-membership:
    1 - lambda (cg), 1 (at, same bead), lambda (at, different beads).
@@ -152,7 +152,7 @@ void BondBackmapGromos::compute(int eflag, int vflag) {
 
     if (BackmapLambda::is_almost_zero(w)) continue;
 
-    double fbond = -w * kdr2;
+    double fbond = -4.0 * w * kdr2;
 
     f[i1][0] += delx * fbond;
     f[i1][1] += dely * fbond;
@@ -162,7 +162,7 @@ void BondBackmapGromos::compute(int eflag, int vflag) {
     f[i2][2] -= delz * fbond;
 
     double ebond = 0.0;
-    if (eflag) ebond = 0.25 * w * kdr2 * dr2;
+    if (eflag) ebond = w * kdr2 * dr2;
 
     if (evflag)
       ev_tally(i1, i2, nlocal, newton_bond, ebond, fbond, delx, dely, delz);
@@ -192,8 +192,8 @@ double BondBackmapGromos::single(int btype, double rsq, int i, int j,
     }
   }
 
-  fforce = -w * kdr2;
-  return 0.25 * w * kdr2 * dr2;
+  fforce = -4.0 * w * kdr2;
+  return w * kdr2 * dr2;
 }
 
 /* ---------------------------------------------------------------------- */

@@ -489,7 +489,13 @@ def lammps_energies(
 def at_only_energies(
     lmp: str, at_data: Path, at_ff: Path, workdir: Path, zero_charges: bool
 ) -> dict[str, float]:
-    """LAMMPS run 0 of an AT-only data file with its generated force field."""
+    """LAMMPS run 0 of an AT-only data file with its generated force field.
+
+    When the force field lists its 1-4 pairs explicitly (fix pairs14), their LJ
+    and Coulomb energies are reported as lj14/coul14.
+    """
+    explicit = "fix pairs14" in at_ff.read_text()
+    extra = " lj14=$(f_pairs14[1]:%.12e) coul14=$(f_pairs14[2]:%.12e)" if explicit else ""
     lines = [
         "units real",
         "atom_style full",
@@ -500,14 +506,25 @@ def at_only_energies(
         "thermo_style custom step ebond eangle edihed eimp evdwl ecoul",
         "run 0",
         'print "RESULT ebond=$(ebond:%.12e) eangle=$(eangle:%.12e) edihed=$(edihed:%.12e) eimp=$(eimp:%.12e) '
-        'evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e)"',
+        f'evdwl=$(evdwl:%.12e) ecoul=$(ecoul:%.12e){extra}"',
     ]
     (workdir / "in.at_check").write_text("\n".join(lines) + "\n")
+    # the pairs file is named relative to the force field
     subprocess.run(
-        [lmp, "-in", "in.at_check", "-log", "log.at_check", "-screen", "none"],
-        cwd=workdir,
+        [
+            lmp,
+            "-in",
+            (workdir / "in.at_check").resolve(),
+            "-log",
+            "log.at_check",
+            "-screen",
+            "none",
+        ],
+        cwd=at_ff.resolve().parent,
         check=True,
     )
+    log = (at_ff.resolve().parent / "log.at_check").read_text()
+    (workdir / "log.at_check").write_text(log)
     log = (workdir / "log.at_check").read_text()
     m = re.search(r"^RESULT (.*)$", log, re.MULTILINE)
     if not m:
@@ -621,13 +638,15 @@ def main() -> int:
         print(f"{key:8s} {val:18.6f} {ref:18.6f} {rel:10.2e} {'ok' if ok else 'FAIL'}")
     if args.at_data is not None and args.at_ff is not None:
         at = at_only_energies(args.lmp, args.at_data, args.at_ff, d, args.zero_charges)
-        # special_bonds puts the 1-4 terms into evdwl/ecoul of the AT-only run
+        # special_bonds puts the 1-4 terms into evdwl/ecoul of the AT-only run,
+        # unless the force field lists them explicitly (lj14/coul14)
         at_terms = {
-            "ebond": ["Bond"],
-            "eangle": ["Angle", "U-B"],
+            "ebond": ["Bond", "G96Bond"],
+            "eangle": ["Angle", "U-B", "G96Angle"],
             "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Per. Imp. Dih."],
             "eimp": ["Improper Dih."],
-            "evdwl": ["LJ (SR)", "LJ-14"],
+            "evdwl": ["LJ (SR)"] if "lj14" in at else ["LJ (SR)", "LJ-14"],
+            **({"lj14": ["LJ-14"]} if "lj14" in at else {}),
         }
         print("AT-only force field (at-system data + .at.ff.lmp):")
         for key, gmx_terms in at_terms.items():

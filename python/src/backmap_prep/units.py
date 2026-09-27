@@ -54,8 +54,8 @@ def spring_angle(val: float) -> float:
 
 def g96_bond(val: float) -> float:
     """GROMACS G96 bond kb (kJ/(mol·nm⁴), E=(kb/4)(r²-b0²)²) → LAMMPS gromos K
-    (kcal/(mol·Å⁴), same form E=(K/4)(r²-r0²)²)"""
-    return val * ENERGY / DISTANCE**4
+    (kcal/(mol·Å⁴), E=K(r²-r0²)²)"""
+    return 0.25 * val * ENERGY / DISTANCE**4
 
 
 def g96_angle(val: float) -> float:

@@ -153,7 +153,7 @@ CASES = {
     "bond_gromos_at": (
         2,
         {"bonds": [(1, 2)]},
-        "bond_style backmap/gromos\nbond_coeff 1 at 170.9 1.53",
+        "bond_style backmap/gromos\nbond_coeff 1 at 42.7 1.53",
         False,
     ),
     "angle_cosine_squared_at": (

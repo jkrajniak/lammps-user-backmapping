@@ -43,8 +43,8 @@ def test_g96_bond_and_angle_convert() -> None:
     _angle_terms(system, mol, {}, set(), [])
     bt, at = system.bond_types[0], system.angle_types[0]
     assert (bt.style, bt.keyword) == ("backmap/gromos", "at")
-    # E = kb/4 (r^2 - b0^2)^2 in kJ/mol/nm^4 -> kcal/mol/A^4
-    assert bt.params == pytest.approx([7.15e6 / 4.184 / 1.0e4, 1.530])
+    # GROMACS E = kb/4 (r^2 - b0^2)^2 -> LAMMPS gromos E = K (r^2 - r0^2)^2, kcal/mol/A^4
+    assert bt.params == pytest.approx([7.15e6 / 4 / 4.184 / 1.0e4, 1.530])
     assert (at.style, at.keyword) == ("backmap/cosine/squared", "at")
     # GROMACS 1/2 k (cos - cos0)^2 -> LAMMPS K (cos - cos0)^2
     assert at.params == pytest.approx([530.0 / 2 / 4.184, 111.0])

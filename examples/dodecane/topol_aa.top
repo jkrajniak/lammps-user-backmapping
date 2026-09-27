@@ -94,3 +94,7 @@ DOD             3
 [ system ]
 ; Name
 dodecane
+
+[ molecules ]
+; name  count
+DOD     1
