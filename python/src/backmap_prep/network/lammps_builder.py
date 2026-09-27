@@ -200,8 +200,10 @@ def _plain_cg_style(style: str) -> str:
         return "ryckaert"
     if style == "backmap/charmm":
         return "charmm"
-    if style == "backmap/harmonic":
-        return "harmonic"
+    if style == "backmap/gromos":
+        return "gromos"
+    if style == "backmap/cosine/squared":
+        return "cosine/squared"
     return style
 
 
@@ -400,8 +402,8 @@ def _pair_14_terms(
         atom_i, atom_j = atom_by_index[i_id], atom_by_index[j_id]
         if (i_id, j_id) in explicit:
             func, params = explicit[(i_id, j_id)]
-        elif gen_pairs:
-            func, params = 1, []
+        elif gen_pairs or (atom_i.type, atom_j.type) in topology.pairtypes:
+            func, params = 1, []  # pairtypes entry, else generated from the atom types
         else:
             raise ValueError(
                 f"1-4 pair {atom_i.name}-{atom_j.name} has no parameters and gen-pairs is off"
@@ -820,10 +822,14 @@ def _bond_terms(
                 params = [0.0, 0.0]
             else:
                 params = _bondtype_params(topology, atom_i, atom_j)
+        elif bond.func == 2 and len(bond.params) >= 2:
+            # G96 quartic bond (GROMOS): E = 1/4 kb (r^2 - b0^2)^2
+            style = "backmap/gromos"
+            params = [units.g96_bond(bond.params[1]), units.distance(bond.params[0])]
         elif bond.func != 1:
             raise ValueError(
                 f"Unsupported bond func {bond.func} for atoms {atom_i.name}-{atom_j.name} "
-                "(supported: 1 harmonic, 8 table)"
+                "(supported: 1 harmonic, 2 G96 with parameters, 8 table)"
             )
         elif len(bond.params) >= 2:
             style = "backmap/harmonic"
@@ -934,6 +940,10 @@ def _angle_terms(
             xvg_name = f"martini_g96_{theta0:g}_{k_g96:g}.xvg"
             write_if_changed(search_dirs[0] / xvg_name, g96_angle_xvg(theta0, k_g96))
             table_file = _register_angle_table(system, xvg_name, search_dirs)
+        elif angle.func == 2 and len(angle.params) >= 2:
+            # G96 angle (GROMOS) between AT atoms: E = 1/2 k (cos theta - cos theta0)^2
+            style = "backmap/cosine/squared"
+            params = [units.g96_angle(angle.params[1]), angle.params[0]]
         elif angle.func == 5:
             style = "backmap/charmm"
             params = _urey_bradley_params(topology, angle, (atom_i, atom_j, atom_k))
@@ -941,7 +951,7 @@ def _angle_terms(
             raise ValueError(
                 f"Unsupported angle func {angle.func} for atoms "
                 f"{atom_i.name}-{atom_j.name}-{atom_k.name} "
-                "(supported: 1 harmonic, 2 G96 for CG, 5 Urey-Bradley, 8 table)"
+                "(supported: 1 harmonic, 2 G96, 5 Urey-Bradley, 8 table)"
             )
         elif len(angle.params) >= 2:
             params = [units.spring_angle(angle.params[1]), angle.params[0]]
@@ -1250,6 +1260,12 @@ def _merge_source_atom_types(
             top_file.angletypes.setdefault(akey, aparams)
         for ukey, uparams in source.angletypes_ub.items():
             top_file.angletypes_ub.setdefault(ukey, uparams)
+        # Explicit non-bonded and 1-4 pair parameters of the AT force field
+        # (e.g. GROMOS [ nonbond_params ] and [ pairtypes ], gen-pairs no).
+        for nkey, nparams in source.nonbond_params.items():
+            top_file.nonbond_params.setdefault(nkey, nparams)
+        for pkey, pparams in source.pairtypes.items():
+            top_file.pairtypes.setdefault(pkey, pparams)
         for ti, j_map in source.dihedraltypes.items():
             for tj, k_map in j_map.items():
                 for tk, l_map in k_map.items():

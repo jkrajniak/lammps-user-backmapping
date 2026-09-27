@@ -33,8 +33,8 @@ KCAL_TO_KJ = 4.184
 REPORTED = ["Coulomb (SR)"]
 TERMS = {
     # LAMMPS thermo keyword -> GROMACS energy term(s), summed
-    "ebond": ["Bond"],
-    "eangle": ["Angle", "U-B"],
+    "ebond": ["Bond", "G96Bond"],
+    "eangle": ["Angle", "U-B", "G96Angle"],
     "edihed": ["Ryckaert-Bell.", "Proper Dih.", "Per. Imp. Dih."],
     "eimp": ["Improper Dih."],
     "evdwl": ["LJ (SR)"],

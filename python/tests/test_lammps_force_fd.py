@@ -150,6 +150,18 @@ CASES = {
         "angle_style backmap/harmonic\nangle_coeff 1 at 60.0 100.0",
         False,
     ),
+    "bond_gromos_at": (
+        2,
+        {"bonds": [(1, 2)]},
+        "bond_style backmap/gromos\nbond_coeff 1 at 170.9 1.53",
+        False,
+    ),
+    "angle_cosine_squared_at": (
+        3,
+        {"angles": [(1, 2, 3)]},
+        "angle_style backmap/cosine/squared\nangle_coeff 1 at 63.3 111.0",
+        False,
+    ),
     "angle_charmm_at": (
         3,
         {"angles": [(1, 2, 3)]},

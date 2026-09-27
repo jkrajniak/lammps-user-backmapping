@@ -98,7 +98,18 @@ int FixBackmapPairs::setmask() {
 /* ---------------------------------------------------------------------- */
 
 void FixBackmapPairs::init() {
-  fix_backmap = BackmapLambda::find_fix_backmap(lmp, "fix backmap/pairs");
+  // fix backmap is optional: without it (a plain AT system, e.g. the AT-only
+  // continuation of a backmapped frame) every pair has weight 1. Used where
+  // the 1-4 parameters are not the fudge-scaled normal LJ (GROMOS pairtypes),
+  // which special_bonds cannot express.
+  fix_backmap = nullptr;
+  for (int i = 0; i < modify->nfix; i++)
+    if (strcmp(modify->fix[i]->style, "backmap") == 0)
+      fix_backmap = modify->fix[i];
+  if (!fix_backmap)
+    for (const auto &par : pairs)
+      if (par.is_cg)
+        error->all(FLERR, "fix backmap/pairs: cg pairs require fix backmap");
   if (has_coulomb && !atom->q_flag)
     error->all(
         FLERR,
@@ -167,16 +178,17 @@ void FixBackmapPairs::read_file(const char *filename) {
 ------------------------------------------------------------------------- */
 
 void FixBackmapPairs::post_force(int vflag) {
-  if (!fix_backmap)
-    fix_backmap = BackmapLambda::find_fix_backmap(lmp, "fix backmap/pairs");
-
-  int *atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
-  double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
-  if (!atom2cg || !lam_global_ptr)
-    error->all(FLERR,
-               "fix backmap/pairs: cannot extract atom2cg/lambda_global "
-               "from fix backmap");
-  double lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+  int *atom2cg = nullptr;
+  double lambda_global = 1.0;
+  if (fix_backmap) {
+    atom2cg = BackmapLambda::extract_atom2cg(fix_backmap);
+    double *lam_global_ptr = BackmapLambda::extract_lambda_global(fix_backmap);
+    if (!atom2cg || !lam_global_ptr)
+      error->all(FLERR,
+                 "fix backmap/pairs: cannot extract atom2cg/lambda_global "
+                 "from fix backmap");
+    lambda_global = BackmapLambda::clamp_lambda(*lam_global_ptr);
+  }
 
   energy_local[0] = energy_local[1] = 0.0;
   // Global energy is accumulated unconditionally (compute_scalar/vector);
@@ -221,9 +233,11 @@ void FixBackmapPairs::post_force(int vflag) {
     double rsq = dx * dx + dy * dy + dz * dz;
     if ((cutsq > 0.0 && rsq >= cutsq) || rsq <= 0.0) continue;
 
-    bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
-    double w =
-        BackmapLambda::compute_weight3(same_bead, par.is_cg, lambda_global);
+    double w = 1.0;
+    if (fix_backmap) {
+      bool same_bead = BackmapLambda::same_bead(atom2cg, i, j);
+      w = BackmapLambda::compute_weight3(same_bead, par.is_cg, lambda_global);
+    }
     if (BackmapLambda::is_almost_zero(w)) continue;
 
     double r2inv = 1.0 / rsq;

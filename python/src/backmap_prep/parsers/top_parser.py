@@ -113,6 +113,9 @@ class Topology:
     angletypes_ub: dict[tuple[str, str, str], list[float]] = field(default_factory=dict)
     # [ nonbond_params ] func 1: (type_i, type_j) -> (c6/sigma, c12/epsilon) as written
     nonbond_params: dict[tuple[str, str], tuple[float, float]] = field(default_factory=dict)
+    # [ pairtypes ] func 1: (type_i, type_j) -> (c6/sigma, c12/epsilon) as written; the 1-4
+    # parameters of listed [ pairs ] without their own (GROMOS, gen-pairs no)
+    pairtypes: dict[tuple[str, str], tuple[float, float]] = field(default_factory=dict)
     _last_dihedraltype: tuple[str, str, str, str, int] | None = None
 
 
@@ -206,6 +209,12 @@ def _parse_file(
                 values = (float(tokens[3]), float(tokens[4]))
                 top.nonbond_params[(tokens[0], tokens[1])] = values
                 top.nonbond_params[(tokens[1], tokens[0])] = values
+
+        elif section == "pairtypes":
+            if len(tokens) >= 5 and tokens[2] == "1":
+                values = (float(tokens[3]), float(tokens[4]))
+                top.pairtypes[(tokens[0], tokens[1])] = values
+                top.pairtypes[(tokens[1], tokens[0])] = values
 
         elif section == "bondtypes":
             if len(tokens) >= 5 and tokens[2] == "1":
@@ -809,6 +818,8 @@ def resolve_pair_lj_params(
 
     if func != 1:
         raise ValueError(f"Unsupported cross-pair func {func} for {atom_i.name}-{atom_j.name}")
+    if len(params) < 2 and (atom_i.type, atom_j.type) in top.pairtypes:
+        params = list(top.pairtypes[(atom_i.type, atom_j.type)])
     if len(params) >= 2:
         sigma_nm, eps_kj = params[0], params[1]
         if top.combination_rule == 1:

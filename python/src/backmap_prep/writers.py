@@ -227,6 +227,8 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         bond_styles.append("backmap/harmonic")
     if has_backmap_table:
         bond_styles.append(f"backmap/table linear {sim.table_points}")
+    if any(bt.style == "backmap/gromos" for bt in system.bond_types):
+        bond_styles.append("backmap/gromos")
 
     has_static_angles = any(at.style == "harmonic" for at in system.angle_types)
     has_backmap_angles = any(at.style == "backmap/harmonic" for at in system.angle_types)
@@ -242,6 +244,8 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
         angle_styles.append("backmap/charmm")
     if has_backmap_angle_table:
         angle_styles.append(f"backmap/table linear {sim.table_points}")
+    if any(at.style == "backmap/cosine/squared" for at in system.angle_types):
+        angle_styles.append("backmap/cosine/squared")
 
     has_static_dihedrals = any(dt.style == "ryckaert" for dt in system.dihedral_types)
     has_static_harmonic_dihedrals = any(dt.style == "harmonic" for dt in system.dihedral_types)
@@ -490,9 +494,9 @@ def _write_forcefield(
                 f.write(
                     f"bond_coeff {bt.type_id} harmonic {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
-            elif bt.style == "backmap/harmonic":
+            elif bt.style in ("backmap/harmonic", "backmap/gromos"):
                 f.write(
-                    f"bond_coeff {bt.type_id} backmap/harmonic "
+                    f"bond_coeff {bt.type_id} {bt.style} "
                     f"{bt.keyword} {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
             elif bt.style == "backmap/table":
@@ -503,7 +507,7 @@ def _write_forcefield(
         else:
             if bt.style == "harmonic":
                 f.write(f"bond_coeff {bt.type_id} {bt.params[0]:.10g} {bt.params[1]:.10g}\n")
-            elif bt.style == "backmap/harmonic":
+            elif bt.style in ("backmap/harmonic", "backmap/gromos"):
                 f.write(
                     f"bond_coeff {bt.type_id} {bt.keyword} {bt.params[0]:.10g} {bt.params[1]:.10g}\n"
                 )
@@ -527,9 +531,9 @@ def _write_forcefield(
                         f"angle_coeff {angtype.type_id} harmonic "
                         f"{angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
-                elif angtype.style == "backmap/harmonic":
+                elif angtype.style in ("backmap/harmonic", "backmap/cosine/squared"):
                     f.write(
-                        f"angle_coeff {angtype.type_id} backmap/harmonic "
+                        f"angle_coeff {angtype.type_id} {angtype.style} "
                         f"{angtype.keyword} {angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
                 elif angtype.style == "backmap/table":
@@ -549,7 +553,7 @@ def _write_forcefield(
                         f"angle_coeff {angtype.type_id} "
                         f"{angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"
                     )
-                elif angtype.style == "backmap/harmonic":
+                elif angtype.style in ("backmap/harmonic", "backmap/cosine/squared"):
                     f.write(
                         f"angle_coeff {angtype.type_id} "
                         f"{angtype.keyword} {angtype.params[0]:.10g} {angtype.params[1]:.4f}\n"

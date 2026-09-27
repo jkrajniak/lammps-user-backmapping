@@ -52,6 +52,18 @@ def spring_angle(val: float) -> float:
     return val * SPRING_ANGLE
 
 
+def g96_bond(val: float) -> float:
+    """GROMACS G96 bond kb (kJ/(mol·nm⁴), E=(kb/4)(r²-b0²)²) → LAMMPS gromos K
+    (kcal/(mol·Å⁴), same form E=(K/4)(r²-r0²)²)"""
+    return val * ENERGY / DISTANCE**4
+
+
+def g96_angle(val: float) -> float:
+    """GROMACS G96 angle k (kJ/mol, E=(k/2)(cosθ-cosθ0)²) → LAMMPS cosine/squared K
+    (kcal/mol, E=K(cosθ-cosθ0)²)"""
+    return 0.5 * val * ENERGY
+
+
 def c6c12_to_sigma_epsilon(c6: float, c12: float) -> tuple[float, float]:
     """GROMACS comb-rule 1 C6, C12 -> (sigma nm, epsilon kJ/mol); zeros stay zero."""
     if c6 <= 0.0 or c12 <= 0.0:

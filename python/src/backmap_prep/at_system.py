@@ -18,6 +18,7 @@ import math
 import random
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from . import units
@@ -25,7 +26,6 @@ from .parsers import parse_gro
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from pathlib import Path
 
     from .builder import System
     from .schema import Settings
@@ -39,7 +39,12 @@ __all__ = [
 ]
 
 _BOND_ANGLE_STYLE = {"harmonic": "harmonic", "backmap/harmonic": "harmonic"}
-_ANGLE_STYLE = {**_BOND_ANGLE_STYLE, "backmap/charmm": "charmm"}
+_BOND_STYLE = {**_BOND_ANGLE_STYLE, "backmap/gromos": "gromos"}
+_ANGLE_STYLE = {
+    **_BOND_ANGLE_STYLE,
+    "backmap/charmm": "charmm",
+    "backmap/cosine/squared": "cosine/squared",
+}
 _IMPROPER_STYLE = {"backmap/harmonic": "harmonic"}
 _DIHEDRAL_STYLE = {
     "ryckaert": "ryckaert",
@@ -99,7 +104,7 @@ def at_type_maps(system: System) -> AtTypeMaps:
     for at in system.atom_types:
         if not at.is_cg:
             maps.atom[at.type_id] = len(maps.atom) + 1
-    maps.bond, maps.bond_types = _map_types(system.bond_types, _BOND_ANGLE_STYLE, "bond")
+    maps.bond, maps.bond_types = _map_types(system.bond_types, _BOND_STYLE, "bond")
     maps.angle, maps.angle_types = _map_types(system.angle_types, _ANGLE_STYLE, "angle")
     maps.dihedral, maps.dihedral_types = _map_types(
         system.dihedral_types, _DIHEDRAL_STYLE, "dihedral"
@@ -138,6 +143,43 @@ def _style_block(kind: str, types: list[_AtType]) -> list[str]:
     return [*lines, ""]
 
 
+def explicit_14_pairs(system: System) -> bool:
+    """True if the 1-4 pairs are not the fudge-scaled normal LJ of their types.
+
+    special_bonds can only scale the normal pair interaction; GROMOS [ pairtypes ]
+    (their own C6/C12, gen-pairs no) need the pairs listed explicitly.
+    """
+    if not system.cross_pairs:
+        return False
+    by_id = {a.atom_id: a for a in system.atoms}
+    normal = {
+        (min(pt.itype, pt.jtype), max(pt.itype, pt.jtype)): (pt.epsilon, pt.sigma)
+        for pt in system.pair_types
+        if pt.kind == "atomistic"
+    }
+    for pair in system.cross_pairs:
+        ti, tj = by_id[pair.i].type_id, by_id[pair.j].type_id
+        eps, sig = normal.get((min(ti, tj), max(ti, tj)), (None, None))
+        if eps is None or sig is None:
+            return True
+        if not (
+            math.isclose(pair.epsilon, system.fudge_lj * eps, rel_tol=1e-9, abs_tol=1e-12)
+            and math.isclose(pair.sigma, sig, rel_tol=1e-9, abs_tol=1e-12)
+            and math.isclose(pair.qq_scale, system.fudge_qq, rel_tol=1e-12, abs_tol=1e-12)
+        ):
+            return True
+    return False
+
+
+def pairs14_name(data_name: str) -> str:
+    return f"{Path(data_name).stem}.pairs14.dat"
+
+
+def _write_pairs14(path: Path, rows: list[tuple[int, int, float, float, float]]) -> None:
+    lines = [str(len(rows))] + [f"{i} {j} {s:.10g} {e:.10g} {q:.10g}" for i, j, s, e, q in rows]
+    path.write_text("\n".join(lines) + "\n")
+
+
 def write_at_forcefield(
     system: System, settings: Settings, maps: AtTypeMaps, path: Path, data_name: str
 ) -> None:
@@ -160,7 +202,8 @@ def write_at_forcefield(
     lines += _style_block("angle", maps.angle_types)
     lines += _style_block("dihedral", maps.dihedral_types)
     lines += _style_block("improper", maps.improper_types)
-    if system.has_cross_pairs:
+    explicit = explicit_14_pairs(system)
+    if system.has_cross_pairs and not explicit:
         lj14, qq14 = system.fudge_lj, system.fudge_qq
     else:
         lj14 = qq14 = 0.0
@@ -170,6 +213,16 @@ def write_at_forcefield(
         "neigh_modify delay 0 every 1 check yes",
         "",
     ]
+    if explicit:
+        lines[1] = (
+            "# Same force field as the hybrid at lambda = 1; 1-4 pairs listed explicitly "
+            "(their own LJ parameters)."
+        )
+        lines += [
+            f"fix pairs14 all backmap/pairs at file {pairs14_name(data_name)}",
+            "fix_modify pairs14 energy yes virial yes",
+            "",
+        ]
     path.write_text("\n".join(lines))
 
 
@@ -274,6 +327,15 @@ def write_at_from_hybrid_frame(system: System, maps: AtTypeMaps, frame: Path, ou
     _write_data(
         out, f"AT-only frame from {frame.name}", bounds, system, maps, atoms, velocities, terms
     )
+    if explicit_14_pairs(system):
+        _write_pairs14(
+            out.with_name(pairs14_name(out.name)),
+            [
+                (new_id[p.i], new_id[p.j], p.sigma, p.epsilon, p.qq_scale)
+                for p in system.cross_pairs
+                if p.i in new_id and p.j in new_id
+            ],
+        )
     return len(atoms)
 
 
@@ -361,6 +423,16 @@ def write_at_reference(
                     f"{len(out_rows) + 1} {t} " + " ".join(str(m * per_mol + i) for i in ids)
                 )
         terms[name] = out_rows
+    if explicit_14_pairs(system):
+        mol_pairs = [p for p in system.cross_pairs if p.i in local and p.j in local]
+        _write_pairs14(
+            out.with_name(pairs14_name(out.name)),
+            [
+                (m * per_mol + local[p.i], m * per_mol + local[p.j], p.sigma, p.epsilon, p.qq_scale)
+                for m in range(n_mol)
+                for p in mol_pairs
+            ],
+        )
     _write_data(
         out,
         f"Independent AT reference: {n_mol} molecules, seed {seed}",
