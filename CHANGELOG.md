@@ -9,6 +9,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`dihedral_style backmap/opls`.** The OPLS dihedral form
+  (`dihedral_coeff N at|cg K1 K2 K3 K4`, same form and phi convention as
+  LAMMPS `dihedral_style opls`), converted exactly to the Ryckaert-Bellemans
+  coefficients and evaluated with the `backmap/ryckaert` kernel; tested against
+  the stock style and by finite differences. Native LAMMPS AT fragments
+  (`source.format: lammps`) accept `dihedral_style opls` and are converted the
+  same way. Referee comment R1-7 of the CPC revision.
 - **One protocol for every example: `robust` (default).** The protocol the
   CPC manuscript describes (CG frozen during minimization and nve/limit
   relaxation, lambda ramp at 0.1 fs with nve/limit + Langevin, staged NVT at

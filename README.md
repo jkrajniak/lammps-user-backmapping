@@ -22,19 +22,31 @@ publication cited below (first published online **December 2017**).
 ## Components
 
 
-| Component                      | Description                                                     |
-| ------------------------------ | --------------------------------------------------------------- |
-| `fix backmap`                  | Lambda ramp, CG-AT mapping, COM tracking, CG force distribution |
-| `pair_style backmap`           | Lambda-weighted non-bonded pair forces                          |
-| `bond_style backmap/harmonic`  | Lambda-weighted harmonic cross-CG bond forces                   |
-| `bond_style backmap/table`     | Lambda-weighted tabulated cross-CG bond forces                  |
-| `angle_style backmap/harmonic` | Lambda-weighted harmonic cross-CG angle forces                  |
+| Component                            | Description                                                     |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `fix backmap`                        | Lambda ramp, CG-AT mapping, COM tracking, CG force distribution |
+| `fix backmap/pairs`                  | Lambda-weighted explicit 1-4 pairs                              |
+| `fix backmap/capforce`               | Per-atom force cap                                              |
+| `pair_style backmap`                 | Lambda-weighted non-bonded pair forces (AT and CG sub-styles)   |
+| `bond_style backmap/harmonic`        | Lambda-weighted harmonic bonds                                  |
+| `bond_style backmap/gromos`          | Lambda-weighted GROMOS quartic bonds                            |
+| `bond_style backmap/table`           | Lambda-weighted tabulated bonds                                 |
+| `angle_style backmap/harmonic`       | Lambda-weighted harmonic angles                                 |
+| `angle_style backmap/charmm`         | Lambda-weighted harmonic + Urey-Bradley angles                  |
+| `angle_style backmap/cosine/squared` | Lambda-weighted GROMOS cosine-harmonic angles                   |
+| `angle_style backmap/table`          | Lambda-weighted tabulated angles                                |
+| `dihedral_style backmap/ryckaert`    | Lambda-weighted Ryckaert-Bellemans dihedrals                    |
+| `dihedral_style backmap/harmonic`    | Lambda-weighted harmonic dihedrals                              |
+| `dihedral_style backmap/fourier`     | Lambda-weighted multi-term periodic dihedrals                   |
+| `dihedral_style backmap/opls`        | Lambda-weighted OPLS dihedrals                                  |
+| `dihedral_style backmap/table`       | Lambda-weighted tabulated dihedrals                             |
+| `improper_style backmap/harmonic`    | Lambda-weighted harmonic impropers                              |
 
 
 ## Repository Layout
 
 ```
-src/                        C++ LAMMPS styles (fix, pair, bond, angle)
+src/                        C++ LAMMPS styles (fix, pair, bond, angle, dihedral, improper)
 python/
   src/backmap_prep/         Python package source (backmap-prep CLI)
   tests/                    pytest unit tests

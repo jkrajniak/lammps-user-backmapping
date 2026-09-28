@@ -46,6 +46,35 @@ and 9 (\( \phi_s, k, n \), one line per term) map term by term to
 dihedrals that do not reduce to Ryckaert-Bellemans (multiplicity 6, phases
 other than 0°/180°).
 
+## `backmap/opls` (OPLS form)
+
+```
+dihedral_style backmap/opls
+dihedral_coeff N at|cg K1 K2 K3 K4
+```
+
+\[
+E = w \left[ \tfrac{K_1}{2}(1 + \cos\phi) + \tfrac{K_2}{2}(1 - \cos 2\phi)
++ \tfrac{K_3}{2}(1 + \cos 3\phi) + \tfrac{K_4}{2}(1 - \cos 4\phi) \right]
+\]
+
+Same form, coefficients and \( \phi \) convention (trans = 180°) as LAMMPS
+`dihedral_style opls`, so OPLS coefficients from a LAMMPS force-field file can
+be used unchanged. The series is exact in \( \cos\phi \); the style converts
+K1..K4 once to the `backmap/ryckaert` coefficients
+
+\[
+C_0 = \tfrac{K_1}{2} + K_2 + \tfrac{K_3}{2},\;
+C_1 = \tfrac{K_1}{2} - \tfrac{3K_3}{2},\;
+C_2 = -K_2 + 4K_4,\;
+C_3 = 2K_3,\;
+C_4 = -4K_4,\;
+C_5 = 0
+\]
+
+and uses the Ryckaert-Bellemans kernel. The weight is the same as for
+`backmap/ryckaert`. `write_data` and restart files keep K1..K4.
+
 ## `improper_style backmap/harmonic`
 
 ```

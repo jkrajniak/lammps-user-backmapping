@@ -142,8 +142,10 @@ assumed to already be in LAMMPS `real` units.
 Path to a bounded LAMMPS input-script fragment supplying the AT fragment's
 force-field coefficients: `bond_coeff` (`bond_style harmonic` only),
 `angle_coeff` (`angle_style harmonic` only), `dihedral_coeff`
-(`dihedral_style ryckaert` only — the package's own native style, so
-values are used as-is with no GROMACS RB conversion), and `pair_coeff i i`
+(`dihedral_style ryckaert` — the package's own native style, so values
+are used as-is with no GROMACS RB conversion — or `dihedral_style opls`,
+whose K1..K4 are converted exactly to the six Ryckaert-Bellemans
+coefficients), and `pair_coeff i i`
 diagonal (self) entries (cross-type LJ is always computed via mixing, never
 read — a `pair_coeff i j` line with `i != j` is tolerated and ignored, so a
 real production script like an AT-only reference input can be reused

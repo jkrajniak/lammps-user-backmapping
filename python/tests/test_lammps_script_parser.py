@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+import math
+
 import pytest
 
-from backmap_prep.parsers.lammps_script_parser import parse_at_fragment_script
+from backmap_prep.parsers.lammps_script_parser import opls_to_ryckaert, parse_at_fragment_script
 
 BOUNDED_SCRIPT = """\
 units real
@@ -96,7 +98,7 @@ class TestParseAtFragmentScript:
 
     def test_unsupported_dihedral_style_raises(self, tmp_path: Path) -> None:
         p = tmp_path / "in.frag"
-        p.write_text("units real\ndihedral_style opls\n")
+        p.write_text("units real\ndihedral_style quadratic\n")
         with pytest.raises(ValueError, match="unsupported dihedral_style"):
             parse_at_fragment_script(p)
 
@@ -111,3 +113,41 @@ class TestParseAtFragmentScript:
         p.write_text("units real\npair_style lj/cut/coul/long 10.0\npair_coeff 1 1 0.1 3.0\n")
         coeffs = parse_at_fragment_script(p)
         assert coeffs.pair == {1: (0.1, 3.0)}
+
+
+def _opls_energy(k: tuple[float, float, float, float], phi: float) -> float:
+    k1, k2, k3, k4 = k
+    return 0.5 * (
+        k1 * (1 + math.cos(phi))
+        + k2 * (1 - math.cos(2 * phi))
+        + k3 * (1 + math.cos(3 * phi))
+        + k4 * (1 - math.cos(4 * phi))
+    )
+
+
+class TestOplsDihedral:
+    @pytest.mark.parametrize(
+        "k", [(1.3, -0.05, 0.2, 0.1), (0.0, 0.0, 0.3, 0.0), (1.74, -0.157, 0.279, 0.0)]
+    )
+    def test_ryckaert_equals_opls_energy(self, k: tuple[float, float, float, float]) -> None:
+        c = opls_to_ryckaert(*k)
+        for step in range(73):
+            phi = math.radians(-180.0 + 5.0 * step)
+            rb = sum(cn * math.cos(phi) ** n for n, cn in enumerate(c))
+            assert rb == pytest.approx(_opls_energy(k, phi), abs=1e-12)
+
+    def test_trans_is_zero(self) -> None:
+        c = opls_to_ryckaert(1.3, -0.05, 0.2, 0.1)
+        assert sum(cn * (-1.0) ** n for n, cn in enumerate(c)) == pytest.approx(0.0, abs=1e-12)
+
+    def test_parses_opls_fragment(self, tmp_path: Path) -> None:
+        p = tmp_path / "in.frag"
+        p.write_text("units real\ndihedral_style opls\ndihedral_coeff 2 1.3 -0.05 0.2 0.1\n")
+        coeffs = parse_at_fragment_script(p)
+        assert coeffs.dihedral == {2: opls_to_ryckaert(1.3, -0.05, 0.2, 0.1)}
+
+    def test_malformed_opls_line_raises(self, tmp_path: Path) -> None:
+        p = tmp_path / "in.frag"
+        p.write_text("units real\ndihedral_style opls\ndihedral_coeff 1 1.3 -0.05 0.2\n")
+        with pytest.raises(ValueError, match="malformed dihedral_coeff"):
+            parse_at_fragment_script(p)
