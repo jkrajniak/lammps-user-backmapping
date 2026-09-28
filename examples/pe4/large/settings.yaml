@@ -2,6 +2,10 @@
 # 100-carbon polyethylene: 25 CG beads (A1, B1-B23, A2), 100 AT atoms (C1-C100)
 # 4 AT atoms per CG bead (coarser mapping than PE)
 
+prep:
+  # OPLS force field of the AT topology (examples/forcefield/oplsaa.ff)
+  forcefield_dir: ../../forcefield
+
 molecules:
 - name: PE
   ident: PE
