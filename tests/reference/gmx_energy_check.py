@@ -636,7 +636,12 @@ def main() -> int:
         ok = rel <= args.rtol or abs(val - ref) <= args.atol
         failed |= not ok
         print(f"{key:8s} {val:18.6f} {ref:18.6f} {rel:10.2e} {'ok' if ok else 'FAIL'}")
-    if args.at_data is not None and args.at_ff is not None:
+    if args.at_data is not None and args.at_ff is not None and args.relax:
+        print(
+            "AT-only force field: skipped with --relax (the AT-only data file holds the "
+            "unrelaxed coordinates); run without --relax, or build --at-data from the relaxed frame"
+        )
+    elif args.at_data is not None and args.at_ff is not None:
         at = at_only_energies(args.lmp, args.at_data, args.at_ff, d, args.zero_charges)
         # special_bonds puts the 1-4 terms into evdwl/ecoul of the AT-only run,
         # unless the force field lists them explicitly (lj14/coul14)

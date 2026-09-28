@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 from .at_system import (
     at_type_maps,
+    bonded_extent,
     write_at_forcefield,
     write_at_from_hybrid_frame,
     write_at_reference,
@@ -116,7 +117,7 @@ def _cmd_at_system(args: argparse.Namespace) -> int:
             out,
         )
         print(f"Wrote {out} ({args.reference} molecules, expanded box {box:.2f} A)")
-    write_at_forcefield(system, settings, maps, ff_path, out.name)
+    write_at_forcefield(system, settings, maps, ff_path, out.name, bonded_extent(out))
     print(f"Wrote {ff_path}")
     return 0
 

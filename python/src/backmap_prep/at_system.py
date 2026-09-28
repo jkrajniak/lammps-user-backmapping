@@ -143,6 +143,31 @@ def _style_block(kind: str, types: list[_AtType]) -> list[str]:
     return [*lines, ""]
 
 
+def bonded_extent(data: Path) -> float:
+    """Largest minimum-image extent (A) of any bonded term in an AT data file.
+
+    Atoms of a term are chained by minimum-image steps, as LAMMPS resolves
+    bonded partners; ghost atoms must reach this far (comm_modify cutoff).
+    """
+    bounds, sec = _read_sections(data)
+    box = [hi - lo for lo, hi in bounds]
+    xyz = {int(p[0]): [float(v) for v in p[4:7]] for p in sec["Atoms"]}
+    extent = 0.0
+    for name, first in (("Bonds", 2), ("Angles", 2), ("Dihedrals", 2), ("Impropers", 2)):
+        for p in sec.get(name, []):
+            ids = [int(v) for v in p[first:]]
+            chain = [xyz[ids[0]]]
+            for i in ids[1:]:
+                prev = chain[-1]
+                d = [xyz[i][k] - prev[k] for k in range(3)]
+                d = [d[k] - box[k] * round(d[k] / box[k]) for k in range(3)]
+                chain.append([prev[k] + d[k] for k in range(3)])
+            for a in range(len(chain)):
+                for b in range(a + 1, len(chain)):
+                    extent = max(extent, math.dist(chain[a], chain[b]))
+    return extent
+
+
 def explicit_14_pairs(system: System) -> bool:
     """True if the 1-4 pairs are not the fudge-scaled normal LJ of their types.
 
@@ -181,9 +206,19 @@ def _write_pairs14(path: Path, rows: list[tuple[int, int, float, float, float]])
 
 
 def write_at_forcefield(
-    system: System, settings: Settings, maps: AtTypeMaps, path: Path, data_name: str
+    system: System,
+    settings: Settings,
+    maps: AtTypeMaps,
+    path: Path,
+    data_name: str,
+    bonded_extent_ang: float = 0.0,
 ) -> None:
-    """Write the AT-only force field (``<prefix>.at.ff.lmp``)."""
+    """Write the AT-only force field (``<prefix>.at.ff.lmp``).
+
+    ``bonded_extent_ang`` (see :func:`bonded_extent`): if a bonded term of the
+    data file reaches beyond the pair cutoff (a stretched, unrelaxed frame),
+    ghosts must cover it, or LAMMPS pairs the far image of the partner.
+    """
     sim = settings.simulation
     lj_cut = units.distance(sim.lj_cutoff)
     coul_cut = units.distance(sim.coulomb_cutoff)
@@ -213,6 +248,12 @@ def write_at_forcefield(
         "neigh_modify delay 0 every 1 check yes",
         "",
     ]
+    if bonded_extent_ang > max(lj_cut, coul_cut):
+        lines += [
+            "# bonded terms of the data file reach beyond the pair cutoff",
+            f"comm_modify cutoff {bonded_extent_ang + 2.0:.2f}",
+            "",
+        ]
     if explicit:
         lines[1] = (
             "# Same force field as the hybrid at lambda = 1; 1-4 pairs listed explicitly "
