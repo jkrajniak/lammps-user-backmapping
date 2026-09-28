@@ -145,5 +145,6 @@ def test_write_data_keeps_opls_coefficients(tmp_path: Path) -> None:
     styles = f"dihedral_style backmap/opls\ndihedral_coeff 1 at {OPLS}"
     _run(tmp_path / "w", 1, styles, _fix(1.0), extra="write_data out.data")
     text = (tmp_path / "w" / "out.data").read_text()
-    block = text.split("Dihedral Coeffs", 1)[1].strip().splitlines()[0]
-    assert block.split("#")[0].split() == ["1", "at", *OPLS.split()]
+    after_header = text.split("Dihedral Coeffs", 1)[1].split("\n", 1)[1]
+    first = next(ln for ln in after_header.splitlines() if ln.strip())
+    assert first.split() == ["1", "at", *OPLS.split()]
