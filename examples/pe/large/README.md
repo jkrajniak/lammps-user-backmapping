@@ -1,5 +1,13 @@
 # Large-scale PE example (75 chains, united atom, 423 K)
 
+> **Not a published model: workflow example only.** The AT topology here is
+> united atom, while the CG tables come from the published all-atom PE
+> (JCTC 2016 data, `preparation/pe/cg_force_field/nvt`), fitted to a different AT
+> model. The example exercises the pipeline and the tests; it is not used for
+> validation. For polyethylene use `pe_aa` (all atom, the published model the
+> CG tables were fitted to) or `pe4` (united atom, the published `pe_4` model and
+> its own CG tables).
+
 75 chains of 100 united-atom sites (50 CG beads each), 60.1855 A box,
 0.80 g/cm3. CG model and configuration from the JCTC 2016 polyethylene data
 (`preparation/pe/cg_force_field/nvt`); AT model: `topol_aa.top`.
