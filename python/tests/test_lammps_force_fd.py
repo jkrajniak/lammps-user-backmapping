@@ -186,6 +186,12 @@ CASES = {
         "dihedral_style backmap/fourier\ndihedral_coeff 1 at 2 1.2 1 30.0 0.5 3 0.0",
         False,
     ),
+    "dihedral_opls_at": (
+        4,
+        {"dihedrals": [(1, 2, 3, 4)]},
+        "dihedral_style backmap/opls\ndihedral_coeff 1 at 1.3 -0.05 0.2 0.1",
+        False,
+    ),
     "improper_harmonic_at": (
         4,
         {"impropers": [(1, 2, 3, 4)]},
