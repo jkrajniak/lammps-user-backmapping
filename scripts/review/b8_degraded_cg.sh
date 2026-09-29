@@ -5,11 +5,13 @@
 #   ibi  published IBI tables (control)
 #   lj   12-6 LJ fitted to the IBI first well (b8_cg_tables.py)
 #   wca  repulsion only (b8_cg_tables.py)
-# Per model: CG NVT from the published frame (bead RDF over the second half),
-# a CG NPT run for the density the model predicts, the hybrid built from the
-# model's own equilibrated frame, the generated backmapping protocol, and the
-# AT continuation (in.dodecane_at) with a dense trajectory over its first
-# NPT stage and PROD_STEPS of production.
+# Per model: CG NVT at the published density (bead RDF over the second half;
+# the mean CG pressure is logged), the hybrid built from the model's own
+# equilibrated frame, the generated backmapping protocol, and the AT
+# continuation (in.dodecane_at) with a dense trajectory over its first NPT
+# stage and PROD_STEPS of production. No CG NPT: the IBI tables carry no
+# pressure correction, so the CG melt expands under NPT by construction and
+# the CG density is not a property of the model.
 #   LMP=/path/to/lmp NP=8 OUT=/path/to/outdir bash b8_degraded_cg.sh <examples-dir> [variants...]
 # SMOKE=1 stops each variant after the hybrid rebuild (CG_STEPS small for a quick check).
 set -euo pipefail
@@ -39,16 +41,12 @@ for v in $VARIANTS; do
   python3 "$HERE/cg_part_of_hybrid.py" dodecane.ff.lmp > cg_ff.lmp
   cg_types=$(grep -oE "cg_type( [0-9]+)+" dodecane.backmap.lmp | cut -d" " -f2-)
   read -r ta tb <<< "$cg_types"
-  for ens in nvt npt; do
-    if [ "$ens" = nvt ]; then
-      integ="fix integ all nvt temp 298.0 298.0 100.0"
-      extra="compute rdf_cg all rdf 150 $ta $ta $ta $tb $tb $tb
-fix rdf_out all ave/time 100 $((CG_STEPS / 200)) $CG_STEPS c_rdf_cg[*] file rdf_cg.dat mode vector"
-    else
-      integ="fix integ all npt temp 298.0 298.0 100.0 iso 1.0 1.0 1000.0"
-      extra="variable rho equal density
-fix dens all ave/time 100 $((CG_STEPS / 200)) $CG_STEPS v_rho file density_cg.dat"
-    fi
+  for ens in nvt; do
+    integ="fix integ all nvt temp 298.0 298.0 100.0"
+    extra="compute rdf_cg all rdf 150 $ta $ta $ta $tb $tb $tb
+fix rdf_out all ave/time 100 $((CG_STEPS / 200)) $CG_STEPS c_rdf_cg[*] file rdf_cg.dat mode vector
+variable pcg equal press
+fix pcg_out all ave/time 100 $((CG_STEPS / 200)) $CG_STEPS v_pcg file pressure_cg.dat"
     cat > "in.b8_cg_$ens" <<EOF
 units real
 atom_style full
