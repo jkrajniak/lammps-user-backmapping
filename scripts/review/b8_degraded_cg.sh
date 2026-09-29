@@ -58,7 +58,7 @@ group cgb type $cg_types
 group atd subtract all cgb
 delete_atoms group atd bond yes mol no
 include cg_ff.lmp
-velocity all create 298.0 48279 mom yes rot yes dist gaussian
+velocity all create 298.0 48279 mom yes rot yes dist gaussian loop geom
 timestep 2.0
 thermo 5000
 thermo_style custom step temp pe press density
