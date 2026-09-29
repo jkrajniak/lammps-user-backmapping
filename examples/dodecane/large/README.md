@@ -17,5 +17,8 @@ protocol only.
 | Reference | `backmap-prep at-system settings.yaml --reference 500` then `lmp -in in.dodecane_at_ref -var L 57.5376` | `rdf_reference.dat` |
 
 `run_tier_bc.sh backmap|reference` runs the chain (set `LMP`, `NP`,
-optionally `PROD_STEPS`). `backmap-prep cg-only` writes the CG equilibration
-input (`in.dodecane_cg_equil`). Compare with `compare_rdf_blocks.py`.
+optionally `PROD_STEPS`). The CG frame is the published equilibrated melt and
+is used as given; `backmap-prep cg-only` builds CG inputs only for single-molecule
+(network) topologies, so a CG melt is equilibrated outside backmap-prep (for a
+pure-CG run from the generated force field, see `scripts/review/cg_part_of_hybrid.py`).
+Compare with `compare_rdf_blocks.py`.
