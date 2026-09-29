@@ -8,12 +8,12 @@ pair_coeff 1 2 none
 pair_coeff 1 3 none
 pair_coeff 1 4 none
 pair_coeff 1 5 cg table_A_B.table ENTRY
-pair_coeff 2 2 atomistic 0.06599904398 3.5
-pair_coeff 2 3 atomistic 0.06599904398 3.5
-pair_coeff 2 4 atomistic 0.04449686865 2.958039892
+pair_coeff 2 2 atomistic 0.066 3.5
+pair_coeff 2 3 atomistic 0.066 3.5
+pair_coeff 2 4 atomistic 0.04449719092 2.958039892
 pair_coeff 2 5 none
-pair_coeff 3 3 atomistic 0.06599904398 3.5
-pair_coeff 3 4 atomistic 0.04449686865 2.958039892
+pair_coeff 3 3 atomistic 0.066 3.5
+pair_coeff 3 4 atomistic 0.04449719092 2.958039892
 pair_coeff 3 5 none
 pair_coeff 4 4 atomistic 0.03 2.5
 pair_coeff 4 5 none
@@ -31,8 +31,10 @@ angle_coeff 2 at 58.3500239 112.7000
 angle_coeff 3 at 33 107.8000
 
 dihedral_style hybrid ryckaert backmap/ryckaert
-dihedral_coeff 1 ryckaert 0 -0 0 -0 0 -0
-dihedral_coeff 2 backmap/ryckaert at 0 -0 0 -0 0 -0
+dihedral_coeff 1 ryckaert 0.15 -0.45 0 0.6 0 -0
+dihedral_coeff 2 ryckaert 0.7 0.35 0.05 0.4 0 -0
+dihedral_coeff 3 backmap/ryckaert at 0.7 0.35 0.05 0.4 0 -0
+dihedral_coeff 4 backmap/ryckaert at 0.15 -0.45 0 0.6 0 -0
 
 special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 

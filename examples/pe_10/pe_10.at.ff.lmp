@@ -19,8 +19,9 @@ angle_coeff 2 58.3500239 112.7
 angle_coeff 3 33 107.8
 
 dihedral_style ryckaert
-dihedral_coeff 1 0 -0 0 -0 0 -0
+dihedral_coeff 1 0.15 -0.45 0 0.6 0 -0
+dihedral_coeff 2 0.7 0.35 0.05 0.4 0 -0
 
-special_bonds lj 0.0 0.0 0 coul 0.0 0.0 0
+special_bonds lj 0.0 0.0 0.5 coul 0.0 0.0 0.5
 
 neigh_modify delay 0 every 1 check yes

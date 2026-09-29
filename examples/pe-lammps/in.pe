@@ -10,41 +10,57 @@ read_data pe.data
 
 include pe.ff.lmp
 
-# Initial velocities at T=423.0 K
-velocity all create 423.0 12345 dist gaussian mom yes rot yes
-
-fix integrate at_atoms nve
-fix thermo at_atoms langevin 423.0 423.0 33.3 12345
-
 include pe.backmap.lmp
 
 reset_atoms image all
 
+fix cap all backmap/capforce 1195.0287
+
 compute at_temp at_atoms temp
-
-timestep 1.00
-
 thermo 1000
-thermo_style custom step temp pe ke etotal press f_bm
-thermo_modify colname f_bm lambda
-thermo_modify temp at_temp
+thermo_style custom step temp pe ke etotal ebond eangle edihed evdwl ecoul press f_bm
+thermo_modify colname f_bm lambda temp at_temp
 
 dump traj all custom 1000 dump.backmap id mol type x y z f_bm
 dump_modify traj sort id
 
-# Phase 1: CG equilibration (λ frozen — optional if CG was pre-equilibrated)
-fix_modify bm active no
-run 10000
+# Phase 0a: minimize AT overlaps at lambda = 0 (CG frozen)
+fix freeze cg_atoms setforce 0.0 0.0 0.0
+minimize 1.0e-4 1.0e-6 1000 10000
 
-# Phase 2: Backmapping
-timestep 1.00
-fix_modify bm active yes
+# Phase 0b: relax AT fragments at lambda = 0 (CG frozen)
+fix relax at_atoms nve/limit 0.01
+fix therm_relax at_atoms langevin 423.0 423.0 20.0 12346
+timestep 0.01
 run 10000
+unfix therm_relax
+unfix relax
+unfix freeze
+
+# Phase 1: lambda ramp 0 -> 1 (20000 steps at 0.1 fs, alpha 0.0001)
+fix limit_all all nve/limit 0.05
+fix therm_ramp at_atoms langevin 423.0 423.0 100.0 12347
+fix_modify bm active yes
+timestep 0.10
+run 20000
+unfix limit_all
+unfix therm_ramp
+
+# Phase 2: NVT at lambda = 1, staged timestep
+fix nvt_at at_atoms nvt temp 423.0 423.0 100.0
+fix nvt_cg cg_atoms nvt temp 423.0 423.0 100.0
+timestep 0.25
+run 10000
+timestep 0.50
+run 5000
+timestep 1.00
+run 5000
 
 write_data pe_hybrid.data
+# CapForce released after the ramp and the staged NVT (as bakery does)
+unfix cap
 
-# Phase 3: AT production (optional post-backmap)
+# Production at lambda = 1
 timestep 1.00
-run 10000
-
+run 5000
 write_data pe_final.data

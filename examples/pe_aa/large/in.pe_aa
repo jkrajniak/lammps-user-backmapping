@@ -14,6 +14,8 @@ include pe_aa.backmap.lmp
 
 reset_atoms image all
 
+fix cap all backmap/capforce 1195.0287
+
 compute at_temp at_atoms temp
 thermo 1000
 thermo_style custom step temp pe ke etotal ebond eangle edihed evdwl ecoul f_pairs[1] f_pairs[2] press f_bm
@@ -55,8 +57,10 @@ timestep 1.00
 run 5000
 
 write_data pe_aa_hybrid.data
+# CapForce released after the ramp and the staged NVT (as bakery does)
+unfix cap
 
 # Production at lambda = 1
 timestep 1.00
-run 10000
+run 5000
 write_data pe_aa_final.data

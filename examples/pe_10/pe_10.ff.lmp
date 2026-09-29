@@ -31,8 +31,10 @@ angle_coeff 2 at 58.3500239 112.7000
 angle_coeff 3 at 33 107.8000
 
 dihedral_style hybrid ryckaert backmap/ryckaert
-dihedral_coeff 1 ryckaert 0 -0 0 -0 0 -0
-dihedral_coeff 2 backmap/ryckaert at 0 -0 0 -0 0 -0
+dihedral_coeff 1 ryckaert 0.15 -0.45 0 0.6 0 -0
+dihedral_coeff 2 ryckaert 0.7 0.35 0.05 0.4 0 -0
+dihedral_coeff 3 backmap/ryckaert at 0.7 0.35 0.05 0.4 0 -0
+dihedral_coeff 4 backmap/ryckaert at 0.15 -0.45 0 0.6 0 -0
 
 special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
 
