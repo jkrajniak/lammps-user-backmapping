@@ -11,7 +11,10 @@
 # Required: -var prefix <prefix>
 # Optional (defaults = the dacron / rim135 references):
 #   -var T 298.0
-#   -var anneal 0        1 = RIM135: NPT 1000 K -> T over 4.5 ns, 0.5 ns at T, NVT 1 ns
+#   -var anneal 0        1 = RIM135: NPT 1000 K -> T, hold at T, NVT (lengths below)
+#   -var anneal_ramp 4500000   annealing ramp 1000 K -> T
+#   -var anneal_hold 500000    NPT at T after the ramp
+#   -var anneal_nvt 1000000    NVT after the anneal
 #   -var npt_steps 5000000
 #   -var nvt_steps 2500000      NVT before the RDF window
 #   -var window_steps 2500000   NVT with the trajectory (every 10 ps)
@@ -19,6 +22,9 @@
 
 variable        T index 298.0
 variable        anneal index 0
+variable        anneal_ramp index 4500000
+variable        anneal_hold index 500000
+variable        anneal_nvt index 1000000
 variable        npt_steps index 5000000
 variable        nvt_steps index 2500000
 variable        window_steps index 2500000
@@ -45,14 +51,14 @@ if "${anneal} == 1" then &
   "velocity all create 1000.0 ${seed} mom yes rot yes dist gaussian" &
   "fix integrate all nvt temp 1000.0 ${T} 100.0" &
   "fix baro all press/berendsen aniso 1.0 1.0 500.0 modulus 21932" &
-  "run 4500000" &
+  "run ${anneal_ramp}" &
   "unfix integrate" &
   "fix integrate all nvt temp ${T} ${T} 100.0" &
-  "run 500000" &
+  "run ${anneal_hold}" &
   "unfix baro" &
   "unfix integrate" &
   "fix integrate all nvt temp ${T} ${T} 100.0" &
-  "run 1000000" &
+  "run ${anneal_nvt}" &
   "unfix integrate" &
 else &
   "velocity all create ${T} ${seed} mom yes rot yes dist gaussian"
