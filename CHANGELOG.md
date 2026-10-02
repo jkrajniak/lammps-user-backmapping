@@ -9,6 +9,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **Tier C reference protocol: RIM135 anneal lengths as variables.**
+  `examples/common/in.at_reference_protocol` takes `anneal_ramp`, `anneal_hold`
+  and `anneal_nvt` (defaults unchanged: 4.5 M, 0.5 M and 1 M steps), so the
+  annealing of the RIM135 network can be shortened with `-var`.
+- **Review scripts** (`scripts/review/`): degraded-CG dodecane experiment
+  (`b8_degraded_cg.sh`, `b8_cg_tables.py`, `b8_data_to_gro.py`), production-window energy terms
+  with block errors (`b3_energy_terms.py`), matched-density energy control
+  (`b3_matched_density.sh`), melt RDF figure in nm (`rdf_melt_figure.py`).
 - **`dihedral_style backmap/opls`.** The OPLS dihedral form
   (`dihedral_coeff N at|cg K1 K2 K3 K4`, same form and phi convention as
   LAMMPS `dihedral_style opls`), converted exactly to the Ryckaert-Bellemans
@@ -81,6 +89,20 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   Replaces the per-example `extract_at_frame.py` / `build_at_reference.py`.
 
 ### Changed
+
+- **Committed generated example inputs regenerated.** The generated files of the examples
+  (`*.data`, `*.ff.lmp`, `*.backmap.lmp`, `*.at.ff.lmp`, `pairs.dat`, tables, `in.<example>`)
+  were stale (single protocol without force cap and production stage, superseded dodecane,
+  pe4 and pe_10 models, old table units); regenerated with `backmap-prep build`. The build
+  is deterministic and the files equal the v1.3.0-rc5 builds used for the revision runs.
+  `examples/pet/large/in.pet` is now the generated input (it was the hand-written
+  bakery-faithful one).
+- **`examples/dodecane/` (10 chains) uses the generated workflow.** `in.dodecane_at` is the
+  protocol of `large/` (generated force field instead of a hand-written one with the
+  superseded model); `prepare_cg.py` finds the CG types from the `(CG)` marks and numbers the
+  chains from the CG bonds. The README says plainly that 10 chains in the melt box are a
+  dilute gas, not a structural test.
+- **`examples/dodecane/large/README.md`** no longer points to `cg-only` for melts.
 
 - **One hybrid builder for every system (breaking).** `backmap-prep build`,
   `rebuild` and `cg-only` use the same builder for linear melts and networks;
@@ -282,6 +304,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Removed
 
+- **Hand-written legacy chain of `examples/dodecane/`:** `place_at_atoms.py`,
+  `extract_at_frame.py`, `extract_at_system.py`, `build_at_reference.py`, `verify_backmapping.py`,
+  `verify_output.py`, `in.backmap`, `in.cg_equil`, `in.dodecane_cg_equil`, `in.dodecane_movie`,
+  `visualize_backmap_movie.py`, `compare_rdf.py`, `in.dodecane_at_ref` and the 6-atom
+  `dodecane_cg.data`, plus `examples/dodecane/large/{dodecane_cg.data,dodecane_cg_equil.data,
+  in.dodecane_cg_equil}` (leftovers of the `cg-only` truncation). They hard-coded the old type
+  numbering (CG = types 1 and 2; the generator now gives A = 1, CH3 = 2, CH2 = 3, B = 4), so for
+  example `extract_at_frame.py --cg-types 1 2` silently removed the CH3 atoms. `backmap-prep
+  at-system` replaces them.
 - **Dead per-atom lambda, `nonuniform`, and `phase` machinery**, left over
   from `fix backmap`'s original broader AdResS-style design and made
   fully inert by the lambda-weighting fix above: `lambda_global` was
