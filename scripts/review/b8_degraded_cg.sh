@@ -5,6 +5,8 @@
 #   ibi  published IBI tables (control)
 #   lj   12-6 LJ fitted to the IBI first well (b8_cg_tables.py)
 #   wca  repulsion only (b8_cg_tables.py)
+#   dbi  direct Boltzmann inversion of the bead RDF of the independent atomistic reference
+#        (b8_dbi_tables.py; needs DBI_DATA = the reference's final data file, DBI_TRAJ = its DCD)
 # Per model: CG NVT at the published density (bead RDF over the second half;
 # the mean CG pressure is logged), the hybrid built from the model's own
 # equilibrated frame, the generated backmapping protocol, and the AT
@@ -20,6 +22,7 @@ OUT="${OUT:?set OUT}"
 NP="${NP:-8}"
 PREP="${PREP:-uv run backmap-prep}"
 PY="${PY:-uv run --no-project --with numpy python}"
+PY_DBI="${PY_DBI:-uv run --no-project --with numpy --with MDAnalysis python}"
 CG_STEPS="${CG_STEPS:-500000}"   # 1 ns at 2 fs
 PROD_STEPS="${PROD_STEPS:-1000000}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -34,7 +37,11 @@ for v in $VARIANTS; do
   mkdir -p "$OUT"
   cp -r "$EXAMPLES/dodecane/large" "$W"
   cd "$W"
-  [ "$v" = ibi ] || $PY "$HERE/b8_cg_tables.py" --dir . --variant "$v"
+  case "$v" in
+    ibi) ;;
+    dbi) $PY_DBI "$HERE/b8_dbi_tables.py" --dir . --data "${DBI_DATA:?set DBI_DATA}" --traj "${DBI_TRAJ:?set DBI_TRAJ}" ;;
+    *) $PY "$HERE/b8_cg_tables.py" --dir . --variant "$v" ;;
+  esac
 
   # CG model = the CG part of the generated hybrid force field
   $PREP build settings.yaml > build_published_frame.log 2>&1
