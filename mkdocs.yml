@@ -63,6 +63,7 @@ nav:
       - pair_style backmap: components/pair-backmap.md
       - Bond Styles: components/bond-styles.md
       - Angle Style: components/angle-styles.md
+      - Dihedral and improper styles: components/dihedral-styles.md
   - CLI Reference:
       - backmap-prep: cli/backmap-prep.md
 
