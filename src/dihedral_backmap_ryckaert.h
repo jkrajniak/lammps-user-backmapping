@@ -32,6 +32,7 @@ class DihedralBackmapRyckaert : public Dihedral {
   void init_style() override;
   void write_restart(FILE *) override;
   void read_restart(FILE *) override;
+  void write_data(FILE *) override;
 
  protected:
   double *c0, *c1, *c2, *c3, *c4, *c5;

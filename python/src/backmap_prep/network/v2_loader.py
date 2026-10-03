@@ -34,7 +34,8 @@ def _flatten_atoms(atoms: list[str]) -> list[str]:
 
 
 def _prefix_atoms(atoms: list[str], ident: str) -> list[str]:
-    return [f"1:{ident}:{atom}" for atom in _flatten_atoms(atoms)]
+    """Qualify bare atom names as ``1:<ident>:<name>``; keep qualified ones."""
+    return [atom if atom.count(":") == 2 else f"1:{ident}:{atom}" for atom in _flatten_atoms(atoms)]
 
 
 def _resolve_mapping(
@@ -222,7 +223,7 @@ def _emit_cross_dihedrals(parent: etree.Element, dihedrals: list[CrossDihedral])
 
 def settings_to_xml_root(settings: Settings) -> etree.Element:
     """Build a bakery-compatible <settings> element tree from v2 Settings."""
-    if settings.cg_system is None or settings.hybrid is None:
+    if settings.cg_system is None:
         raise ValueError("network v2 settings require cg_system and hybrid sections")
 
     root = etree.Element("settings")
@@ -264,8 +265,7 @@ def settings_to_xml_root(settings: Settings) -> etree.Element:
 def has_native_network_config(settings: Settings) -> bool:
     """True when settings carry a full v2 network definition (no bakery_xml)."""
     return (
-        settings.prep.engine == "network"
-        and settings.prep.bakery_xml is None
+        settings.prep.bakery_xml is None
         and bool(settings.molecules)
         and settings.cg_system is not None
         and settings.hybrid is not None

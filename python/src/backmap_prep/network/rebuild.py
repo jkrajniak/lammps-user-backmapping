@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backmap_prep import units
+from backmap_prep.network.lammps_sources import materialize_lammps_sources
 from backmap_prep.network.api import NetworkLammpsBuildResult, build_hybrid_gromacs
 from backmap_prep.network.lammps_builder import build_system_from_hybrid
 from backmap_prep.network.pbc import (
@@ -131,9 +132,12 @@ def rebuild_network_lammps(
 ) -> NetworkLammpsBuildResult:
     """Build hybrid topology and place AT fragments using equilibrated CG coordinates."""
     work_dir = resolve_data_dir(settings_path, settings)
+    output_dir = settings_path.parent.resolve()
+    settings = materialize_lammps_sources(settings, work_dir, output_dir)
     hybrid = build_hybrid_gromacs(
         settings,
         base_dir=work_dir,
+        output_dir=output_dir,
         allow_no_bonds=settings.prep.allow_no_bonds,
         chain_rng_seed=settings.prep.chain_rng_seed,
     )

@@ -1,15 +1,8 @@
-; Self-contained PE AT topology (OPLS/AA, N=100)
+; PE AT topology (OPLS/AA, N=100; force field from prep.forcefield_dir)
 ; All-atom with explicit hydrogens
 
-[ defaults ]
-; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
-1         3          yes        0.5      0.5
-
-[ atomtypes ]
-; name      mass       charge  ptype  sigma(nm)   epsilon(kJ/mol)
-opls_135    12.01100   0.000   A      0.3500      0.27614
-opls_136    12.01100   0.000   A      0.3500      0.27614
-opls_140     1.00800   0.000   A      0.2500      0.12552
+; Force field: OPLS-AA as used by bakery (comb-rule 3, fudgeLJ = fudgeQQ = 0.5).
+#include "oplsaa.ff/forcefield.itp"
 
 [ moleculetype ]
 ; Name            nrexcl

@@ -1,0 +1,148 @@
+# Tier C: continue the backmapped network as a plain AT system with the protocol
+# of the published GROMACS references (JCC 2018 data, backmapping/*/template_eq/*.mdp;
+# melamine network: bakery examples/network_backmapping/mf/backmapping/template_eq):
+# 298 K, PME with 1.2 nm cutoffs (here PPPM 1e-5, 12 A), plain LJ cutoff 1.2 nm,
+# no dispersion correction, flexible bonds, 1 fs, anisotropic NPT at 1 atm with
+# a Berendsen barostat (tau_p 0.5 ps, compressibility 4.5e-5 1/bar, i.e. modulus
+# 21932 atm; gentle enough for the ~2x compression of a CG-density network),
+# then NVT; the trajectory is kept only for the RDF window at the end of NVT.
+# Input: <prefix>_at.data and <prefix>.at.ff.lmp from backmap-prep, plus
+# <prefix>.at.pair_coeffs (the pair_coeff lines of <prefix>.at.ff.lmp).
+# Required: -var prefix <prefix>
+# Optional (defaults = the dacron / rim135 references):
+#   -var T 298.0
+#   -var anneal 0        1 = RIM135: NPT 1000 K -> T, hold at T, NVT (lengths below)
+#   -var anneal_ramp 4500000   annealing ramp 1000 K -> T
+#   -var anneal_hold 500000    NPT at T after the ramp
+#   -var anneal_nvt 1000000    NVT after the anneal
+#   -var npt_steps 5000000
+#   -var nvt_steps 2500000      NVT before the RDF window
+#   -var window_steps 2500000   NVT with the trajectory (every 10 ps)
+#   -var seed 4928459
+#
+# Resumable (spot or preemptible machines). Every stage runs to an absolute end
+# step (`run N upto`), a restart file is written every `ckpt` steps, and the
+# trajectory of a segment goes to its own file. To continue an interrupted run:
+#   -var resume 1 -var resume_file <restart file> -var seg <segment number>
+# scripts/review/resumable_lmp.sh does this (picks the newest valid restart file,
+# numbers the segments, merges the per-segment dump files at the end).
+#   -var ckpt 50000        steps between restart files (default 50000 = 50 ps)
+#   -var thermo_every 5000
+#   -var dump_every 10000  steps between trajectory frames in the RDF window
+# The annealing ramp is run in chunks of `ckpt` steps with a fresh Nose-Hoover
+# thermostat per chunk (target temperature interpolated linearly in the step), so that
+# a restart inside the ramp continues on the same temperature schedule.
+
+variable        T index 298.0
+variable        anneal index 0
+variable        anneal_ramp index 4500000
+variable        anneal_hold index 500000
+variable        anneal_nvt index 1000000
+variable        npt_steps index 5000000
+variable        nvt_steps index 2500000
+variable        window_steps index 2500000
+variable        seed index 4928459
+variable        ckpt index 50000
+variable        thermo_every index 5000
+variable        dump_every index 10000
+variable        seg index 1
+variable        resume index 0
+variable        resume_file index none
+
+units           real
+atom_style      full
+boundary        p p p
+if "${resume} == 0" then "read_data ${prefix}_at.data" else "read_restart ${resume_file}"
+include         ${prefix}.at.ff.lmp
+pair_style      lj/cut/coul/long 12.0 12.0
+include         ${prefix}.at.pair_coeffs
+kspace_style    pppm 1.0e-5
+
+thermo          ${thermo_every}
+thermo_style    custom step temp pe ke etotal ebond eangle edihed eimp evdwl ecoul elong press density vol lx ly lz
+thermo_modify   flush yes
+restart         ${ckpt} rst.s${seg}.a rst.s${seg}.b
+
+if "${resume} == 1" then "jump SELF resume"
+
+minimize        1.0e-4 1.0e-6 5000 50000
+reset_atoms     image all
+reset_timestep  0
+if "${anneal} == 1" then &
+  "velocity all create 1000.0 ${seed} mom yes rot yes dist gaussian" &
+else &
+  "velocity all create ${T} ${seed} mom yes rot yes dist gaussian"
+
+label           resume
+timestep        1.0
+
+# absolute end steps of the stages
+variable        A1 equal ${anneal}*${anneal_ramp}
+variable        A2 equal v_A1+${anneal}*${anneal_hold}
+variable        A3 equal v_A2+${anneal}*${anneal_nvt}
+variable        E1 equal v_A3+${npt_steps}
+variable        E2 equal v_E1+${nvt_steps}
+variable        E3 equal v_E2+${window_steps}
+variable        Tt equal ${T}
+variable        ck equal ${ckpt}
+
+# --- annealing (RIM135): NPT ramp 1000 K -> T in chunks, NPT at T, NVT ---
+if "${anneal} == 0" then "jump SELF npt"
+label           ann_ramp
+if "$(step) >= ${A1}" then "jump SELF ann_hold"
+variable        nxe equal ternary(step+v_ck>v_A1,v_A1,step+v_ck)
+variable        Ta string "$(1000.0+(v_Tt-1000.0)*step/v_A1)"
+variable        Tb string "$(1000.0+(v_Tt-1000.0)*v_nxe/v_A1)"
+variable        nxt string "$(v_nxe)"
+fix             integrate all nvt temp ${Ta} ${Tb} 100.0
+fix             baro all press/berendsen aniso 1.0 1.0 500.0 modulus 21932
+run             ${nxt} upto
+unfix           baro
+unfix           integrate
+variable        Ta delete
+variable        Tb delete
+variable        nxt delete
+variable        nxe delete
+jump            SELF ann_ramp
+label           ann_hold
+if "$(step) >= ${A2}" then "jump SELF ann_nvt"
+fix             integrate all nvt temp ${T} ${T} 100.0
+fix             baro all press/berendsen aniso 1.0 1.0 500.0 modulus 21932
+run             $(v_A2) upto
+unfix           baro
+unfix           integrate
+label           ann_nvt
+if "$(step) >= ${A3}" then "jump SELF npt"
+fix             integrate all nvt temp ${T} ${T} 100.0
+run             $(v_A3) upto
+unfix           integrate
+
+# --- NPT ---
+label           npt
+if "$(step) >= ${E1}" then "jump SELF nvt"
+fix             integrate all nvt temp ${T} ${T} 100.0
+fix             baro all press/berendsen aniso 1.0 1.0 500.0 modulus 21932
+run             $(v_E1) upto
+unfix           baro
+unfix           integrate
+write_data      ${prefix}_at_npt.data
+
+# --- NVT before the window ---
+label           nvt
+if "$(step) >= ${E2}" then "jump SELF window"
+fix             integrate all nvt temp ${T} ${T} 100.0
+run             $(v_E2) upto
+unfix           integrate
+
+# --- NVT with the trajectory (RDF window) ---
+label           window
+if "$(step) >= ${E3}" then "jump SELF finish"
+fix             integrate all nvt temp ${T} ${T} 100.0
+dump            traj all custom ${dump_every} dump.at_prod.s${seg} id mol type x y z
+dump_modify     traj sort id
+run             $(v_E3) upto
+undump          traj
+unfix           integrate
+
+label           finish
+write_data      ${prefix}_at_final.data

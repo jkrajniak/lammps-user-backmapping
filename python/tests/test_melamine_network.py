@@ -19,6 +19,7 @@ the other v2 examples (PET, epoxy) already work.
 from __future__ import annotations
 
 import re
+import tempfile
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -29,16 +30,29 @@ from backmap_prep.network.api import build_hybrid_gromacs, build_network_lammps
 from backmap_prep.schema import load_settings
 from backmap_prep.table_converter import convert_tables
 from backmap_prep.units import distance, gromacs_rb_to_lammps, spring_angle, spring_bond
-from backmap_prep.writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
+from backmap_prep.writers import (
+    read_input_with_includes,
+    write_cross_pairs_file,
+    write_lammps_data,
+    write_lammps_input,
+)
 
 MF_NETWORK_DIR = Path(__file__).resolve().parents[2] / "examples" / "melamine_network" / "large"
 SETTINGS_YAML = MF_NETWORK_DIR / "settings.yaml"
 
 
 def _build():
-    """Build the hybrid GROMACS system from the native v2 settings.yaml."""
+    """Build the hybrid GROMACS system from the native v2 settings.yaml.
+
+    Outputs go to a fresh temporary directory; the example directory is only read.
+    """
     settings = load_settings(SETTINGS_YAML)
-    return build_hybrid_gromacs(settings, base_dir=MF_NETWORK_DIR, chain_rng_seed=42)
+    return build_hybrid_gromacs(
+        settings,
+        base_dir=MF_NETWORK_DIR,
+        output_dir=Path(tempfile.mkdtemp(prefix="mf_network_")),
+        chain_rng_seed=42,
+    )
 
 
 def test_mf_network_assets_present() -> None:
@@ -416,7 +430,7 @@ def test_mf_network_lammps_crosslink_types_nonzero(tmp_path: Path) -> None:
     just the 675 crosslink ones, and that is not itself a bug.
     """
     settings = load_settings(SETTINGS_YAML)
-    result = build_network_lammps(settings, SETTINGS_YAML)
+    result = build_network_lammps(settings, SETTINGS_YAML, output_dir=tmp_path)
 
     data_path = tmp_path / f"{settings.output.prefix}.data"
     input_path = tmp_path / f"in.{settings.output.prefix}"
@@ -428,7 +442,7 @@ def test_mf_network_lammps_crosslink_types_nonzero(tmp_path: Path) -> None:
 
     topology_text = result.topology_path.read_text()
     data_text = data_path.read_text()
-    input_text = input_path.read_text()
+    input_text = read_input_with_includes(input_path)
 
     # --- Step 1: crosslink atom pairs/triples/quadruples tagged by Task 2b's
     # exact cross_interactions param strings, read straight from the fresh

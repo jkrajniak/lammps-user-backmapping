@@ -1,0 +1,50 @@
+; w4.itp inlined: bakery does not follow #include (backmap-prep does,
+; for the force-field parameters below).
+#include "amber99sb-ildn_slipids.ff/forcefield.itp"
+
+; Four TIP3P waters of one MARTINI W bead: one residue (bakery fragments are
+; single residues) and one molecule during backmapping.
+; Flexible TIP3P (bonds/angle of tip3p.itp, FLEXIBLE branch); nrexcl 2 keeps
+; exclusions within each water only (the waters are not bonded to each other).
+[ moleculetype ]
+; molname nrexcl
+W 2
+
+[ atoms ]
+; id type resnr res atom cgnr charge mass
+   1 OW     1 W   OW1      1   -0.834  16.00000
+   2 HW     1 W   HW11     2    0.417   1.00800
+   3 HW     1 W   HW12     3    0.417   1.00800
+   4 OW     1 W   OW2      4   -0.834  16.00000
+   5 HW     1 W   HW21     5    0.417   1.00800
+   6 HW     1 W   HW22     6    0.417   1.00800
+   7 OW     1 W   OW3      7   -0.834  16.00000
+   8 HW     1 W   HW31     8    0.417   1.00800
+   9 HW     1 W   HW32     9    0.417   1.00800
+  10 OW     1 W   OW4     10   -0.834  16.00000
+  11 HW     1 W   HW41    11    0.417   1.00800
+  12 HW     1 W   HW42    12    0.417   1.00800
+
+[ bonds ]
+; i j funct length force_constant
+1 2 1 0.09572 502416.0
+1 3 1 0.09572 502416.0
+4 5 1 0.09572 502416.0
+4 6 1 0.09572 502416.0
+7 8 1 0.09572 502416.0
+7 9 1 0.09572 502416.0
+10 11 1 0.09572 502416.0
+10 12 1 0.09572 502416.0
+
+[ angles ]
+; i j k funct angle force_constant
+2 1 3 1 104.52 628.02
+5 4 6 1 104.52 628.02
+8 7 9 1 104.52 628.02
+11 10 12 1 104.52 628.02
+
+[ system ]
+W bead template (4 TIP3P)
+
+[ molecules ]
+W 1

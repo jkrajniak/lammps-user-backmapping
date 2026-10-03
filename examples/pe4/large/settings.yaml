@@ -2,6 +2,10 @@
 # 100-carbon polyethylene: 25 CG beads (A1, B1-B23, A2), 100 AT atoms (C1-C100)
 # 4 AT atoms per CG bead (coarser mapping than PE)
 
+prep:
+  # OPLS force field of the AT topology (examples/forcefield/oplsaa.ff)
+  forcefield_dir: ../../forcefield
+
 molecules:
 - name: PE
   ident: PE
@@ -1146,15 +1150,17 @@ cross_interactions:
       - PE:C99
       - PE:C100
 simulation:
+  protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
   alpha: 0.0001
+  cap_force: 50000.0  # kJ/mol/nm = 1195 kcal/mol/A, released before production
   initial_resolution: 0.0
   timestep: 0.001
   timestep_backmapping: 0.001
-  equilibration_steps: 10000
-  production_steps: 10000
+  equilibration_steps: 5000
+  production_steps: 5000
   temperature: 423.0
   thermostat: langevin
-  thermostat_gamma: 30.0
+  thermostat_gamma: 5
   thermostat_target: atomistic
   lj_cutoff: 1.4
   cg_cutoff: 1.4

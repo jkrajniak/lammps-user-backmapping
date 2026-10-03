@@ -31,6 +31,7 @@ using namespace MathConst;
 
 static constexpr double TOLERANCE = 0.05;
 static constexpr double SMALL = 0.001;
+static constexpr double SMALLER = 0.00001;
 
 /* ---------------------------------------------------------------------- */
 
@@ -253,7 +254,12 @@ void DihedralBackmapTable::compute(int eflag, int vflag) {
     double p = uf_lookup(tabindex[type], phi_deg, fforce);
 
     p *= w;
-    pd = -fforce * (MY_PI / 180.0) * w;
+    // The table gives -dE/dphi per degree (dihedral_style table format).
+    // This force expression (as in dihedral_style opls) needs
+    // pd = dE/d(cos phi) = -(dE/dphi) / sin(phi) with phi in radians.
+    double si = sin(phi);
+    if (fabs(si) < SMALLER) si = (si < 0.0) ? -SMALLER : SMALLER;
+    pd = fforce * RAD2DEG / si * w;
 
     if (eflag) edihedral = p;
 

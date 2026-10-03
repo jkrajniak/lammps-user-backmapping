@@ -8,7 +8,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+import pytest
+
 from backmap_prep.cli import main
+from backmap_prep.writers import read_input_with_includes
 
 
 def _write_full_example(base: Path) -> Path:
@@ -50,7 +53,7 @@ def _write_full_example(base: Path) -> Path:
         CH2  14.0  0.0  A  0.395  0.382
 
         [ moleculetype ]
-        TestMol  3
+        MOL  3
 
         [ atoms ]
         1  CH2  1  MOL  C1  1  0.0  14.0
@@ -66,7 +69,7 @@ def _write_full_example(base: Path) -> Path:
     settings = {
         "molecules": [
             {
-                "name": "TestMol",
+                "name": "MOL",
                 "source": {"coordinates": "at.gro", "topology": "at.top"},
                 "beads": [{"name": "B1", "type": "CG1", "atoms": ["C1", "C2"]}],
             }
@@ -90,6 +93,12 @@ class TestCLI:
         assert result == 0
         assert (tmp_path / "test_out.data").exists()
         assert (tmp_path / "in.test_out").exists()
+
+    def test_molecule_name_must_match_cg_residue(self, tmp_path: Path) -> None:
+        settings_path = _write_full_example(tmp_path)
+        settings_path.write_text(settings_path.read_text().replace("name: MOL", "name: Other"))
+        with pytest.raises(ValueError, match="must equal the CG residue name"):
+            main(["build", str(settings_path)])
 
     def test_build_subcommand(self, tmp_path: Path) -> None:
         settings_path = _write_full_example(tmp_path)
@@ -115,7 +124,7 @@ class TestCLI:
     def test_input_file_content(self, tmp_path: Path) -> None:
         settings_path = _write_full_example(tmp_path)
         main([str(settings_path)])
-        content = (tmp_path / "in.test_out").read_text()
+        content = read_input_with_includes(tmp_path / "in.test_out")
         assert "units real" in content
         assert "fix bm all backmap" in content
 
@@ -133,3 +142,64 @@ class TestCLI:
         assert "units real" in content
         assert "nvt temp" in content or "npt temp" in content
         assert "write_data" in content
+
+
+def _write_cg_chain(base: Path, n_molecules: int) -> Path:
+    """Settings whose CG topology is a 4-bead chain with a bond, angle and RB dihedral."""
+    settings_path = _write_full_example(base)
+    atoms = "\n".join(
+        f"    1MOL  B{k}    {k}   {0.5 + 0.3 * k:.3f}   0.500   {0.5 + 0.1 * (k % 2):.3f}"
+        for k in range(1, 4 * n_molecules + 1)
+    )
+    (base / "cg.gro").write_text(
+        f"CG chain\n    {4 * n_molecules}\n{atoms}\n   5.00000   5.00000   5.00000\n"
+    )
+    (base / "cg.top").write_text(
+        dedent(f"""\
+        [ atomtypes ]
+        CG1  72.0  0.0  V  0.47  3.5
+        [ moleculetype ]
+        MOL  1
+        [ atoms ]
+        1  CG1  1  MOL  B1  1  0.0  72.0
+        2  CG1  1  MOL  B2  2  0.0  72.0
+        3  CG1  1  MOL  B3  3  0.0  72.0
+        4  CG1  1  MOL  B4  4  0.0  72.0
+        [ bonds ]
+        1  2  1  0.30  5000.0
+        2  3  1  0.30  5000.0
+        3  4  1  0.30  5000.0
+        [ angles ]
+        1  2  3  1  120.0  25.0
+        2  3  4  1  120.0  25.0
+        [ dihedrals ]
+        1  2  3  4  3  1.0  -0.5  0.2  0.1  0.0  0.0
+        [ molecules ]
+        MOL {n_molecules}
+    """)
+    )
+    import yaml
+
+    settings = yaml.safe_load(settings_path.read_text())
+    settings.setdefault("simulation", {}).update({"table_points": 2500, "exclusion_nrexcl_cg": 1})
+    settings_path.write_text(yaml.dump(settings))
+    return settings_path
+
+
+class TestCgOnly:
+    def test_refuses_more_than_one_molecule(self, tmp_path: Path) -> None:
+        settings_path = _write_cg_chain(tmp_path, n_molecules=2)
+        with pytest.raises(ValueError, match="one molecule"):
+            main(["cg-only", str(settings_path)])
+
+    def test_equilibration_script_has_the_whole_cg_force_field(self, tmp_path: Path) -> None:
+        settings_path = _write_cg_chain(tmp_path, n_molecules=1)
+        assert main(["cg-only", str(settings_path)]) == 0
+        data = (tmp_path / "test_out_cg.data").read_text()
+        assert "1 dihedrals" in data
+        content = (tmp_path / "in.test_out_cg_equil").read_text()
+        assert "dihedral_style ryckaert" in content
+        assert "dihedral_coeff 1 " in content
+        assert "pair_style table linear 2500" in content
+        # MARTINI-like CG exclusions (nrexcl 1) reach the CG-only run
+        assert "special_bonds lj 0.0 1.0 1.0 coul 0.0 1.0 1.0" in content

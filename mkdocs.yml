@@ -53,15 +53,18 @@ nav:
   - Docker: docker.md
   - Running on Cloud / HPC: cloud-hpc.md
   - Large-scale examples: large-scale-examples.md
+  - Resumable runs: resumable-runs.md
   - Theory: theory.md
   - Settings Reference: settings-reference.md
   - Tutorial:
       - Setting Up a New System: tutorial-new-system.md
   - LAMMPS Components:
       - fix backmap: components/fix-backmap.md
+      - fix backmap/pairs: components/fix-backmap-pairs.md
       - pair_style backmap: components/pair-backmap.md
       - Bond Styles: components/bond-styles.md
       - Angle Style: components/angle-styles.md
+      - Dihedral and improper styles: components/dihedral-styles.md
   - CLI Reference:
       - backmap-prep: cli/backmap-prep.md
 

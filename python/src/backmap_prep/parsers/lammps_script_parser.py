@@ -1,12 +1,13 @@
 """Bounded LAMMPS input-script parser for AT-fragment force-field coefficients.
 
-Covers exactly the four coefficient families `builder.py` consumes for AT
+Covers exactly the four coefficient families `network.lammps_sources` converts for AT
 fragments (``molecules[].source.format: lammps``): ``bond_coeff`` (only
 ``bond_style harmonic``), ``angle_coeff`` (only ``angle_style harmonic``),
-``dihedral_coeff`` (only ``dihedral_style ryckaert`` — the package's own
+``dihedral_coeff`` (``dihedral_style ryckaert`` — the package's own
 native style, matching the form ``units.gromacs_rb_to_lammps`` already
 converts GROMACS RB coefficients into, so a LAMMPS-native fragment supplies
-these directly with no conversion), and ``pair_coeff i i`` diagonal (self)
+these directly with no conversion — or ``dihedral_style opls``, whose K1..K4
+are converted exactly to those six coefficients), and ``pair_coeff i i`` diagonal (self)
 entries (cross-type LJ parameters are always computed in Python via mixing,
 never read from a source file). Nothing else this codebase would consume is
 in scope: AT fragments are always analytic here, never tabulated, and
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
 _SUPPORTED_BOND_STYLES = frozenset({"harmonic"})
 _SUPPORTED_ANGLE_STYLES = frozenset({"harmonic"})
-_SUPPORTED_DIHEDRAL_STYLES = frozenset({"ryckaert"})
+_SUPPORTED_DIHEDRAL_STYLES = frozenset({"ryckaert", "opls"})
 # Force-field style commands this reader understands and validates. Any other
 # command ending in "_style" (e.g. atom_style, improper_style) is unrelated to
 # the four coefficient families above -- ignored, not rejected, except
@@ -64,6 +65,7 @@ def parse_at_fragment_script(path: Path) -> AtFragmentCoefficients:
 
     coeffs = AtFragmentCoefficients()
     units_seen: str | None = None
+    dihedral_style = "ryckaert"
 
     for raw_line in text.splitlines():
         line = raw_line.split("#", 1)[0].strip()
@@ -95,6 +97,7 @@ def parse_at_fragment_script(path: Path) -> AtFragmentCoefficients:
                     f"unsupported dihedral_style {style!r} in {path} "
                     f"(supported: {sorted(_SUPPORTED_DIHEDRAL_STYLES)})"
                 )
+            dihedral_style = style
         elif cmd == "pair_style":
             pass  # any pair_style is accepted; only pair_coeff values matter
         elif cmd == "bond_coeff":
@@ -106,9 +109,8 @@ def parse_at_fragment_script(path: Path) -> AtFragmentCoefficients:
                 raise ValueError(f"malformed angle_coeff line in {path}: {raw_line!r}")
             coeffs.angle[int(tokens[1])] = (float(tokens[2]), float(tokens[3]))
         elif cmd == "dihedral_coeff":
-            if len(tokens) < 8:
-                raise ValueError(f"malformed dihedral_coeff line in {path}: {raw_line!r}")
-            coeffs.dihedral[int(tokens[1])] = [float(t) for t in tokens[2:8]]
+            rb = _dihedral_rb(dihedral_style, tokens, path, raw_line)
+            coeffs.dihedral[int(tokens[1])] = rb
         elif cmd == "pair_coeff":
             if len(tokens) < 5:
                 raise ValueError(f"malformed pair_coeff line in {path}: {raw_line!r}")
@@ -126,3 +128,28 @@ def parse_at_fragment_script(path: Path) -> AtFragmentCoefficients:
         )
 
     return coeffs
+
+
+def opls_to_ryckaert(k1: float, k2: float, k3: float, k4: float) -> list[float]:
+    """Six ``ryckaert`` coefficients equal to ``dihedral_style opls`` K1..K4.
+
+    OPLS: E = K1/2 (1 + cos phi) + K2/2 (1 - cos 2phi) + K3/2 (1 + cos 3phi)
+    + K4/2 (1 - cos 4phi); ryckaert: E = sum_n Cn cos^n(phi), same phi
+    (trans = 180 deg). Exact, from the multiple-angle cosine identities.
+    """
+    return [
+        0.5 * k1 + k2 + 0.5 * k3,
+        0.5 * k1 - 1.5 * k3,
+        -k2 + 4.0 * k4,
+        2.0 * k3,
+        -4.0 * k4,
+        0.0,
+    ]
+
+
+def _dihedral_rb(style: str, tokens: list[str], path: Path, raw_line: str) -> list[float]:
+    n_values = 4 if style == "opls" else 6
+    if len(tokens) < 2 + n_values:
+        raise ValueError(f"malformed dihedral_coeff line in {path}: {raw_line!r}")
+    values = [float(t) for t in tokens[2 : 2 + n_values]]
+    return opls_to_ryckaert(*values) if style == "opls" else values

@@ -15,8 +15,8 @@ MF      3
 [ atoms ]
 ; nr  type  resnr  residue  atom  cgnr  charge     mass
 1     A     1      MF       A1    1     0.000000   72.066800
-2     A     2      MF       A2    2     0.000000   72.066800
-3     A     3      MF       A3    3     0.000000   72.066800
+2     A     1      MF       A2    2     0.000000   72.066800
+3     A     1      MF       A3    3     0.000000   72.066800
 
 [ bonds ]
 ; i  j  func  table  k

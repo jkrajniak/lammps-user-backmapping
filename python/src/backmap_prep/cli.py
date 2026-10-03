@@ -10,13 +10,20 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from .builder import CGPositionOverride, System, build_system
+    from .builder import System
+
+from .at_system import (
+    at_type_maps,
+    bonded_extent,
+    write_at_forcefield,
+    write_at_from_hybrid_frame,
+    write_at_reference,
+)
 from .network.api import build_hybrid_gromacs, build_network_lammps
 from .network.compare_topology import main as compare_topology_main
 from .network.finalize_cg import finalize_cg_from_equil, write_cg_gro
 from .network.lammps_builder import build_system_from_cg
 from .network.rebuild import rebuild_network_lammps
-from .parsers import parse_lammps_data
 from .schema import (
     Settings,
     load_settings,
@@ -25,20 +32,29 @@ from .schema import (
     resolve_tables_dir,
 )
 from .table_converter import convert_tables
-from .writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
+from .writers import (
+    _special_weights,
+    bead_velocities,
+    write_cross_pairs_file,
+    write_lammps_data,
+    write_lammps_input,
+)
+
+
+def _set_protocol_velocities(system: System, settings: Settings) -> None:
+    """Bakery protocol: bead-shared initial velocities in the data file."""
+    sim = settings.simulation
+    if sim.protocol == "bakery":
+        system.velocities = bead_velocities(system, sim.temperature, sim.rng_seed)
 
 
 def _cmd_build(args: argparse.Namespace) -> int:
     """Default build: generate hybrid data + input from GROMACS sources."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = args.settings.parent
-    if settings.prep.engine == "network":
-        out_dir = resolve_data_dir(args.settings, settings)
-        result = build_network_lammps(settings, args.settings)
-        system = result.system
-    else:
-        system = build_system(settings, base_dir=out_dir, settings_path=args.settings)
+    out_dir = args.settings.parent.resolve()
+    system = build_network_lammps(settings, args.settings).system
+    _set_protocol_velocities(system, settings)
 
     data_path = out_dir / f"{prefix}.data"
     write_lammps_data(system, data_path)
@@ -52,8 +68,11 @@ def _cmd_build(args: argparse.Namespace) -> int:
     input_path = out_dir / f"in.{prefix}"
     write_lammps_input(system, settings, input_path, data_filename=f"{prefix}.data")
     print(f"Wrote {input_path}")
+    at_ff = out_dir / f"{prefix}.at.ff.lmp"
+    write_at_forcefield(system, settings, at_type_maps(system), at_ff, f"{prefix}_at.data")
+    print(f"Wrote {at_ff}")
 
-    table_search: list[Path] = [out_dir]
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
     if tables_dir is not None:
         table_search.append(tables_dir)
@@ -64,32 +83,56 @@ def _cmd_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_at_system(args: argparse.Namespace) -> int:
+    """Write an AT-only data file (from a hybrid frame or as a reference) and its force field."""
+    settings = load_settings(args.settings)
+    prefix = args.output_prefix or settings.output.prefix
+    out_dir = args.settings.parent.resolve()
+    if (args.from_frame is None) == (args.reference is None):
+        print("at-system needs exactly one of --from or --reference", file=sys.stderr)
+        return 1
+    system = build_network_lammps(settings, args.settings).system
+    maps = at_type_maps(system)
+    ff_path = out_dir / f"{prefix}.at.ff.lmp"
+    if args.from_frame is not None:
+        out = args.output or out_dir / f"{prefix}_at.data"
+        n = write_at_from_hybrid_frame(system, maps, args.from_frame.resolve(), out)
+        print(f"Wrote {out} ({n} AT atoms)")
+    else:
+        mol = settings.molecules[0]
+        coords = mol.source.coordinates
+        if len(settings.molecules) != 1 or not isinstance(coords, str):
+            print("--reference needs one molecule type with a single .gro source", file=sys.stderr)
+            return 1
+        data_dir = resolve_data_dir(args.settings, settings)
+        template = Path(coords) if Path(coords).is_absolute() else data_dir / coords
+        out = args.output or out_dir / f"{prefix}_at_ref.data"
+        box = write_at_reference(
+            system,
+            maps,
+            out_dir / settings.hybrid.coordinates,
+            template,
+            args.reference,
+            args.seed,
+            out,
+        )
+        print(f"Wrote {out} ({args.reference} molecules, expanded box {box:.2f} A)")
+    write_at_forcefield(system, settings, maps, ff_path, out.name, bonded_extent(out))
+    print(f"Wrote {ff_path}")
+    return 0
+
+
 def _cmd_rebuild(args: argparse.Namespace) -> int:
     """Rebuild hybrid data from equilibrated CG coordinates (.data or unwrapped .gro)."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = args.settings.parent
-    table_search: list[Path] = [out_dir]
-
-    if settings.prep.engine == "network":
-        out_dir = resolve_data_dir(args.settings, settings)
-        table_search = [out_dir]
-        tables_dir = resolve_tables_dir(args.settings, settings)
-        if tables_dir is not None:
-            table_search.append(tables_dir)
-        result = rebuild_network_lammps(settings, args.settings, args.cg_frame.resolve())
-        system = result.system
-    else:
-        cg_frame = parse_lammps_data(args.cg_frame)
-        positions = [(a.x, a.y, a.z) for a in sorted(cg_frame.atoms, key=lambda a: a.atom_id)]
-        box = (float(cg_frame.box[0]), float(cg_frame.box[1]), float(cg_frame.box[2]))
-        override = CGPositionOverride(positions=positions, box=box)
-        system = build_system(
-            settings,
-            base_dir=out_dir,
-            cg_override=override,
-            settings_path=args.settings,
-        )
+    out_dir = args.settings.parent.resolve()
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
+    tables_dir = resolve_tables_dir(args.settings, settings)
+    if tables_dir is not None:
+        table_search.append(tables_dir)
+    system = rebuild_network_lammps(settings, args.settings, args.cg_frame.resolve()).system
+    _set_protocol_velocities(system, settings)
 
     data_path = out_dir / f"{prefix}.data"
     write_lammps_data(system, data_path)
@@ -115,56 +158,19 @@ def _cmd_cg_only(args: argparse.Namespace) -> int:
     """Extract CG-only system for pre-equilibration."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = args.settings.parent
-    table_search: list[Path] = []
-
-    if settings.prep.engine == "network":
-        if settings.cg_system is None:
-            print("network cg-only requires cg_system in settings", file=sys.stderr)
-            return 1
-        out_dir = resolve_data_dir(args.settings, settings)
-        table_search = [out_dir]
-        tables_dir = resolve_tables_dir(args.settings, settings)
-        if tables_dir is not None:
-            table_search.append(tables_dir)
-        cg_system = build_system_from_cg(
-            settings,
-            args.settings,
-            table_search_dirs=table_search[1:],
-        )
-    else:
-        system = build_system(settings, base_dir=out_dir, settings_path=args.settings)
-
-        cg_atoms = [a for a in system.atoms if a.is_cg]
-        cg_atom_ids = {a.atom_id for a in cg_atoms}
-        cg_bonds = [b for b in system.bonds if b.i in cg_atom_ids and b.j in cg_atom_ids]
-        cg_angles = [
-            a
-            for a in system.angles
-            if a.i in cg_atom_ids and a.j in cg_atom_ids and a.k in cg_atom_ids
-        ]
-
-        cg_system = System(
-            atoms=cg_atoms,
-            bonds=cg_bonds,
-            angles=cg_angles,
-            atom_types=[at for at in system.atom_types if at.is_cg],
-            bond_types=[
-                bt
-                for bt in system.bond_types
-                if bt.keyword == "cg" or bt.style in {"harmonic", "table"}
-            ],
-            angle_types=[
-                at
-                for at in system.angle_types
-                if at.keyword == "cg" or at.style in {"harmonic", "table"}
-            ],
-            pair_types=[pt for pt in system.pair_types if pt.kind == "cg"],
-            box=system.box,
-            table_files=system.table_files,
-            angle_table_files=system.angle_table_files,
-            pair_table_files=system.pair_table_files,
-        )
+    if settings.cg_system is None:
+        print("cg-only requires cg_system in settings", file=sys.stderr)
+        return 1
+    out_dir = args.settings.parent.resolve()
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
+    tables_dir = resolve_tables_dir(args.settings, settings)
+    if tables_dir is not None:
+        table_search.append(tables_dir)
+    cg_system = build_system_from_cg(
+        settings,
+        args.settings,
+        table_search_dirs=table_search[1:],
+    )
 
     data_path = out_dir / f"{prefix}_cg.data"
     write_lammps_data(cg_system, data_path)
@@ -215,7 +221,8 @@ def _write_cg_equilibration(
         f.write(f"read_data {data_filename}\n\n")
         f.write(f"comm_modify cutoff {comm_cutoff_ang:.2f}\n\n")
 
-        f.write("pair_style table linear 1000\n")
+        tp = sim.table_points
+        f.write(f"pair_style table linear {tp}\n")
         for pt in system.pair_types:
             if pt.table_file:
                 f.write(f"pair_coeff {pt.itype} {pt.jtype} {pt.table_file} {pt.table_keyword}\n")
@@ -226,9 +233,9 @@ def _write_cg_equilibration(
         has_bond_table = any(bt.table_file for bt in system.bond_types)
         has_bond_harmonic = any(bt.style == "harmonic" and bt.params for bt in system.bond_types)
         if has_bond_table and has_bond_harmonic:
-            f.write("bond_style hybrid harmonic table linear 1000\n")
+            f.write(f"bond_style hybrid harmonic table linear {tp}\n")
         elif has_bond_table:
-            f.write("bond_style table linear 1000\n")
+            f.write(f"bond_style table linear {tp}\n")
         elif has_bond_harmonic:
             f.write("bond_style harmonic\n")
 
@@ -251,9 +258,9 @@ def _write_cg_equilibration(
         has_angle_harmonic = any(at.style == "harmonic" and at.params for at in system.angle_types)
         if has_angle_table or has_angle_harmonic:
             if has_angle_table and has_angle_harmonic:
-                f.write("angle_style hybrid harmonic table linear 1000\n")
+                f.write(f"angle_style hybrid harmonic table linear {tp}\n")
             elif has_angle_table:
-                f.write("angle_style table linear 1000\n")
+                f.write(f"angle_style table linear {tp}\n")
             else:
                 f.write("angle_style harmonic\n")
 
@@ -275,7 +282,28 @@ def _write_cg_equilibration(
                         f.write(f"angle_coeff {at.type_id} {at.params[0]:.6f} {at.params[1]:.4f}\n")
             f.write("\n")
 
-        f.write("special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0\n")
+        styles = sorted({dt.style for dt in system.dihedral_types})
+        if styles:
+            parts = [f"table linear {tp}" if st == "table" else st for st in styles]
+            hybrid = len(styles) > 1
+            f.write(f"dihedral_style {'hybrid ' if hybrid else ''}{' '.join(parts)}\n")
+            for dt in system.dihedral_types:
+                prefix = f"dihedral_coeff {dt.type_id} {dt.style + ' ' if hybrid else ''}"
+                if dt.style == "table":
+                    f.write(f"{prefix}{dt.table_file} {dt.table_keyword}\n")
+                elif dt.style == "harmonic":
+                    k_val, sign_val, n_val = dt.params[:3]
+                    f.write(f"{prefix}{k_val:.10g} {int(sign_val)} {int(n_val)}\n")
+                else:
+                    f.write(f"{prefix}{' '.join(f'{v:.10g}' for v in dt.params)}\n")
+            f.write("\n")
+
+        # CG exclusions as in the hybrid (cg_special there, special_bonds here)
+        nrexcl_cg = (
+            sim.exclusion_nrexcl_cg if sim.exclusion_nrexcl_cg is not None else sim.exclusion_nrexcl
+        )
+        weights = " ".join(_special_weights(nrexcl_cg))
+        f.write(f"special_bonds lj {weights} coul {weights}\n")
         f.write("neigh_modify delay 0 every 1 check yes\n")
         f.write("reset_atoms image all\n\n")
 
@@ -305,9 +333,9 @@ def _cmd_finalize_cg(args: argparse.Namespace) -> int:
     """Fix PBC/image flags on an equilibrated CG LAMMPS frame."""
     settings = load_settings(args.settings)
     prefix = args.output_prefix or settings.output.prefix
-    out_dir = resolve_data_dir(args.settings, settings)
+    out_dir = args.settings.parent.resolve()
 
-    table_search: list[Path] = [out_dir]
+    table_search: list[Path] = [out_dir, resolve_data_dir(args.settings, settings)]
     tables_dir = resolve_tables_dir(args.settings, settings)
     if tables_dir is not None:
         table_search.append(tables_dir)
@@ -362,6 +390,7 @@ _KNOWN_COMMANDS = {
     "build",
     "rebuild",
     "cg-only",
+    "at-system",
     "finalize-cg",
     "build-hybrid",
     "compare-topology",
@@ -390,6 +419,7 @@ def _cmd_build_hybrid(args: argparse.Namespace) -> int:
             result = build_hybrid_gromacs(
                 settings,
                 base_dir=work_dir,
+                output_dir=settings_path.parent.resolve(),
                 allow_no_bonds=allow_no_bonds,
                 chain_rng_seed=chain_rng_seed,
             )
@@ -453,6 +483,29 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         help="Equilibrated CG frame: rim135_cg_final.data or unwrapped cg_cl_conf_equil.gro",
     )
+
+    at_parser = subparsers.add_parser(
+        "at-system",
+        help="AT-only data file (from a hybrid frame, or an independent reference) "
+        "and its force field",
+    )
+    _add_common_args(at_parser)
+    at_parser.add_argument(
+        "--from",
+        dest="from_frame",
+        type=Path,
+        default=None,
+        help="Hybrid LAMMPS frame (e.g. <prefix>_hybrid.data after the ramp)",
+    )
+    at_parser.add_argument(
+        "--reference",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Build an independent reference of N molecules on a lattice",
+    )
+    at_parser.add_argument("--seed", type=int, default=42, help="Seed for --reference rotations")
+    at_parser.add_argument("-o", "--output", type=Path, default=None, help="Output data file")
 
     cg_parser = subparsers.add_parser(
         "cg-only",
@@ -548,6 +601,7 @@ def main(argv: list[str] | None = None) -> int:
         "build": _cmd_build,
         "rebuild": _cmd_rebuild,
         "cg-only": _cmd_cg_only,
+        "at-system": _cmd_at_system,
         "finalize-cg": _cmd_finalize_cg,
         "build-hybrid": _cmd_build_hybrid,
         "compare-topology": lambda a: compare_topology_main([str(a.reference), str(a.candidate)]),

@@ -1,5 +1,13 @@
 # PE — fully LAMMPS-native input (parity example)
 
+> **Not a published model: workflow example only.** The AT topology here is
+> united atom, while the CG tables come from the published all-atom PE
+> (JCTC 2016 data, `preparation/pe/cg_force_field/nvt`), fitted to a different AT
+> model. The example exercises the pipeline and the tests; it is not used for
+> validation. For polyethylene use `pe_aa` (all atom, the published model the
+> CG tables were fitted to) or `pe4` (united atom, the published `pe_4` model and
+> its own CG tables).
+
 This example is a parity check for using `format: lammps` on **both**
 `cg_system` and `molecules[].source` at once — a fully GROMACS-free
 `backmap-prep` run. See [`../pe/README.md`](../pe/README.md) for the PE

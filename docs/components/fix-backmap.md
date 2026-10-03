@@ -3,7 +3,7 @@
 ## Syntax
 
 ```
-fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [apb T1:N1 T2:N2 ...]
+fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [apb T1:N1 T2:N2 ...] [peratom lambda|full]
 ```
 
 - **ID** -- fix identifier (user-chosen)
@@ -13,6 +13,8 @@ fix ID group-ID backmap cg_type T1 [T2 ...] alpha A lambda0 L0 [apb T1:N1 T2:N2 
   bead types (e.g. end and middle beads).
 - **alpha** -- lambda ramp rate per timestep (positive float)
 - **lambda0** -- initial lambda value (float, default 0.0)
+- **peratom** -- per-atom output: `lambda` (default, a per-atom vector) or
+  `full` (a 7-column per-atom array, see Per-Atom Data)
 
 ## Description
 
@@ -101,8 +103,10 @@ fix_modify bm active yes   # resume ramp (backmapping phase)
 ```
 
 When `active no`, per-atom λ values remain frozen. **CG–AT coupling is
-always on:** COM tracking in `initial_integrate()` and CG force distribution
-in `post_force()` run regardless of `active`. This matches ESPResSo++
+always on:** COM tracking in `post_integrate()` and CG force distribution
+in `post_force()` run regardless of `active`. Because the COM update runs
+after every fix has moved its atoms, `fix backmap` may be defined before or
+after the integration fixes. This matches ESPResSo++
 (`DynamicResolution.active` gates only λ increments; `VelocityVerletHybrid`
 always updates virtual sites and distributes forces) and AdResS virtual-site
 semantics — CG beads are computational anchors, not independent particles that
@@ -116,6 +120,24 @@ dump/thermo output -- every atom's value is always identical to
 
 - `f_ID` in dump commands: `dump 1 all custom 100 dump.dat id type f_bm`
 - `f_ID` in thermo output
+
+With `peratom full` the fix provides a per-atom array instead, filled at
+every force evaluation (including the one that opens a run, so `run 0`
+reports it):
+
+| Column | AT atom | CG bead |
+|--------|---------|---------|
+| `f_ID[1]` | lambda | lambda |
+| `f_ID[2..4]` | position of its bead (the bead's mass-weighted COM) | its position |
+| `f_ID[5..7]` | CG force share it received, m_i/M_bead F_bead | its CG force before redistribution |
+
+```
+fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.0 peratom full
+dump 1 all custom 100 dump.dat id type x y z fx fy fz f_bm[*]
+```
+
+This is what a static decomposition-parity test needs: COM, redistributed
+and total forces from `run 0` on identical coordinates at several rank counts.
 
 For the lambda-weighting formula used by every `backmap/*` style, C++ code
 reads two `extract()` keys (see
