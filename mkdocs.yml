@@ -53,6 +53,7 @@ nav:
   - Docker: docker.md
   - Running on Cloud / HPC: cloud-hpc.md
   - Large-scale examples: large-scale-examples.md
+  - Resumable runs: resumable-runs.md
   - Theory: theory.md
   - Settings Reference: settings-reference.md
   - Tutorial:

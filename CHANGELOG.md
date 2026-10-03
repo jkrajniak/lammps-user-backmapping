@@ -9,6 +9,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **Resumable long runs for spot or preemptible machines.** The Tier C continuation protocols
+  (`examples/common/in.at_reference_protocol` and the dodecane, pe4 and pe_aa `in.<example>_at`) run
+  every stage to an absolute end step, write alternating restart files every `ckpt` steps and name the
+  per-segment outputs `.s<seg>`. `scripts/review/resumable_lmp.sh` restarts from the newest valid
+  restart file, retries at most twice from the same checkpoint and merges the segment files
+  (`merge_segments.py`); `queue_runner.sh`/`queue_job.sh` run a job list that can be started again at
+  any time, `ckpt_sync.sh` copies it to persistent storage, `lub-queue.service` starts it at boot.
+  `run_tier_bc.sh` of the examples skips finished steps and uses the wrapper when `RESUMABLE=` is set;
+  B4, B5, B7, B8 and the matched-density control continue in place. See `docs/resumable-runs.md`.
 - **Tier C reference protocol: RIM135 anneal lengths as variables.**
   `examples/common/in.at_reference_protocol` takes `anneal_ramp`, `anneal_hold`
   and `anneal_nvt` (defaults unchanged: 4.5 M, 0.5 M and 1 M steps), so the
