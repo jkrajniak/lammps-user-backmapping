@@ -23,6 +23,7 @@ for f in "$prefix"_hybrid.data "$prefix".ff.lmp "$prefix".backmap.lmp "$prefix"_
   [ -e "$src/$f" ] && cp "$src/$f" "$out/"
 done
 cp "$src"/table_*.table "$out/" 2>/dev/null || true
+cp "$src"/"$prefix"_at.pairs14.dat "$out/" 2>/dev/null || true  # 1-4 pairs of the AT-only input
 cd "$out"
 
 run_case() { # name data include-lines dt group
