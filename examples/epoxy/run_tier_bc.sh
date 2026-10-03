@@ -13,14 +13,23 @@ NP="${NP:-8}"
 PREP="${PREP:-uv run backmap-prep}"
 AT_IN="${AT_IN:-../common/in.at_reference_protocol}"
 lmp() { mpirun -np "$NP" "$LMP" "$@"; }
+# Spot or preemptible machines: RESUMABLE=/path/to/scripts/review/resumable_lmp.sh makes the long
+# atomistic stage restart from its newest checkpoint, and every finished step leaves a .done.<step>
+# marker, so calling this script again after an interruption continues where it stopped.
+RESUMABLE="${RESUMABLE:-}"
+once() { local m=".done.$1"; shift; [ -e "$m" ] || { "$@" && touch "$m"; }; }
+lmp_at() { if [ -n "$RESUMABLE" ]; then LMP="$LMP" NP="$NP" "$RESUMABLE" "$@"; else shift; lmp "$@"; fi; }
+prepare_at() {
+  $PREP at-system settings.v2.yaml --from rim135_hybrid.data &&
+    grep "^pair_coeff" rim135.at.ff.lmp > rim135.at.pair_coeffs
+}
 
 case "${1:?backmap}" in
   backmap)
-    $PREP build settings.v2.yaml
-    lmp -in in.rim135 -log log.rim135.lammps
-    $PREP at-system settings.v2.yaml --from rim135_hybrid.data
-    grep "^pair_coeff" rim135.at.ff.lmp > rim135.at.pair_coeffs
-    lmp -in "$AT_IN" -log log.rim135_at.lammps -var prefix rim135 -var anneal 1 ${AT_VARS:-}
+    once build $PREP build settings.v2.yaml
+    once hybrid lmp -in in.rim135 -log log.rim135.lammps
+    once atsystem prepare_at
+    lmp_at at -in "$AT_IN" -log log.rim135_at.lammps -var prefix rim135 -var anneal 1 ${AT_VARS:-}
     ;;
   *) echo "unknown stage $1" >&2; exit 1 ;;
 esac

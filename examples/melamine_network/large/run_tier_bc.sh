@@ -13,14 +13,23 @@ NP="${NP:-8}"
 PREP="${PREP:-uv run backmap-prep}"
 AT_IN="${AT_IN:-../../common/in.at_reference_protocol}"
 lmp() { mpirun -np "$NP" "$LMP" "$@"; }
+# Spot or preemptible machines: RESUMABLE=/path/to/scripts/review/resumable_lmp.sh makes the long
+# atomistic stage restart from its newest checkpoint, and every finished step leaves a .done.<step>
+# marker, so calling this script again after an interruption continues where it stopped.
+RESUMABLE="${RESUMABLE:-}"
+once() { local m=".done.$1"; shift; [ -e "$m" ] || { "$@" && touch "$m"; }; }
+lmp_at() { if [ -n "$RESUMABLE" ]; then LMP="$LMP" NP="$NP" "$RESUMABLE" "$@"; else shift; lmp "$@"; fi; }
+prepare_at() {
+  $PREP at-system settings.yaml --from melamine_network_hybrid.data &&
+    grep "^pair_coeff" melamine_network.at.ff.lmp > melamine_network.at.pair_coeffs
+}
 
 case "${1:?backmap}" in
   backmap)
-    $PREP build settings.yaml
-    lmp -in in.melamine_network -log log.melamine_network.lammps
-    $PREP at-system settings.yaml --from melamine_network_hybrid.data
-    grep "^pair_coeff" melamine_network.at.ff.lmp > melamine_network.at.pair_coeffs
-    lmp -in "$AT_IN" -log log.melamine_network_at.lammps -var prefix melamine_network -var nvt_steps 5000000 -var window_steps 5000000 ${AT_VARS:-}
+    once build $PREP build settings.yaml
+    once hybrid lmp -in in.melamine_network -log log.melamine_network.lammps
+    once atsystem prepare_at
+    lmp_at at -in "$AT_IN" -log log.melamine_network_at.lammps -var prefix melamine_network -var nvt_steps 5000000 -var window_steps 5000000 ${AT_VARS:-}
     ;;
   *) echo "unknown stage $1" >&2; exit 1 ;;
 esac

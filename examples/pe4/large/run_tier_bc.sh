@@ -9,19 +9,26 @@ LMP="${LMP:?set LMP to a LAMMPS binary with the BACKMAP package}"
 NP="${NP:-8}"
 PREP="${PREP:-uv run backmap-prep}"
 lmp() { mpirun -np "$NP" "$LMP" "$@"; }
+# Spot or preemptible machines: RESUMABLE=/path/to/scripts/review/resumable_lmp.sh makes the long
+# atomistic stage restart from its newest checkpoint, and every finished step leaves a .done.<step>
+# marker, so calling this script again after an interruption continues where it stopped.
+RESUMABLE="${RESUMABLE:-}"
+once() { local m=".done.$1"; shift; [ -e "$m" ] || { "$@" && touch "$m"; }; }
+lmp_at() { if [ -n "$RESUMABLE" ]; then LMP="$LMP" NP="$NP" "$RESUMABLE" "$@"; else shift; lmp "$@"; fi; }
 
-$PREP build settings.yaml
+once build $PREP build settings.yaml
 L=$(awk '/xlo xhi/ {print $2 - $1; exit}' pe4.data)
 
 case "${1:?backmap or reference}" in
   backmap)
-    lmp -in in.pe4 -log log.pe4.lammps
-    $PREP at-system settings.yaml --from pe4_hybrid.data
-    lmp -in in.pe4_at -log log.pe4_at.lammps ${PROD_STEPS:+-var prod_steps $PROD_STEPS}
+    once hybrid lmp -in in.pe4 -log log.pe4.lammps
+    once atsystem $PREP at-system settings.yaml --from pe4_hybrid.data
+    lmp_at at -in in.pe4_at -log log.pe4_at.lammps ${PROD_STEPS:+-var prod_steps $PROD_STEPS}
     ;;
   reference)
-    $PREP at-system settings.yaml --reference 75 --seed 42
-    lmp -in in.pe4_at_ref -log log.pe4_at_ref.lammps -var L "$L" ${PROD_STEPS:+-var prod_steps $PROD_STEPS}
+    once atsystem_ref $PREP at-system settings.yaml --reference 75 --seed 42
+    # not restartable mid-run (high-temperature compression and cooling stages); finished runs are skipped
+    once reference lmp -in in.pe4_at_ref -log log.pe4_at_ref.lammps -var L "$L" ${PROD_STEPS:+-var prod_steps $PROD_STEPS}
     ;;
   *) echo "unknown stage $1" >&2; exit 1 ;;
 esac
