@@ -278,11 +278,11 @@ def main() -> int:
     Path(f"{args.out}_metrics.txt").write_text(text + "\n")
     print(text)
     if args.plot and curves:
-        make_figure(curves, args.out, args.rmax)
+        make_figure(curves, args.out, args.rmax, args.rmin)
     return 0
 
 
-def make_figure(curves: dict, out: Path, rmax: float) -> None:
+def make_figure(curves: dict, out: Path, rmax: float, rmin: float) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -305,7 +305,10 @@ def make_figure(curves: dict, out: Path, rmax: float) -> None:
             fontsize=8,
             loc="left",
         )
-        ax.set_xlim(0.15, rmax - 0.01)  # the last bin is half a bin wide
+        ax.set_xlim(rmin, rmax - 0.01)  # the last bin is half a bin wide
+        window = (r >= rmin) & (r <= rmax - 0.01)
+        top = max(np.nanmax(g[window]), np.nanmax(hi[window]))
+        ax.set_ylim(0, 1.12 * top)  # the bonded peaks left of rmin are not shown
         ax.tick_params(labelsize=7)
         ax.set_xlabel("$r$ (nm)", fontsize=8)
         if k % cols == 0:
