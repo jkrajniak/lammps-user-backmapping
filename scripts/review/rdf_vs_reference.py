@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -135,6 +136,67 @@ def excluded_pairs(bonds: list[tuple[int, int]], nrexcl: int = 3) -> set[tuple[i
     return pairs
 
 
+Group = Callable[[Frame], tuple[np.ndarray, np.ndarray]]  # frame -> (ids, positions in nm, wrapped)
+
+
+def element_group(elements: dict[int, str], symbol: str) -> Group:
+    """All atoms of one element; ids are the atom ids."""
+
+    def group(fr: Frame) -> tuple[np.ndarray, np.ndarray]:
+        el = np.array([elements[t] for t in fr.types])
+        sel = np.where(el == symbol)[0]
+        return fr.ids[sel], np.mod(fr.xyz[sel] / 10.0, fr.box / 10.0)
+
+    return group
+
+
+def rdf_per_frame(
+    frames: list[Frame],
+    ref_group: Group,
+    sel_group: Group,
+    rmax_nm: float,
+    dr_nm: float,
+    excl: set[tuple[int, int]] | None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Pair counts per frame and bin, the per-frame normalization, and the shell volumes.
+
+    Returns (bin centres, counts[frame, bin], norm[frame], shell[bin]); g(r) of any set of frames is
+    counts.sum(0) / (norm.sum() * shell). Same convention as ``gmx rdf``: bin k is centred on k * dr,
+    pairs of an object with itself are left out, the density is that of the selection group.
+    ``excl`` (atom-id pairs) needs groups whose ids are atom ids.
+    """
+    centers = np.arange(0.0, rmax_nm + dr_nm / 2, dr_nm)
+    edges = np.concatenate([[0.0], centers[:-1] + dr_nm / 2, [centers[-1] + dr_nm / 2]])
+    counts = np.zeros((len(frames), len(edges) - 1))
+    norm = np.zeros(len(frames))
+    for k, fr in enumerate(frames):
+        ids_r, x_r = ref_group(fr)
+        ids_s, x_s = sel_group(fr)
+        box_nm = fr.box / 10.0
+        pairs = cKDTree(x_r, boxsize=box_nm).query_ball_tree(cKDTree(x_s, boxsize=box_nm), rmax_nm)
+        ii = np.repeat(np.arange(len(ids_r)), [len(p) for p in pairs])
+        jj = (
+            np.concatenate([np.asarray(p, dtype=int) for p in pairs])
+            if len(ii)
+            else np.array([], dtype=int)
+        )
+        keep = ids_r[ii] != ids_s[jj]
+        if excl is not None:
+            ia, ib = ids_r[ii], ids_s[jj]
+            stride = int(fr.ids.max()) + 1
+            key = np.minimum(ia, ib) * stride + np.maximum(ia, ib)
+            excl_keys = np.fromiter(
+                (p * stride + q for p, q in excl), dtype=np.int64, count=len(excl)
+            )
+            keep &= ~np.isin(key, excl_keys)
+        d = x_r[ii[keep]] - x_s[jj[keep]]
+        d -= box_nm * np.round(d / box_nm)
+        counts[k] = np.histogram(np.linalg.norm(d, axis=1), bins=edges)[0]
+        norm[k] = len(ids_r) * len(ids_s) / np.prod(box_nm)
+    shell = 4.0 / 3.0 * np.pi * (edges[1:] ** 3 - edges[:-1] ** 3)
+    return centers, counts, norm, shell
+
+
 def rdf(
     frames: list[Frame],
     elements: dict[int, str],
@@ -144,43 +206,16 @@ def rdf(
     dr_nm: float,
     excl: set[tuple[int, int]] | None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    # gmx rdf convention: bin k is centred on k * dr
-    centers = np.arange(0.0, rmax_nm + dr_nm / 2, dr_nm)
-    edges = np.concatenate([[0.0], centers[:-1] + dr_nm / 2, [centers[-1] + dr_nm / 2]])
-    counts = np.zeros(len(edges) - 1)
-    norm = 0.0
-    for fr in frames:
-        el = np.array([elements[t] for t in fr.types])
-        ref_idx = np.where(el == ref_el)[0]
-        sel_idx = np.where(el == sel_el)[0]
-        box_nm = fr.box / 10.0
-        xyz = np.mod(fr.xyz / 10.0, box_nm)
-        tree_sel = cKDTree(xyz[sel_idx], boxsize=box_nm)
-        tree_ref = cKDTree(xyz[ref_idx], boxsize=box_nm)
-        pairs = tree_ref.query_ball_tree(tree_sel, rmax_nm)
-        ii = np.repeat(np.arange(len(ref_idx)), [len(p) for p in pairs])
-        jj = (
-            np.concatenate([np.asarray(p, dtype=int) for p in pairs])
-            if len(ii)
-            else np.array([], dtype=int)
-        )
-        a, b = ref_idx[ii], sel_idx[jj]
-        keep = a != b
-        if excl is not None:
-            ia, ib = fr.ids[a], fr.ids[b]
-            key = np.minimum(ia, ib) * (int(fr.ids.max()) + 1) + np.maximum(ia, ib)
-            excl_keys = np.fromiter(
-                (p * (int(fr.ids.max()) + 1) + q for p, q in excl), dtype=np.int64, count=len(excl)
-            )
-            keep &= ~np.isin(key, excl_keys)
-        d = xyz[a[keep]] - xyz[b[keep]]
-        d -= box_nm * np.round(d / box_nm)
-        r = np.linalg.norm(d, axis=1)
-        counts += np.histogram(r, bins=edges)[0]
-        rho_sel = len(sel_idx) / np.prod(box_nm)
-        norm += len(ref_idx) * rho_sel
-    shell = 4.0 / 3.0 * np.pi * (edges[1:] ** 3 - edges[:-1] ** 3)
-    return centers, counts / (norm * shell)
+    """g(r) of the element pair ref_el - sel_el averaged over the frames."""
+    centers, counts, norm, shell = rdf_per_frame(
+        frames,
+        element_group(elements, ref_el),
+        element_group(elements, sel_el),
+        rmax_nm,
+        dr_nm,
+        excl,
+    )
+    return centers, counts.sum(axis=0) / (norm.sum() * shell)
 
 
 def read_xvg(path: Path) -> tuple[np.ndarray, np.ndarray]:
