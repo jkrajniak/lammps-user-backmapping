@@ -18,8 +18,11 @@ DT_CG="${DT_CG:-5.0}"
 DT_HYB="${DT_HYB:-0.1}"   # the generated protocol's ramp timestep
 DT_AT="${DT_AT:-1.0}"
 src="$1"; prefix="$2"; T="$3"; out="$4"
-[ -e "$out" ] && { echo "$out exists, not overwriting" >&2; exit 1; }
-cp -r "$src" "$out"
+# Safe to call again: a finished measurement (b7_summary.txt) is not repeated; an interrupted one runs
+# all three cases again, because timings of a partly interrupted run are not comparable.
+if [ -s "$out/b7_summary.txt" ]; then echo "b7 already finished: $out/b7_summary.txt"; exit 0; fi
+mkdir -p "$out"
+cp -r "$src/." "$out/"
 cd "$out"
 
 timed() { # name data setup-lines dt group

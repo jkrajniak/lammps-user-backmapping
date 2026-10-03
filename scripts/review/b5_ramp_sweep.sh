@@ -10,7 +10,11 @@ set -euo pipefail
 : "${LMP:?set LMP}"
 export LMP NP="${NP:-4}" PREP="${PREP:-uv run backmap-prep}" PROD_STEPS="${PROD_STEPS:-500000}"
 src="$1"; settings="$2"; alpha="$3"; seed="$4"; out="$5"
-[ -e "$out" ] && { echo "$out exists, not overwriting" >&2; exit 1; }
+# Safe to call again after an interruption: a finished job (b5.info with rc=) is skipped, an interrupted
+# one continues in place (run_tier_bc.sh skips its finished steps; RESUMABLE=resumable_lmp.sh makes the
+# atomistic stage restart from its newest checkpoint).
+if grep -qs "^rc=" "$out/b5.info"; then echo "b5 job $out already finished"; exit 0; fi
+if [ ! -e "$out" ]; then
 cp -r "$src" "$out"
 python3 - "$src" "$out/$settings" "$alpha" "$seed" <<'PY'
 import re, sys
@@ -30,9 +34,10 @@ for key, value in (("alpha", f"{float(alpha):.6e}"), ("rng_seed", str(int(seed))
         text = re.sub(r"^(simulation:\s*\n)", rf"\g<1>  {key}: {value}\n", text, count=1, flags=re.MULTILINE)
 settings.write_text(text)
 PY
+fi
 grep -nE "^\s+(alpha|rng_seed):" "$out/$settings"
 cd "$out"
-echo "alpha=$alpha seed=$seed start $(date -u)" > b5.info
+echo "alpha=$alpha seed=$seed start $(date -u)" >> b5.info
 # a failed run is a result (B5 counts failures): record it, do not abort
 if bash run_tier_bc.sh backmap > run.out 2>&1; then rc=0; else rc=$?; fi
 echo "rc=$rc end $(date -u)" >> b5.info

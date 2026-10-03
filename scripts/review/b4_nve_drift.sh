@@ -16,7 +16,8 @@ DTS="${DTS:-1.0 0.5}"
 NVE_PS="${NVE_PS:-100}"
 THERM_PS="${THERM_PS:-20}"
 src="$1"; prefix="$2"; T="$3"; out="$4"
-[ -e "$out" ] && { echo "$out exists, not overwriting" >&2; exit 1; }
+# Safe to call again after an interruption: finished cases (a log with "Total wall time") are skipped,
+# an interrupted case runs again from its start (each case takes minutes to about an hour).
 mkdir -p "$out"
 for f in "$prefix"_hybrid.data "$prefix".ff.lmp "$prefix".backmap.lmp "$prefix"_at.data "$prefix".at.ff.lmp pairs.dat; do
   [ -e "$src/$f" ] && cp "$src/$f" "$out/"
@@ -26,6 +27,7 @@ cd "$out"
 
 run_case() { # name data include-lines dt group
   local name="$1" data="$2" includes="$3" dt="$4" grp="$5"
+  if grep -qs "^Total wall time" "log.b4_$name"; then echo "b4 case $name already finished"; return 0; fi
   local therm=$(python3 -c "print(int(round($THERM_PS * 1000 / 0.5)))")
   local nve=$(python3 -c "print(int(round($NVE_PS * 1000 / $dt)))")
   local every=$(python3 -c "print(max(1, int(round(100 / $dt))))")
