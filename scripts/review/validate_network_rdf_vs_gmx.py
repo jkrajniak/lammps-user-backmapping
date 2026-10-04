@@ -6,6 +6,7 @@ topology's force-field include is pointed at ``--ff-include``), and the RDFs the
 computed by ``gmx rdf`` and by network_tierc / rdf_vs_reference on the same coordinates:
 
 - an element pair with exclusions:   ``-excl`` (``C:N:excl``)
+- an element pair without exclusions: ``--plain`` (the reference's O-H, O-N, ...)
 - a residue centre-of-mass pair:     ``-selrpos res_com -seltype res_com`` (``ring``)
 
     uv run --with numpy --with scipy --with MDAnalysis validate_network_rdf_vs_gmx.py \\
@@ -72,6 +73,9 @@ def main() -> int:
     ap.add_argument("--gmx", required=True)
     ap.add_argument("--ff-include", required=True, help="local oplsaa.ff/forcefield.itp")
     ap.add_argument("--excl", action="append", default=[], help="REF:SEL element pair, e.g. C:N")
+    ap.add_argument(
+        "--plain", action="append", default=[], help="REF:SEL element pair, no exclusions"
+    )
     ap.add_argument("--com", action="append", default=[], help="RESGLOB:NAMEGLOB, e.g. TER:C[2-7]")
     ap.add_argument("--rmax", type=float, default=1.0)
     ap.add_argument("--dr", type=float, default=0.002)
@@ -164,6 +168,11 @@ def main() -> int:
             print(
                 f"   (without exclusions the bonded peak is {g_all.max():.2f}; with {g.max():.2f})"
             )
+        for spec in args.plain:
+            a, b = spec.split(":")
+            r_gmx, g_gmx = gmx_rdf(f'name "{a}*"', f'name "{b}*"')
+            r, g = rv.rdf([frame], elements, a, b, args.rmax, args.dr, None)
+            report(f"{a}-{b} plain", r_gmx, g_gmx, r, g)
         for spec in args.com:
             res_glob, name_glob = spec.split(":")
             sel = f'name "{name_glob}"' + ("" if res_glob == "*" else f' && resname "{res_glob}"')
