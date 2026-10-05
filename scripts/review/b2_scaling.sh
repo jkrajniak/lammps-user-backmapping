@@ -24,12 +24,15 @@ done
 cp "$src"/table_*.table "$out/" 2>/dev/null || true
 cd "$out"
 
+# A data file written by write_data carries coefficient sections; they need the styles defined before read_data,
+# and the force field include sets all coefficients anyway, so they are dropped.
+awk '/^[A-Za-z]/ {skip = ($0 ~ /Coeffs/)} !skip' "${prefix}_hybrid.data" > "${prefix}_hybrid_b2.data"
 sed -E "s/^(fix bm all backmap .*) lambda0 [^ ]+(.*)$/\1 lambda0 0.5\2/" "$prefix.backmap.lmp" > backmap_b2.lmp
 cat > in.b2 <<EOT
 units real
 atom_style full
 boundary p p p
-read_data ${prefix}_hybrid.data
+read_data ${prefix}_hybrid_b2.data
 include ${prefix}.ff.lmp
 include backmap_b2.lmp
 fix_modify bm active yes
