@@ -55,6 +55,7 @@ nav:
   - Large-scale examples: large-scale-examples.md
   - Resumable runs: resumable-runs.md
   - Theory: theory.md
+  - Fragment orientation: fragment-orientation.md
   - Settings Reference: settings-reference.md
   - Tutorial:
       - Setting Up a New System: tutorial-new-system.md

@@ -7,6 +7,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Added
+
+- **`prep.fragment_orientation: align`** orients each atomistic fragment on its CG bead instead of
+  only translating it: a rotation fitted to the bonded neighbors, refined with the bonds between
+  fragments, and a check that keeps the handedness of stereocenters that span beads. The default
+  `translate` keeps the output identical to earlier releases. See `docs/fragment-orientation.md`.
+
 ## [1.3.0] - 2026-10-09
 
 ### Added

@@ -32,6 +32,7 @@ of the settings file; the directories under `prep` are only read.
 | `forcefield_dir` | auto | Directory holding `oplsaa.ff/` for `#include` in AT topologies. Searched automatically in the settings directory and its parent. |
 | `bakery_xml` | none | Build from a legacy bakery `settings.xml` instead of the YAML definitions (runs in the XML's directory). |
 | `chain_rng_seed` | none | Seed for the builder's random choices (e.g. crosslink order). |
+| `fragment_orientation` | `translate` | How fragments are oriented on the CG beads: `translate` keeps the source orientation; `align` rotates each fragment to fit its bonded neighbors and keeps stereocenters that span beads ([Fragment orientation](fragment-orientation.md)). |
 | `allow_no_bonds` | `false` | Skip, instead of failing on, CG bonds without matching active sites. |
 | `engine` | none | **Deprecated and ignored.** Accepted so older settings load; prints a warning. |
 

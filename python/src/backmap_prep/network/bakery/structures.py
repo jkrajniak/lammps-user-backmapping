@@ -262,7 +262,14 @@ def _get_params(input_dict, key_list, raise_exception=True):
 # Atoms of neighboring fragments closer than this in the source molecule are bonded (nm).
 COVALENT_BOND_CUTOFF = 0.19
 # Gauss-Seidel sweeps that refine the fragment orientations against the bonds between fragments.
-ORIENTATION_SWEEPS = 4
+ORIENTATION_SWEEPS = 8
+# Weight of a bond between fragments relative to the vector between fragment centers.
+BOND_WEIGHT = 3
+# Stereocenters are enforced when the signed volume of the source geometry exceeds this (nm^3).
+MIN_STEREO_VOLUME = 1e-4
+# Random orientations tried for a fragment that violates a stereocenter, and their seed.
+ORIENTATION_TRIALS = 2000
+ORIENTATION_SEED = 20261009
 
 
 def rotation_aligning(template_vectors, target_vectors):
@@ -708,8 +715,9 @@ class BackmapperSettings2:
         The first estimate aligns the template vectors between fragment centers of mass
         (source molecule) with the vectors between the bonded CG beads. It is then refined
         with the covalent bonds that join fragments: an atom bonded to a neighbor fragment
-        should lie where the rigidly rotated neighbor puts it, which fixes the relative
-        orientation of the fragments (and the handedness of stereocenters that span them).
+        should lie where the rigidly rotated neighbor puts it. Finally, a stereocenter whose
+        neighbors lie in two fragments must keep the handedness of the source molecule; a
+        fragment that violates this is given the best-fitting orientation that does not.
         Fragments cut from different source chains are not compared.
         """
         box = np.array(self.cg_coordinate.box, dtype=float)
@@ -720,30 +728,73 @@ class BackmapperSettings2:
             frags = self.fragments[selected_fragment][bead["name"]]
             return frags.get(str(bead["degree"]), frags.get("*"))
 
-        centers = {}
-        links = {cg_id: [] for cg_id in cg_nodes}  # (neighbor, shift, d_cg, bonded atoms)
+        links = {cg_id: [] for cg_id in cg_nodes}  # (neighbor, shift, d_cg, bonded pairs)
+        stereo = []  # (center fragment, partner fragment, a, n1, n2, b + shift, d_cg, sign)
         for cg_id in cg_nodes:
             frag = fragment_of(cg_id)
-            centers[cg_id] = np.array(self.cg_coordinate.atoms[cg_id].position, dtype=float)
+            origin = np.array(self.cg_coordinate.atoms[cg_id].position, dtype=float)
             for nb in self.cg_graph.neighbors(cg_id):
                 if nb == cg_id or nb not in members:
                     continue
                 nb_frag = fragment_of(nb)
                 if frag.source_chain != nb_frag.source_chain:
                     continue
-                d_cg = np.array(self.cg_coordinate.atoms[nb].position, dtype=float) - centers[cg_id]
+                d_cg = np.array(self.cg_coordinate.atoms[nb].position, dtype=float) - origin
                 d_cg -= box * np.round(d_cg / box)
                 shift = np.array(nb_frag.com) - np.array(frag.com)
                 if np.linalg.norm(d_cg) < 1e-8 or np.linalg.norm(shift) < 1e-8:
                     continue
-                bonded = [
-                    np.array(a.position)
-                    for a in frag.atom_in_fragments
-                    for b in nb_frag.atom_in_fragments
-                    if np.linalg.norm(np.array(a.position) - np.array(b.position) - shift)
-                    < COVALENT_BOND_CUTOFF
-                ]
+                bonded = []
+                for a in frag.atom_in_fragments:
+                    a_pos = np.array(a.position)
+                    for b in nb_frag.atom_in_fragments:
+                        b_pos = np.array(b.position)
+                        if np.linalg.norm(a_pos - b_pos - shift) >= COVALENT_BOND_CUTOFF:
+                            continue
+                        bonded.append(a_pos)
+                        near = [
+                            np.array(c.position)
+                            for c in frag.atom_in_fragments
+                            if 1e-6
+                            < np.linalg.norm(np.array(c.position) - a_pos)
+                            < COVALENT_BOND_CUTOFF
+                        ]
+                        best = None
+                        for p in range(len(near)):
+                            for q in range(p + 1, len(near)):
+                                vol = float(
+                                    np.dot(
+                                        near[p] - a_pos,
+                                        np.cross(near[q] - a_pos, b_pos + shift - a_pos),
+                                    )
+                                )
+                                if best is None or abs(vol) > abs(best[0]):
+                                    best = (vol, near[p], near[q])
+                        if best is not None and abs(best[0]) > MIN_STEREO_VOLUME:
+                            stereo.append(
+                                (
+                                    cg_id,
+                                    nb,
+                                    a_pos,
+                                    best[1],
+                                    best[2],
+                                    b_pos + shift,
+                                    d_cg,
+                                    np.sign(best[0]),
+                                )
+                            )
                 links[cg_id].append((nb, shift, d_cg, bonded))
+
+        def vectors(cg_id, rotations):
+            templates = [shift for _, shift, _, _ in links[cg_id]]
+            targets = [d_cg for _, _, d_cg, _ in links[cg_id]]
+            for nb, shift, d_cg, bonded in links[cg_id]:
+                for rel in bonded:
+                    site = d_cg + rotations[nb] @ (rel - shift)
+                    if np.linalg.norm(site) > 1e-8 and np.linalg.norm(rel) > 1e-8:
+                        templates.extend([rel] * BOND_WEIGHT)
+                        targets.extend([site] * BOND_WEIGHT)
+            return templates, targets
 
         rotations = {
             cg_id: rotation_aligning(
@@ -754,15 +805,50 @@ class BackmapperSettings2:
         }
         for _ in range(ORIENTATION_SWEEPS):
             for cg_id in cg_nodes:
-                templates = [shift for _, shift, _, _ in links[cg_id]]
-                targets = [d_cg for _, _, d_cg, _ in links[cg_id]]
-                for nb, shift, d_cg, bonded in links[cg_id]:
-                    for rel in bonded:
-                        site = d_cg + rotations[nb] @ (rel - shift)
-                        if np.linalg.norm(site) > 1e-8 and np.linalg.norm(rel) > 1e-8:
-                            templates.append(rel)
-                            targets.append(site)
-                rotations[cg_id] = rotation_aligning(templates, targets)
+                rotations[cg_id] = rotation_aligning(*vectors(cg_id, rotations))
+
+        def inverted(cg_id, rotations):
+            """Stereocenters involving this fragment whose handedness differs from the source."""
+            count = 0
+            for center, partner, a, n1, n2, b, d_cg, sign in stereo:
+                if cg_id not in (center, partner):
+                    continue
+                rot_c, rot_p = rotations[center], rotations[partner]
+                a_w, n1_w, n2_w = rot_c @ a, rot_c @ n1, rot_c @ n2
+                b_w = d_cg + rot_p @ (
+                    b - (np.array(fragment_of(partner).com) - np.array(fragment_of(center).com))
+                )
+                vol = float(np.dot(n1_w - a_w, np.cross(n2_w - a_w, b_w - a_w)))
+                count += int(np.sign(vol) != sign)
+            return count
+
+        def misfit(cg_id, rotations):
+            templates, targets = vectors(cg_id, rotations)
+            rot = rotations[cg_id]
+            return sum(
+                float(np.sum((rot @ (t / np.linalg.norm(t)) - g / np.linalg.norm(g)) ** 2))
+                for t, g in zip(templates, targets, strict=True)
+            )
+
+        rng = np.random.default_rng(ORIENTATION_SEED)
+        for _ in range(2):
+            for cg_id in cg_nodes:
+                if not inverted(cg_id, rotations):
+                    continue
+                current = rotations[cg_id]
+                best_rot, best_cost = None, np.inf
+                for _ in range(ORIENTATION_TRIALS):
+                    q, r = np.linalg.qr(rng.normal(size=(3, 3)))
+                    q = q @ np.diag(np.sign(np.diag(r)))
+                    if np.linalg.det(q) < 0:
+                        q[:, 0] *= -1.0
+                    rotations[cg_id] = q
+                    if inverted(cg_id, rotations):
+                        continue
+                    cost = misfit(cg_id, rotations)
+                    if cost < best_cost:
+                        best_rot, best_cost = q, cost
+                rotations[cg_id] = current if best_rot is None else best_rot
         return rotations
 
     def prepare_hybrid(self):
