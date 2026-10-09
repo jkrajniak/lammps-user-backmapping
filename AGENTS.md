@@ -19,107 +19,31 @@ ESPResSo++ bonded code for broader adoption.
 
 All rules in `openspec/project.md` are mandatory — read it before changing code.
 
-## Repository Layout
-
-```
-src/                    # C++ LAMMPS styles
-python/src/backmap_prep/# Python package source
-python/tests/           # pytest unit tests
-pyproject.toml          # Python project metadata, ruff, mypy, pytest config
-examples/               # Example simulations (dodecane, polyethylene, melamine)
-docs/                   # MkDocs Material documentation site
-openspec/               # Specifications and change tracking
-```
-
 ---
 
 ## Build, Lint, and Test Commands
 
 ### Python (backmap-prep)
 
-```bash
-# Setup
-make install              # uv sync
-make install-dev          # uv sync --extra dev
-make install-hooks        # Install pre-commit hooks
-
-# Linting & formatting
-make lint                 # ruff check python/src/ python/tests/
-make format               # ruff format (in-place)
-make format-check         # ruff format --check (dry run)
-make typecheck            # mypy python/src/
-
-# Testing
-make test                 # Run all tests
-make test-cov             # Tests + coverage report
-uv run pytest python/tests/test_foo.py                # Single file
-uv run pytest python/tests/test_foo.py::test_bar      # Single test
-uv run pytest python/tests/test_foo.py -k "pattern"   # By name pattern
-
-# Pre-commit
-make pre-commit           # Staged files only
-make pre-commit-all       # All files
-
-# Docs
-make docs                 # Build MkDocs site (strict)
-make docs-serve           # Serve locally
-
-# Cleanup
-make clean                # Remove caches and build artifacts
-```
+Targets are in the `Makefile` (`make install-dev`, `make lint`, `make test`, `make docs`).
+Single test: `uv run pytest python/tests/test_foo.py::test_bar`.
 
 ### C++ (LAMMPS styles)
 
-The LAMMPS source tree is at `/Users/jakubkrajniak/Work/Science/lammps` with a
-CMake build in `build/`. To compile the backmap package:
-
-```bash
-# Copy source files into the LAMMPS tree
-cp src/*.cpp src/*.h /Users/jakubkrajniak/Work/Science/lammps/src/
-
-# Rebuild LAMMPS (from the build directory)
-cmake --build /Users/jakubkrajniak/Work/Science/lammps/build -j$(nproc)
-
-# The binary is at build/lmp; optionally install:
-cmake --install /Users/jakubkrajniak/Work/Science/lammps/build
-```
-
-Lint with:
-
-```bash
-clang-format --style=file --fallback-style=Google src/*.cpp src/*.h
-```
+Build and run LAMMPS only on the remote VM, never locally. Lint with
+`clang-format --style=file --fallback-style=Google src/*.cpp src/*.h`.
 
 ---
 
 ## Code Style — Python
 
 - **Python ≥ 3.10**, full type annotations, Pydantic v2 for schemas.
-- **Formatter/linter**: ruff (line length 100, config in `pyproject.toml`).
-- **Type checker**: mypy strict mode, Pydantic plugin enabled.
 - **Dependencies**: `uv` exclusively — never `pip`. Use `uv add`, `uv sync`.
-- **Imports**: `from __future__ import annotations`; group stdlib → third-party → local.
-- **Naming**: `snake_case` modules/functions, `PascalCase` classes, `UPPER_SNAKE_CASE` constants.
 - **Structure**: functions under 50 lines; `__all__` in public modules; Pydantic models or
 dataclasses for data containers.
 - **Errors**: guard clauses at top, early returns, specific exceptions (never bare `except:`).
-- **Style**: f-strings, trailing commas in multi-line calls, no narrating comments.
 - **Tests**: every module needs a `python/tests/test_<module>.py`; use parametrised tests
 and fixtures; cover edge cases.
-
-### Import Example
-
-```python
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-import yaml
-from pydantic import BaseModel
-
-from backmap_prep.parsers import parse_gro
-```
 
 ## Code Style — C++
 
@@ -169,8 +93,3 @@ Use available MCP tools to ground decisions in published literature:
 - **arXiv** (`user-arxiv-mcp-server`) — preprint search, abstracts, PDFs.
 
 Always cite: authors, journal/venue, year, DOI or arXiv ID.
-
-## Ruff Lint Rules (reference)
-
-`E W F I N UP B SIM TCH RUF PT C4 PIE RET` — see `pyproject.toml` for details.
-`E501` (line-too-long) is ignored; ruff formatter handles wrapping.
