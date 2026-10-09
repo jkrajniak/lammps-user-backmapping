@@ -123,8 +123,8 @@ def main() -> int:
             missing.append(pair)
             ax.set_visible(False)
             continue
-        ax.plot(bm[0], bm[1], color="C0", lw=2.4, label="LAMMPS backmap")
-        ax.plot(ref[0], ref[1], "--", color="C1", lw=2.4, label="paper ref")
+        ax.plot(bm[0], bm[1], color="C0", lw=2.4, label="backmapped")
+        ax.plot(ref[0], ref[1], "--", color="C1", lw=2.4, label="reference")
         ax.set_xlim(0, x_max)
         ax.set_xlabel("r (nm)", fontsize=14)
         ax.set_ylabel("g(r)", fontsize=14)

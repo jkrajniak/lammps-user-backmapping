@@ -496,8 +496,8 @@ def plot_rdgs(
     n = len(curves)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 4), squeeze=False)
     for ax, (calc, ref, title) in zip(axes[0], curves, strict=True):
-        ax.plot(calc.r_nm, calc.g, label="LAMMPS", linewidth=2.4)
-        ax.plot(ref.r_nm, ref.g, "--", label="paper ref", linewidth=2.4)
+        ax.plot(calc.r_nm, calc.g, label="backmapped", linewidth=2.4)
+        ax.plot(ref.r_nm, ref.g, "--", label="reference", linewidth=2.4)
         if cc_windows is not None and title == "C-C":
             for window, color in zip(cc_windows, ("#cccccc", "#e8e8ff"), strict=False):
                 ax.axvspan(
