@@ -32,7 +32,7 @@ import numpy as np
 
 PAIR_LABELS = ["CH3-CH3", "CH3-CH2", "CH2-CH2"]
 
-PEAK_POS_TOL = 0.30
+PEAK_POS_TOL = 0.03  # nm (0.3 A) -- same tolerance the manuscript states
 PEAK_HT_TOL = 0.20
 L2_TOL = 0.20
 
@@ -67,7 +67,10 @@ def parse_blocks(path: Path) -> BlockedRDF:
     if not blocks_data:
         raise ValueError(f"No RDF blocks parsed from {path}")
 
-    r = blocks_data[0][:, 1]
+    # LAMMPS writes r in Angstrom; convert once here so the report, the plot
+    # and the tolerances are all in nm, matching the other RDF figures and
+    # the tolerances quoted in the manuscript.
+    r = blocks_data[0][:, 1] / 10.0
     n_pairs = (blocks_data[0].shape[1] - 2) // 2
     gr_per_pair: list[np.ndarray] = []
     for p in range(n_pairs):
@@ -83,7 +86,7 @@ def mean_sem(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return mean, sem
 
 
-def first_peak(r: np.ndarray, gr: np.ndarray, r_min: float = 2.0) -> tuple[float, float]:
+def first_peak(r: np.ndarray, gr: np.ndarray, r_min: float = 0.2) -> tuple[float, float]:
     mask = r > r_min
     g = gr[mask]
     rr = r[mask]
@@ -155,7 +158,7 @@ def report(
 
         lines.append(f"--- {label} (n_blocks: backmap={n_bm}, ref={n_ref}) ---")
         lines.append(
-            f"  1st-peak position : {pos_bm:.3f} +/- {pos_bm_sem:.3f} Å (ref {pos_ref:.3f}, |Δ|={pos_err:.3f}, tol={pos_tol}) {'PASS' if ok_pos else 'FAIL'}"
+            f"  1st-peak position : {pos_bm:.3f} +/- {pos_bm_sem:.3f} nm (ref {pos_ref:.3f}, |Δ|={pos_err:.3f}, tol={pos_tol}) {'PASS' if ok_pos else 'FAIL'}"
         )
         lines.append(
             f"  1st-peak height   : {ht_bm:.3f} +/- {ht_bm_sem:.3f}    (ref {ht_ref:.3f}, rel err={ht_err:.2%}, tol={ht_tol:.0%}) {'PASS' if ok_ht else 'FAIL'}"
@@ -184,14 +187,17 @@ def plot(backmap: BlockedRDF, reference: BlockedRDF, skip_first: int, out: Path)
         ref_mean, ref_sem = mean_sem(reference.gr_blocks[i][skip_first:])
         r_bm, r_ref = backmap.r, reference.r
 
-        ax.plot(r_bm, bm_mean, color="C0", lw=2.4, label="backmapped (mean)")
-        ax.fill_between(
-            r_bm, bm_mean - bm_sem, bm_mean + bm_sem, color="C0", alpha=0.25, label="±SEM"
-        )
-        ax.plot(r_ref, ref_mean, "--", color="C1", lw=2.4, label="reference AT (mean)")
+        ax.plot(r_bm, bm_mean, color="C0", lw=2.4, label="backmapped")
+        # The +/-SEM bands are plotted but carry no legend entry: block-to-block
+        # scatter here is at most ~0.5% of the peak (max SEM 0.008 in g(r)),
+        # narrower than the 2.4 pt line drawn over them, so a legend swatch
+        # would key an element the reader can never find. The convergence this
+        # implies is stated in the manuscript caption instead.
+        ax.fill_between(r_bm, bm_mean - bm_sem, bm_mean + bm_sem, color="C0", alpha=0.25)
+        ax.plot(r_ref, ref_mean, "--", color="C1", lw=2.4, label="reference")
         ax.fill_between(r_ref, ref_mean - ref_sem, ref_mean + ref_sem, color="C1", alpha=0.25)
 
-        ax.set_xlabel("r (Å)", fontsize=14)
+        ax.set_xlabel("r (nm)", fontsize=14)
         ax.set_ylabel("g(r)", fontsize=14)
         ax.set_title(label, fontsize=15)
         ax.set_xlim(0, min(r_bm[-1], r_ref[-1]))

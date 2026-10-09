@@ -328,8 +328,8 @@ def plot_rdgs(curves: list[tuple[RDFCurve, RDFCurve, str]], output: Path) -> Non
     n = len(curves)
     fig, axes = plt.subplots(1, n, figsize=(5 * n, 4), squeeze=False)
     for ax, (calc, ref, title) in zip(axes[0], curves, strict=True):
-        ax.plot(calc.r_nm, calc.g, color="C0", lw=2.4, label="LAMMPS backmap")
-        ax.plot(ref.r_nm, ref.g, "--", color="C1", lw=2.4, label="paper ref")
+        ax.plot(calc.r_nm, calc.g, color="C0", lw=2.4, label="backmapped")
+        ax.plot(ref.r_nm, ref.g, "--", color="C1", lw=2.4, label="reference")
         ax.set_xlim(0, R_MAX_NM)
         ax.set_xlabel("r (nm)", fontsize=14)
         ax.set_ylabel("g(r)", fontsize=14)
