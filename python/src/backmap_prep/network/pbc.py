@@ -64,7 +64,7 @@ def _unwrap_component(
     by_id: dict[int, LammpsAtom],
     adjacency: dict[int, list[int]],
     box: tuple[float, float, float],
-) -> None:
+) -> set[int]:
     component_queue: deque[int] = deque([root_id])
     component_seen = {root_id}
     while component_queue:
@@ -75,6 +75,7 @@ def _unwrap_component(
                 component_seen.add(neighbor_id)
                 _place_near_reference(current, by_id[neighbor_id], box)
                 component_queue.append(neighbor_id)
+    return component_seen
 
 
 def unwrap_bond_graph(
@@ -123,10 +124,15 @@ def _unwrap_molecule(
         return
     by_id = {atom.atom_id: atom for atom in mol_atoms}
     adjacency = _bond_adjacency(mol_bonds)
+    # A hybrid molecule has several bond components (the CG and AT chains are
+    # not bonded to each other); unwrap each one from its own root.
     cg_roots = sorted(atom.atom_id for atom in mol_atoms if atom.is_cg)
-    root_id = cg_roots[0] if cg_roots else min(by_id)
+    at_roots = sorted(atom.atom_id for atom in mol_atoms if not atom.is_cg)
     component = set(by_id)
-    _unwrap_component(root_id, component, by_id, adjacency, box)
+    seen: set[int] = set()
+    for root_id in cg_roots + at_roots:
+        if root_id not in seen:
+            seen |= _unwrap_component(root_id, component, by_id, adjacency, box)
     for _ in range(8):
         for bond in mol_bonds:
             _place_near_reference(by_id[bond.i], by_id[bond.j], box)
@@ -256,24 +262,30 @@ def _assign_image_flags_by_bond_tree(
         atom.atom_id: (atom.x, atom.y, atom.z) for atom in atoms
     }
     adjacency = _bond_adjacency(bonds)
-    root_id = min(by_id)
-    queue: deque[int] = deque([root_id])
-    visited = {root_id}
+    visited: set[int] = set()
 
-    while queue:
-        current_id = queue.popleft()
-        current_pos = unwrapped[current_id]
-        for neighbor_id in adjacency[current_id]:
-            if neighbor_id in visited:
-                continue
-            visited.add(neighbor_id)
-            queue.append(neighbor_id)
-            delta = _min_image_vector_to(current_pos, unwrapped[neighbor_id], box)
-            unwrapped[neighbor_id] = (
-                current_pos[0] + delta[0],
-                current_pos[1] + delta[1],
-                current_pos[2] + delta[2],
-            )
+    # Walk every connected component, not only the one holding the lowest ID:
+    # atoms never reached would keep per-atom flags that disagree with their
+    # bonded neighbours.
+    for root_id in sorted(by_id):
+        if root_id in visited:
+            continue
+        visited.add(root_id)
+        queue: deque[int] = deque([root_id])
+        while queue:
+            current_id = queue.popleft()
+            current_pos = unwrapped[current_id]
+            for neighbor_id in adjacency[current_id]:
+                if neighbor_id in visited:
+                    continue
+                visited.add(neighbor_id)
+                queue.append(neighbor_id)
+                delta = _min_image_vector_to(current_pos, unwrapped[neighbor_id], box)
+                unwrapped[neighbor_id] = (
+                    current_pos[0] + delta[0],
+                    current_pos[1] + delta[1],
+                    current_pos[2] + delta[2],
+                )
 
     for atom in atoms:
         ux, uy, uz = unwrapped[atom.atom_id]
@@ -492,3 +504,52 @@ def validate_bond_geometry(system: System, interaction_cutoff_ang: float) -> Non
             f"Bonded pair spans {max_bond:.1f} Å (min-image) after PBC prep (limit {limit:.1f} Å); "
             "check hybrid coordinates or bond topology"
         )
+
+
+def _chained_positions(
+    atoms: list[LammpsAtom], box: tuple[float, float, float]
+) -> list[tuple[float, float, float]]:
+    """Positions of a bonded term's atoms, each placed by minimum image from the previous."""
+    first = atoms[0]
+    chain = [(first.x, first.y, first.z)]
+    for atom in atoms[1:]:
+        prev = chain[-1]
+        dx, dy, dz = _min_image_vector_to(prev, (atom.x, atom.y, atom.z), box)
+        chain.append((prev[0] + dx, prev[1] + dy, prev[2] + dz))
+    return chain
+
+
+def max_interaction_extent(system: System) -> float:
+    """Largest distance LAMMPS ghost atoms must cover for bonded terms and beads (Angstrom).
+
+    LAMMPS resolves bonded partners by minimum image, so the relevant extent of
+    a bond, angle or dihedral is the largest distance between two of its atoms
+    with the atoms chained by minimum-image steps -- not the distance between
+    folded file coordinates, which is about a box length for any term that
+    crosses the boundary. ``fix backmap`` also needs every AT atom of a bead
+    within reach of the bead (one bead and its fragment per molecule ID).
+    """
+    by_id = {atom.atom_id: atom for atom in system.atoms}
+    extent = 0.0
+    terms: list[list[int]] = [[b.i, b.j] for b in system.bonds]
+    terms += [[a.i, a.j, a.k] for a in system.angles]
+    terms += [[d.i, d.j, d.k, d.l] for d in system.dihedrals]
+    for ids in terms:
+        missing = [i for i in ids if i not in by_id]
+        if missing:
+            raise ValueError(f"bonded term {ids} refers to atoms {missing} that do not exist")
+        chain = _chained_positions([by_id[i] for i in ids], system.box)
+        for m in range(len(chain)):
+            for n in range(m + 1, len(chain)):
+                extent = max(extent, math.dist(chain[m], chain[n]))
+    for mol_atoms in _atoms_by_mol_id(system.atoms).values():
+        beads = [atom for atom in mol_atoms if atom.is_cg]
+        if len(beads) != 1:
+            continue
+        (bead,) = beads
+        bead_pos = (bead.x, bead.y, bead.z)
+        for atom in mol_atoms:
+            if not atom.is_cg:
+                dx, dy, dz = _min_image_vector_to(bead_pos, (atom.x, atom.y, atom.z), system.box)
+                extent = max(extent, math.sqrt(dx * dx + dy * dy + dz * dz))
+    return extent

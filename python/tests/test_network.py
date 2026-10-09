@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import pytest
 
 from backmap_prep.network.api import build_hybrid_gromacs, build_network_lammps
 from backmap_prep.network.compare_topology import compare_topology_files
-from backmap_prep.network.pbc import max_bond_length, max_euclidean_bond_length
+from backmap_prep.network.pbc import (
+    max_bond_length,
+    max_euclidean_bond_length,
+    max_interaction_extent,
+)
 from backmap_prep.schema import load_settings, resolve_data_dir, resolve_tables_dir
 from backmap_prep.table_converter import convert_tables
 from backmap_prep.writers import write_cross_pairs_file, write_lammps_data, write_lammps_input
@@ -122,26 +127,44 @@ def test_rim135_topology_parity() -> None:
     assert all(parity.values()), parity
 
 
+def _graph_14_pairs(system) -> set[tuple[int, int]]:
+    """AT atom pairs exactly three bonds apart in the AT bond graph."""
+    at_ids = {atom.atom_id for atom in system.atoms if not atom.is_cg}
+    graph: dict[int, set[int]] = {i: set() for i in at_ids}
+    for bond in system.bonds:
+        if bond.i in at_ids and bond.j in at_ids:
+            graph[bond.i].add(bond.j)
+            graph[bond.j].add(bond.i)
+    pairs: set[tuple[int, int]] = set()
+    for start in graph:
+        dist = {start: 0}
+        frontier = [start]
+        for step in (1, 2, 3):
+            frontier = [n for u in frontier for n in graph[u] if n not in dist]
+            for n in frontier:
+                dist.setdefault(n, step)
+            frontier = [n for n in frontier if dist[n] == step]
+        pairs |= {tuple(sorted((start, n))) for n, k in dist.items() if k == 3}
+    return pairs
+
+
 @pytest.mark.integration
-def test_rim135_build_v2_lammps_smoke() -> None:
+def test_rim135_build_v2_lammps_smoke(tmp_path: Path) -> None:
     """Settings v2 network path builds a LAMMPS data/input pair for rim135."""
     v2_yaml = Path(__file__).resolve().parents[2] / "examples" / "epoxy" / "settings.v2.yaml"
     if not v2_yaml.is_file():
         pytest.skip("settings.v2.yaml example missing")
 
     settings = load_settings(v2_yaml)
-    work_dir = resolve_data_dir(v2_yaml, settings)
-    if not work_dir.is_dir():
+    if not resolve_data_dir(v2_yaml, settings).is_dir():
         pytest.skip("rim135 fixtures not available for settings.v2.yaml")
 
+    work_dir = tmp_path  # outputs; the published data_dir is only read
     prefix = settings.output.prefix
     data_path = work_dir / f"{prefix}.data"
     input_path = work_dir / f"in.{prefix}"
-    for output_path in (data_path, input_path):
-        if output_path.exists():
-            output_path.unlink()
 
-    result = build_network_lammps(settings, v2_yaml)
+    result = build_network_lammps(settings, v2_yaml, output_dir=tmp_path)
     write_lammps_data(result.system, data_path)
     if result.system.has_cross_pairs:
         pairs_path = work_dir / result.system.cross_pairs_file
@@ -170,7 +193,12 @@ def test_rim135_build_v2_lammps_smoke() -> None:
     assert max_bond < 20.0, f"longest min-image bond {max_bond:.1f} Å after PBC prep"
 
     input_text = input_path.read_text()
-    assert "angle_style hybrid backmap/harmonic backmap/table linear 1000" in input_text
+    for include in (f"{prefix}.ff.lmp", f"{prefix}.backmap.lmp"):
+        if (work_dir / include).is_file():
+            input_text += (work_dir / include).read_text()
+    assert re.search(
+        r"^angle_style hybrid backmap/harmonic backmap/table linear \d+$", input_text, re.MULTILINE
+    ), "hybrid backmap/harmonic + backmap/table angle_style missing"
     assert "angle_coeff" in input_text and "backmap/table cg table_a1.table" in input_text
     assert "angle_coeff" in input_text and "backmap/table cg table_a2.table" in input_text
     assert "cg 0.000000 0.0000" not in input_text
@@ -203,8 +231,10 @@ def test_rim135_build_v2_lammps_smoke() -> None:
     )
     assert comm_line
     comm_cutoff = float(comm_line.split()[-1])
-    max_euclidean = max_euclidean_bond_length(result.system.atoms, result.system.bonds)
-    assert comm_cutoff >= max(max_bond, max_euclidean), comm_line
+    # LAMMPS finds bonded partners by closest image, so ghosts must cover the
+    # minimum-image extent of the bonded terms, not the folded-coordinate
+    # length of box-spanning crosslinks (pbc.max_interaction_extent).
+    assert comm_cutoff >= max_interaction_extent(result.system), comm_line
     assert "reset_atoms image all" in input_text
 
     assert result.system.has_cross_pairs
@@ -212,25 +242,20 @@ def test_rim135_build_v2_lammps_smoke() -> None:
     assert pairs_path.is_file()
     pair_lines = pairs_path.read_text().splitlines()
     pair_count = int(pair_lines[0])
-    assert 3_500 <= pair_count <= 3_700, pair_count
     assert len(pair_lines) == pair_count + 1
+    # 1-4 pairs come from the AT bond graph (decisions/2026-09-25-graph-derived-
+    # 14-pairs-no-cutoff): exactly the atom pairs three bonds apart.
+    pairs = {tuple(sorted(map(int, ln.split()[:2]))) for ln in pair_lines[1:] if ln.strip()}
+    assert pairs == _graph_14_pairs(result.system)
     assert "fix pairs all backmap/pairs at file pairs.dat" in input_text
 
-    # Tier B bakery protocol (PR4): velocity init, cap_force, gamma=15, 1 fs dt, 10k ramp
-    assert "velocity all create" in input_text
+    # Single robust protocol (decisions/2026-09-27-single-protocol-robust.md).
     assert "fix cap all backmap/capforce" in input_text
-    assert "langevin 298.0" in input_text
-    langevin_line = next(
-        (line for line in input_text.splitlines() if "fix thermo at_atoms langevin" in line),
-        "",
-    )
-    assert langevin_line
-    damp = float(langevin_line.split()[-2])
-    assert 66.0 <= damp <= 67.0, langevin_line
-    assert "timestep 1.00" in input_text
-    assert "run 10000" in input_text
+    assert "fix freeze cg_atoms setforce 0.0 0.0 0.0" in input_text
+    assert re.search(r"^minimize ", input_text, re.MULTILINE)
     assert "fix_modify bm active yes" in input_text
     assert "fix_modify bm active no" not in input_text
+    assert input_text.index("unfix cap") > input_text.index("fix_modify bm active yes")
 
 
 @pytest.mark.integration
@@ -335,7 +360,8 @@ def test_rim135_rebuild_from_finalized_cg() -> None:
     assert max_euclidean > max_bond, "network crosslinks should span the primary cell"
 
     params = _compute_params(system, settings)
-    assert params["comm_cutoff_ang"] >= max_euclidean + 0.9, (
-        f"comm cutoff {params['comm_cutoff_ang']:.1f} Å must cover box-spanning bonds "
-        f"(max euclidean bond {max_euclidean:.1f} Å)"
+    extent = max_interaction_extent(system)
+    assert params["comm_cutoff_ang"] >= extent + 0.9, (
+        f"comm cutoff {params['comm_cutoff_ang']:.1f} Å must cover the minimum-image "
+        f"extent of the bonded terms ({extent:.1f} Å)"
     )

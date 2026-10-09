@@ -8,57 +8,59 @@ boundary p p p
 
 read_data dodecane.data
 
-comm_modify cutoff 15.00
+include dodecane.ff.lmp
 
-pair_style backmap 14.00 lj/cut/coul/cut 14.00 9.00 14.00 table linear 1000
-pair_coeff 1 1 cg table_1_1.table ENTRY
-pair_coeff 1 2 cg table_1_2.table ENTRY
-pair_coeff 1 3 none
-pair_coeff 1 4 none
-pair_coeff 2 2 cg table_2_2.table ENTRY
-pair_coeff 2 3 none
-pair_coeff 2 4 none
-pair_coeff 3 3 atomistic 0.207266 3.748000
-pair_coeff 3 4 atomistic 0.156387 3.826500
-pair_coeff 4 4 atomistic 0.117997 3.905000
+include dodecane.backmap.lmp
 
-bond_style hybrid harmonic backmap/harmonic backmap/table linear 1000
-bond_coeff 1 harmonic 400.000442 1.530000
-bond_coeff 2 backmap/table cg table_b1.table ENTRY
-bond_coeff 3 backmap/table cg table_b1.table ENTRY
-bond_coeff 4 backmap/harmonic at 400.000442 1.530000
+reset_atoms image all
 
-angle_style backmap/harmonic
-angle_coeff 1 at 63.336590 111.0000
-
-special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0
-
-group at_atoms type 3 4
-group cg_atoms type 1 2
-
-neigh_modify delay 0 every 1 check yes
-
-# Initial velocities at T=298.0 K
-velocity all create 298.0 12345 dist gaussian mom yes rot yes
-
-fix integrate at_atoms nvt temp 298.0 298.0 100.0
-
-fix bm all backmap cg_type 1 2 alpha 0.0001 lambda0 0.0
+fix cap all backmap/capforce 1195.0287
 
 compute at_temp at_atoms temp
-
-timestep 1.00
-
 thermo 1000
-thermo_style custom step temp pe ke etotal press f_bm
-thermo_modify colname f_bm lambda
-thermo_modify temp at_temp
+thermo_style custom step temp pe ke etotal ebond eangle edihed evdwl ecoul f_pairs[1] f_pairs[2] press f_bm
+thermo_modify colname f_bm lambda temp at_temp
 
 dump traj all custom 1000 dump.backmap id mol type x y z f_bm
 dump_modify traj sort id
 
-# Backmapping: λ 0 → 1
-fix_modify bm active yes
+# Phase 0a: minimize AT overlaps at lambda = 0 (CG frozen)
+fix freeze cg_atoms setforce 0.0 0.0 0.0
+minimize 1.0e-4 1.0e-6 1000 10000
+
+# Phase 0b: relax AT fragments at lambda = 0 (CG frozen)
+fix relax at_atoms nve/limit 0.01
+fix therm_relax at_atoms langevin 298.0 298.0 20.0 12346
+timestep 0.01
 run 10000
+unfix therm_relax
+unfix relax
+unfix freeze
+
+# Phase 1: lambda ramp 0 -> 1 (20000 steps at 0.1 fs, alpha 0.0001)
+fix limit_all all nve/limit 0.05
+fix therm_ramp at_atoms langevin 298.0 298.0 100.0 12347
+fix_modify bm active yes
+timestep 0.10
+run 20000
+unfix limit_all
+unfix therm_ramp
+
+# Phase 2: NVT at lambda = 1, staged timestep
+fix nvt_at at_atoms nvt temp 298.0 298.0 100.0
+fix nvt_cg cg_atoms nvt temp 298.0 298.0 100.0
+timestep 0.25
+run 10000
+timestep 0.50
+run 5000
+timestep 1.00
+run 5000
 
 write_data dodecane_hybrid.data
+# CapForce released after the ramp and the staged NVT (as bakery does)
+unfix cap
+
+# Production at lambda = 1
+timestep 1.00
+run 5000
+write_data dodecane_final.data

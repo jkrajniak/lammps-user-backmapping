@@ -3,6 +3,10 @@
 # CG interactions: tabulated (IBI-derived)
 # AT interactions: OPLS/AA (opls_135/136 C, opls_140 H)
 
+prep:
+  # OPLS force field of the AT topology (examples/forcefield/oplsaa.ff)
+  forcefield_dir: ../../forcefield
+
 molecules:
 - name: PE
   ident: PE
@@ -563,7 +567,9 @@ cross_interactions:
       - PE:C90
   dihedrals: []
 simulation:
+  protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
   alpha: 0.0001
+  cap_force: 50000.0  # kJ/mol/nm = 1195 kcal/mol/A, released before production
   initial_resolution: 0.0
   timestep: 0.001
   timestep_backmapping: 0.001
@@ -571,7 +577,7 @@ simulation:
   production_steps: 10000
   temperature: 423.0
   thermostat: langevin
-  thermostat_gamma: 30.0
+  thermostat_gamma: 50
   thermostat_target: atomistic
   lj_cutoff: 1.4
   cg_cutoff: 1.4

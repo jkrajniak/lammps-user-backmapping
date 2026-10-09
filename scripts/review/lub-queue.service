@@ -1,0 +1,15 @@
+[Unit]
+Description=Backmapping revision queue (resumable jobs)
+After=network-online.target
+
+[Service]
+Type=simple
+User=sc
+Environment=SLOTS=2
+# Optional: SYNC_DEST=user@host:/path  SYNC_EVERY=600
+ExecStart=/home/sc/sc/lub-spot/scripts/review/queue_runner.sh /home/sc/sc/queue_2026-10-03
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

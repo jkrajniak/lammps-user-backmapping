@@ -1,4 +1,4 @@
-; CG topology for PE4 (10 chains, 25 beads each)
+; CG topology for PE4 (75 chains, 25 beads each)
 
 [ defaults ]
 ; nbfunc  comb-rule  gen-pairs  fudgeLJ  fudgeQQ
@@ -122,4 +122,4 @@ PE
 
 [ molecules ]
 ; Compound   #mols
-PE           10
+PE           75

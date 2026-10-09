@@ -51,6 +51,13 @@ class PairBackmap : public Pair {
   // Per-type-pair classification: 0=none, 1=atomistic, 2=cg
   int **pair_kind;
 
+  // Optional special-bond weights for CG-CG pairs (index 0 = not special,
+  // 1..3 = 1-2, 1-3, 1-4), set by the trailing `cg_special w12 w13 w14`
+  // keyword. Lets the CG model exclude fewer neighbours than the AT one
+  // (e.g. MARTINI nrexcl = 1 with an AT force field at nrexcl = 3).
+  int has_cg_special;
+  double cg_special[4];
+
   // Fix backmap for lambda access
   class Fix *fix_backmap;
 

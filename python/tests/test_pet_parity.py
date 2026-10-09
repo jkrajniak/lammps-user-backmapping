@@ -8,8 +8,6 @@ for the 3-species PET polyester network.
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -71,55 +69,29 @@ def test_pet_build_hybrid_v2_parity(tmp_path: Path) -> None:
     ref_top = data_dir / "hyb_topol.top"
     if not ref_gro.is_file() or not ref_top.is_file():
         pytest.skip("bakery hyb_conf.gro / hyb_topol.top reference missing")
-    # Back up to tmp_path (outside data_dir) so the build's own _*.1_ backup
-    # numbering does not trip on our backup file (files_io.py:int(split[-1])).
-    backup_gro = tmp_path / "hyb_conf.gro.ref"
-    backup_top = tmp_path / "hyb_topol.top.ref"
-    shutil.copy2(ref_gro, backup_gro)
-    shutil.copy2(ref_top, backup_top)
 
-    try:
-        result = build_hybrid_gromacs(settings, base_dir=data_dir, chain_rng_seed=42)
-        assert result.n_atoms == 33757, result.n_atoms
-        # Coordinates byte-identical to bakery reference.
-        assert result.coordinates_path.read_bytes() == backup_gro.read_bytes()
-        # Topology: section counts match and the [ bonds ] section is line-identical
-        # (the physical bonds, including ester linkages, are the same). The
-        # compare_topology_files cross_bonds *set* can differ by atom-ID
-        # bookkeeping while the [ bonds ] section is identical, so we assert on
-        # the real section identity + counts.
-        parity = compare_topology_files(str(backup_top), str(result.topology_path))
-        for section in ("atoms", "bonds", "angles", "dihedrals", "pairs"):
-            assert parity[section], f"{section} section keys differ: {parity}"
-        assert _section_lines(backup_top, "bonds") == _section_lines(
-            result.topology_path, "bonds"
-        ), "[ bonds ] section lines differ"
-        assert len(_section_lines(backup_top, "angles")) == len(
-            _section_lines(result.topology_path, "angles")
-        )
-        assert len(_section_lines(backup_top, "dihedrals")) == len(
-            _section_lines(result.topology_path, "dihedrals")
-        )
-    finally:
-        # Restore the archive to pristine from the tmp backup; remove build artifacts.
-        shutil.copy2(backup_gro, ref_gro)
-        shutil.copy2(backup_top, ref_top)
-        for artifact in (
-            "_hyb_conf.gro.1_",
-            "_hyb_topol.top.1_",
-            "at_hyb_topol.top",
-            "cross_angles_hyb_topol.dat",
-            "cross_bonds_hyb_topol.dat",
-            "cross_dihedrals_hyb_topol.dat",
-            "graph_before_cross_bonds.pck",
-        ):
-            (data_dir / artifact).unlink(missing_ok=True)
-        # Restore tracked files the build regenerates so the archive stays pristine.
-        repo = data_dir.parents[2]
-        for name in ("missing_definitions.txt", "exclusion_hyb_topol.list"):
-            subprocess.run(
-                ["git", "checkout", "--", str((data_dir / name).relative_to(repo))],
-                cwd=repo,
-                check=False,
-                capture_output=True,
-            )
+    # Build into tmp_path: the published archive (data_dir) is only read.
+    result = build_hybrid_gromacs(
+        settings, base_dir=data_dir, output_dir=tmp_path, chain_rng_seed=42
+    )
+    assert result.coordinates_path.parent == tmp_path
+    assert result.n_atoms == 33757, result.n_atoms
+    # Coordinates byte-identical to bakery reference.
+    assert result.coordinates_path.read_bytes() == ref_gro.read_bytes()
+    # Topology: section counts match and the [ bonds ] section is line-identical
+    # (the physical bonds, including ester linkages, are the same). The
+    # compare_topology_files cross_bonds *set* can differ by atom-ID
+    # bookkeeping while the [ bonds ] section is identical, so we assert on
+    # the real section identity + counts.
+    parity = compare_topology_files(str(ref_top), str(result.topology_path))
+    for section in ("atoms", "bonds", "angles", "dihedrals", "pairs"):
+        assert parity[section], f"{section} section keys differ: {parity}"
+    assert _section_lines(ref_top, "bonds") == _section_lines(result.topology_path, "bonds"), (
+        "[ bonds ] section lines differ"
+    )
+    assert len(_section_lines(ref_top, "angles")) == len(
+        _section_lines(result.topology_path, "angles")
+    )
+    assert len(_section_lines(ref_top, "dihedrals")) == len(
+        _section_lines(result.topology_path, "dihedrals")
+    )

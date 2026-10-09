@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
+
+import pytest
 
 from backmap_prep.builder import (
     AngleTypeInfo,
@@ -16,8 +19,13 @@ from backmap_prep.builder import (
     PairTypeInfo,
     System,
 )
-from backmap_prep.schema import Settings
-from backmap_prep.writers import write_lammps_data, write_lammps_input
+from backmap_prep.schema import Settings, SimulationParams
+from backmap_prep.writers import (
+    bead_velocities,
+    read_input_with_includes,
+    write_lammps_data,
+    write_lammps_input,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -57,7 +65,8 @@ def _make_system() -> System:
     )
 
 
-def _make_settings() -> Settings:
+def _make_settings(protocol: str = "standard") -> Settings:
+    """Settings for the writer tests; most exercise the standard protocol."""
     return Settings(
         molecules=[
             {
@@ -67,6 +76,7 @@ def _make_settings() -> Settings:
             }
         ],
         cg_system={"coordinates": "c.gro", "topology": "c.top"},
+        simulation={"protocol": protocol},
     )
 
 
@@ -81,7 +91,7 @@ class TestWriteLammpsData:
         system = _make_system()
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "3 atoms" in content
         assert "1 bonds" in content
         assert "1 angles" in content
@@ -94,7 +104,7 @@ class TestWriteLammpsData:
         system = _make_system()
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "0.0 50.000000 xlo xhi" in content
         assert "0.0 50.000000 ylo yhi" in content
         assert "0.0 50.000000 zlo zhi" in content
@@ -103,17 +113,26 @@ class TestWriteLammpsData:
         system = _make_system()
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "Masses" in content
         assert "72.000000" in content
         assert "14.000000" in content
         assert "(CG)" in content
 
+    def test_charges_keep_topology_precision(self, tmp_path: Path) -> None:
+        # bakery/OPLS charges carry ~12 digits; rounding to 6 decimals left
+        # RIM135 with a net charge of -0.0027 e and Coul-14 off by 0.12 kJ/mol.
+        system = _make_system()
+        system.atoms[2].charge = 0.538254177778
+        p = tmp_path / "test.data"
+        write_lammps_data(system, p)
+        assert " 0.5382541778 " in p.read_text()
+
     def test_atoms_section(self, tmp_path: Path) -> None:
         system = _make_system()
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "Atoms # full" in content
         in_atoms = False
         atom_lines = []
@@ -133,7 +152,7 @@ class TestWriteLammpsData:
         system = _make_system()
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "Bonds" in content
         assert "1 1 2 3" in content
 
@@ -141,7 +160,7 @@ class TestWriteLammpsData:
         system = _make_system()
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "Angles" in content
         assert "1 1 1 2 3" in content
 
@@ -153,8 +172,8 @@ class TestWriteLammpsData:
         system.atoms[0].iz = 0
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
-        assert "1 1 1 0.000000 1.000000 2.000000 3.000000 0 0 0" in content
+        content = read_input_with_includes(p)
+        assert "1 1 1 0 1.000000 2.000000 3.000000 0 0 0" in content
 
     def test_coordinates_wrapped_into_box(self, tmp_path: Path) -> None:
         system = _make_system()
@@ -168,7 +187,7 @@ class TestWriteLammpsData:
         system.angles = []
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         lines = [
             ln
             for ln in content.split("\n")
@@ -184,7 +203,7 @@ class TestWriteLammpsData:
         system.bonds = []
         p = tmp_path / "test.data"
         write_lammps_data(system, p)
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "0 bonds" in content
         assert "\nBonds\n" not in content
 
@@ -202,7 +221,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "units real" in content
         assert "atom_style full" in content
         assert "boundary p p p" in content
@@ -212,7 +231,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "mydata.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "read_data mydata.data" in content
 
     def test_linear_cross_system_skips_reset_atoms(self, tmp_path: Path) -> None:
@@ -221,7 +240,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "reset_atoms image all" not in content
 
     def test_network_system_includes_reset_atoms(self, tmp_path: Path) -> None:
@@ -230,7 +249,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "reset_atoms image all" in content
 
     def test_pair_style(self, tmp_path: Path) -> None:
@@ -238,7 +257,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "pair_style backmap" in content
         assert "pair_coeff 1 1 cg" in content
         assert "pair_coeff 1 2 none" in content
@@ -249,7 +268,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "fix bm all backmap" in content
         assert "cg_type 1" in content
 
@@ -259,7 +278,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         integrate_pos = content.find("fix integrate")
         backmap_pos = content.find("fix bm all backmap")
         assert integrate_pos < backmap_pos, "fix integrate must come before fix backmap"
@@ -271,7 +290,7 @@ class TestWriteLammpsInput:
         settings.simulation.thermostat_tdamp = 0.1
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "fix integrate at_atoms nvt temp" in content
         assert "fix thermo at_atoms langevin" not in content
 
@@ -283,7 +302,7 @@ class TestWriteLammpsInput:
         settings.simulation.pressure = 1.0
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "fix integrate at_atoms npt temp" in content
         assert "iso" in content
 
@@ -293,7 +312,7 @@ class TestWriteLammpsInput:
         settings.simulation.thermostat = "langevin"
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "fix integrate at_atoms nve" in content
         assert "fix thermo at_atoms langevin" in content
 
@@ -304,7 +323,7 @@ class TestWriteLammpsInput:
         settings.simulation.rng_seed = 48279
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "velocity all create 298.0 48279 dist gaussian mom yes rot yes" in content
 
     def test_cap_force_fix_when_set(self, tmp_path: Path) -> None:
@@ -313,8 +332,8 @@ class TestWriteLammpsInput:
         settings.simulation.cap_force = 50000.0
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
-        assert "fix cap all backmap/capforce 1195.0300" in content
+        content = read_input_with_includes(p)
+        assert "fix cap all backmap/capforce 1195.0287" in content
 
     def test_cap_force_ramp_when_set(self, tmp_path: Path) -> None:
         system = _make_system()
@@ -323,8 +342,8 @@ class TestWriteLammpsInput:
         settings.simulation.cap_force_ramp = 10.0
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
-        assert "fix cap all backmap/capforce 1195.0300 ramp 0.239006" in content
+        content = read_input_with_includes(p)
+        assert "fix cap all backmap/capforce 1195.0287 ramp 0.2390057361" in content
 
     def test_langevin_damp_from_thermostat_gamma(self, tmp_path: Path) -> None:
         system = _make_system()
@@ -332,7 +351,7 @@ class TestWriteLammpsInput:
         settings.simulation.thermostat_gamma = 15.0
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         langevin_line = next(
             (line for line in content.splitlines() if "fix thermo at_atoms langevin" in line),
             "",
@@ -360,7 +379,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "cg_type 1 2 " in content
 
     def test_default_backmap_without_cg_equil(self, tmp_path: Path) -> None:
@@ -368,7 +387,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "# Backmapping: λ 0 → 1" in content
         assert "write_data test_hybrid.data" in content
         assert "# AT production" not in content
@@ -382,7 +401,7 @@ class TestWriteLammpsInput:
         settings.simulation.production_steps = 10000
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "Phase 1" in content
         assert "Phase 2" in content
         assert "Phase 3" in content
@@ -394,7 +413,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "special_bonds lj 0.0 0.0 0.0 coul 0.0 0.0 0.0" in content
 
     def test_fix_backmap_no_apb_when_uniform(self, tmp_path: Path) -> None:
@@ -404,7 +423,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "fix bm all backmap" in content
         assert " apb " not in content
 
@@ -429,7 +448,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert " apb 1:7 2:6" in content
 
     def test_hybrid_bond_style(self, tmp_path: Path) -> None:
@@ -438,7 +457,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "bond_style hybrid" in content
 
     def test_hybrid_angle_style_with_table(self, tmp_path: Path) -> None:
@@ -457,7 +476,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "angle_style hybrid backmap/harmonic backmap/table linear 1000" in content
         assert "angle_coeff 2 backmap/table cg table_a1.table ENTRY" in content
 
@@ -477,7 +496,7 @@ class TestWriteLammpsInput:
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "dihedral_style hybrid ryckaert backmap/ryckaert" in content
         assert "dihedral_coeff 1 ryckaert" in content
         assert "dihedral_coeff 2 backmap/ryckaert at" in content
@@ -488,12 +507,13 @@ class TestWriteLammpsInput:
             DihedralTypeInfo(1, "harmonic", "", [10.0, 1.0, 2.0]),
             DihedralTypeInfo(2, "backmap/harmonic", "at", [20.0, -1.0, 3.0]),
         ]
+        system.atoms.append(LammpsAtom(4, 1, 2, 0.0, 3.0, 1.0, 0.0))
         system.dihedrals = [LammpsDihedral(1, 2, 1, 2, 3, 4)]
         system.has_cross_dihedrals = True
         settings = _make_settings()
         p = tmp_path / "in.test"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "dihedral_style hybrid harmonic backmap/harmonic" in content
         assert "dihedral_coeff 2 backmap/harmonic at" in content
 
@@ -510,7 +530,7 @@ class TestRestartGeneration:
         settings = _make_settings()
         p = tmp_path / "in.backmap"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "write_restart" not in content
         assert "restart " not in content
         assert "write_data test_hybrid.data" in content
@@ -521,7 +541,7 @@ class TestRestartGeneration:
         settings = self._make_restart_settings()
         p = tmp_path / "in.backmap"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "restart 5000 restart.backmap restart.backmap2" in content
         assert "write_restart restart.backmap" in content
 
@@ -530,7 +550,7 @@ class TestRestartGeneration:
         settings = self._make_restart_settings()
         p = tmp_path / "in.backmap"
         write_lammps_input(system, settings, p, "test.data")
-        content = p.read_text()
+        content = read_input_with_includes(p)
         assert "phase_1.done" in content
         assert "phase_2.done" in content
         assert "phase_3.done" not in content
@@ -595,3 +615,73 @@ class TestRestartGeneration:
         assert not (tmp_path / "in.backmap.phase1").exists()
         assert not (tmp_path / "in.backmap.phase2").exists()
         assert not (tmp_path / "in.backmap.phase3").exists()
+
+
+class TestBakeryProtocol:
+    """Optional bakery/ESPResSo++ protocol (not the default since 2026-09-27)."""
+
+    def _input(self, tmp_path: Path, **sim: object) -> str:
+        settings = _make_settings("bakery")
+        for key, value in sim.items():
+            setattr(settings.simulation, key, value)
+        path = tmp_path / "in.test"
+        write_lammps_input(_make_system(), settings, path, "test.data")
+        return read_input_with_includes(path)
+
+    def test_robust_is_the_default(self) -> None:
+        # single protocol for every example: decisions/2026-09-27-single-protocol-robust
+        assert SimulationParams().protocol == "robust"
+
+    def test_energy_capped_at_lj_and_live_cg(self, tmp_path: Path) -> None:
+        text = self._input(tmp_path, lj_cap_factor=0.5)
+        assert "lj/cut/coul/cut/ecap" in text
+        assert re.search(r"lj/cut/coul/cut/ecap \S+ \S+ 0\.5 ", text)
+        # CG beads: no integrator, no thermostat, never frozen
+        assert "fix integrate_at at_atoms nve" in text
+        assert "fix therm_at at_atoms langevin" in text
+        assert "cg_atoms nve" not in text
+        assert "setforce" not in text
+        assert "nve/limit" not in text
+        assert "minimize" not in text
+
+    def test_stages_and_ramp_length(self, tmp_path: Path) -> None:
+        text = self._input(tmp_path, alpha=0.0001, equilibration_steps=2000, production_steps=5000)
+        runs = re.findall(r"^run (\d+)$", text, re.MULTILINE)
+        assert runs == ["2000", "10000", "5000"]
+        assert text.index("fix_modify bm active no") < text.index("fix_modify bm active yes")
+        assert "write_data test_hybrid.data" in text
+
+    def test_capforce_and_coulomb_cap_optional(self, tmp_path: Path) -> None:
+        text = self._input(tmp_path, cap_force=1000.0, coul_cap_radius=0.5)
+        assert "fix cap all backmap/capforce" in text
+        assert re.search(r"lj/cut/coul/cut/ecap \S+ \S+ 0\.5 5 ", text)
+
+
+def test_bead_velocities_shared_within_a_bead() -> None:
+    system = _make_system()  # one molecule: CG bead 1 + atoms 2, 3
+    vel = bead_velocities(system, 300.0, 7)
+    assert vel[1] == vel[2] == vel[3]  # a single bead: shared, then momentum removed
+    assert sum(abs(c) for c in vel[1]) == pytest.approx(0.0, abs=1e-12)
+    two = _make_system()
+    two.atoms[2].mol_id = 2
+    two.atoms.append(LammpsAtom(4, 2, 1, 0.0, 1.0, 1.0, 1.0, "CG1", True))
+    vel2 = bead_velocities(two, 300.0, 7)
+    assert vel2[1] == vel2[2]
+    assert vel2[3] == vel2[4]
+    masses = {1: 72.0, 2: 14.0}
+    p = [sum(masses[a.type_id] * vel2[a.atom_id][k] for a in two.atoms) for k in range(3)]
+    assert p == pytest.approx([0.0, 0.0, 0.0], abs=1e-12)
+
+
+def test_robust_capforce_active_until_production(tmp_path: Path) -> None:
+    """Single protocol: CapForce from phase 0 through staged NVT, released before production."""
+    settings = _make_settings("robust")
+    settings.simulation.cap_force = 50000.0
+    settings.simulation.production_steps = 1000
+    path = tmp_path / "in.test"
+    write_lammps_input(_make_system(), settings, path, "test.data")
+    text = read_input_with_includes(path)
+    cap = text.index("fix cap all backmap/capforce")
+    assert cap < text.index("minimize")
+    release = text.index("unfix cap")
+    assert text.index("write_data test_hybrid.data") < release < text.index("# Production")

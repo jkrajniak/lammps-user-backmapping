@@ -51,7 +51,11 @@ AngleBackmapTable::AngleBackmapTable(LAMMPS *lmp)
       tables(nullptr),
       tabindex(nullptr),
       is_cg(nullptr),
-      fix_backmap(nullptr) {}
+      fix_backmap(nullptr) {
+  // Table coefficients name an external file; they cannot round-trip
+  // through write_data, so leave the section out (as bond_style table does).
+  writedata = 0;
+}
 
 /* ---------------------------------------------------------------------- */
 
@@ -369,7 +373,10 @@ void AngleBackmapTable::read_table(Table *tb, const char *file,
     values.next_int();
     tb->rfile[i] = values.next_double();
     tb->efile[i] = values.next_double();
-    tb->ffile[i] = values.next_double();
+    // The file gives -dE/dtheta per degree (angle_style table format); the
+    // force expression in compute() needs it per radian, as angle_style
+    // table converts it.
+    tb->ffile[i] = values.next_double() * RAD2DEG;
   }
 
   tb->lo = tb->rfile[0];

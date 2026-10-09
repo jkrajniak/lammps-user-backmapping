@@ -338,3 +338,13 @@ void DihedralBackmapHarmonic::read_restart(FILE *fp) {
     }
   }
 }
+
+/* ---------------------------------------------------------------------- */
+
+/* proc 0 writes to data file, one line per type in coeff() argument order */
+
+void DihedralBackmapHarmonic::write_data(FILE *fp) {
+  for (int i = 1; i <= atom->ndihedraltypes; i++)
+    fprintf(fp, "%d %s %.15g %d %d\n", i, is_cg[i] ? "cg" : "at", k[i], sign[i],
+            multiplicity[i]);
+}

@@ -3,6 +3,10 @@
 # CG interactions: tabulated bonds
 # AT interactions: OPLS/AA
 
+prep:
+  # OPLS-AA force field included by topol_aa.top
+  forcefield_dir: ../epoxy/forcefield
+
 molecules:
 - name: MF
   ident: MF
@@ -198,15 +202,17 @@ cross_interactions:
       - MF:N23
       - MF:H11
 simulation:
+  protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
   alpha: 0.0001
+  cap_force: 50000.0  # kJ/mol/nm = 1195 kcal/mol/A, released before production
   initial_resolution: 0.0
   timestep: 0.001
   timestep_backmapping: 0.001
-  equilibration_steps: 10000
+  equilibration_steps: 5000
   production_steps: 10000
   temperature: 300.0
   thermostat: langevin
-  thermostat_gamma: 30.0
+  thermostat_gamma: 15
   thermostat_target: atomistic
   lj_cutoff: 1.4
   cg_cutoff: 1.4

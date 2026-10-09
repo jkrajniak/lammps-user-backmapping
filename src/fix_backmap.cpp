@@ -27,6 +27,7 @@
 #include <cmath>
 #include <cstring>
 #include <map>
+#include <unordered_map>
 
 #include "atom.h"
 #include "comm.h"
@@ -41,7 +42,9 @@
 using namespace LAMMPS_NS;
 using namespace FixConst;
 
-static const std::set<std::string> KNOWN_KEYWORDS = {"alpha", "lambda0", "apb"};
+static const std::set<std::string> KNOWN_KEYWORDS = {"alpha", "lambda0", "apb",
+                                                     "peratom"};
+static constexpr int NCOLS_FULL = 7;
 
 /* ---------------------------------------------------------------------- */
 
@@ -52,6 +55,8 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
       ramp_active(0),
       lambda_display(nullptr),
       lambda_global(0.0),
+      peratom_full(0),
+      peratom_array(nullptr),
       maxatom(0),
       atom2cg(nullptr),
       com_buf(nullptr),
@@ -129,6 +134,16 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
       if (apb_map_.empty())
         error->all(FLERR,
                    "fix backmap apb requires at least one type:count pair");
+    } else if (strcmp(arg[iarg], "peratom") == 0) {
+      if (iarg + 1 >= narg)
+        utils::missing_cmd_args(FLERR, "fix backmap peratom", error);
+      if (strcmp(arg[iarg + 1], "full") == 0)
+        peratom_full = 1;
+      else if (strcmp(arg[iarg + 1], "lambda") == 0)
+        peratom_full = 0;
+      else
+        error->all(FLERR, "fix backmap peratom must be 'lambda' or 'full'");
+      iarg += 2;
     } else {
       error->all(FLERR, "Illegal fix backmap argument: {}", arg[iarg]);
     }
@@ -148,6 +163,15 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
     cg_denom[i] = 0.0;
   }
   vector_atom = lambda_display;
+  if (peratom_full) {
+    size_peratom_cols = NCOLS_FULL;
+    memory->create(peratom_array, maxatom, NCOLS_FULL, "backmap:peratom_array");
+    for (int i = 0; i < maxatom; i++) {
+      peratom_array[i][0] = lambda0;
+      for (int k = 1; k < NCOLS_FULL; k++) peratom_array[i][k] = 0.0;
+    }
+    array_atom = peratom_array;
+  }
 
   atom->add_callback(Atom::GROW);
 
@@ -165,6 +189,7 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
 FixBackmap::~FixBackmap() {
   atom->delete_callback(id, Atom::GROW);
   memory->destroy(lambda_display);
+  memory->destroy(peratom_array);
   memory->destroy(atom2cg);
   memory->destroy(com_buf);
   memory->destroy(cg_denom);
@@ -175,8 +200,12 @@ FixBackmap::~FixBackmap() {
 
 int FixBackmap::setmask() {
   int mask = 0;
-  mask |= INITIAL_INTEGRATE;
+  mask |= POST_INTEGRATE;
   mask |= PRE_FORCE;
+  // The bead map must also be current during minimization: Min::setup()
+  // reaches setup_pre_force() only for MIN_PRE_FORCE fixes, and the map
+  // must be rebuilt after each reneighbor there as well.
+  mask |= MIN_PRE_FORCE;
   mask |= POST_FORCE;
   mask |= END_OF_STEP;
   return mask;
@@ -190,7 +219,7 @@ void FixBackmap::init() {
 
 /* ---------------------------------------------------------------------- */
 
-void FixBackmap::setup(int /*vflag*/) {
+void FixBackmap::setup(int vflag) {
   comm->forward_comm(this);
 
   build_bead_map();
@@ -210,18 +239,27 @@ void FixBackmap::setup(int /*vflag*/) {
 
   // CG position update deferred to the first timestep to avoid
   // moving atoms outside communication range during setup.
+
+  // Setup runs after the initial force evaluation of every run (and of
+  // run 0): distribute the CG forces to the AT atoms now, as every step does,
+  // or the first velocity half-kick would miss them.
+  post_force(vflag);
 }
 
 /* ---------------------------------------------------------------------- */
 
-void FixBackmap::initial_integrate(int /*vflag*/) {
+void FixBackmap::post_integrate() {
+  // Runs after every fix's initial_integrate(), so the AT positions of this
+  // step are final whatever the order of the fixes (it used to be
+  // initial_integrate(), which lagged the COM by one step when fix backmap
+  // was defined before the integrator).
   // CG–AT kinematic coupling always runs.  fix_modify active yes/no only
   // controls the lambda ramp in end_of_step (matches E++ DynamicResolution
   // vs VelocityVerletHybrid and AdResS virtual-site semantics).
 
   // Rebuild bead map if empty (e.g., after unfix/fix or at start of
   // a new run).  setup() builds it once, but subsequent runs need
-  // to rebuild before initial_integrate uses it.
+  // to rebuild before post_integrate uses it.
   if (bead_map.empty()) build_bead_map();
 
   double **x = atom->x;
@@ -294,6 +332,10 @@ void FixBackmap::pre_force(int /*vflag*/) {
 
 /* ---------------------------------------------------------------------- */
 
+void FixBackmap::min_pre_force(int vflag) { pre_force(vflag); }
+
+/* ---------------------------------------------------------------------- */
+
 void FixBackmap::setup_pre_force(int vflag) {
   // Verlet::setup() calls modify->setup_pre_force() BEFORE the initial
   // bond/angle/pair force evaluation, but modify->setup() -- where
@@ -321,11 +363,25 @@ void FixBackmap::post_force(int /*vflag*/) {
   comm->forward_comm(this);
 
   double **f = atom->f;
+  double **x = atom->x;
   double *mass = atom->mass;
   int *type = atom->type;
   int nlocal = atom->nlocal;
   int nghost = atom->nghost;
   int ntotal = nlocal + nghost;
+
+  if (peratom_full) {
+    for (int i = 0; i < nlocal; i++) {
+      peratom_array[i][0] = lambda_global;
+      for (int k = 1; k < NCOLS_FULL; k++) peratom_array[i][k] = 0.0;
+      if (is_cg_type(type[i])) {
+        for (int d = 0; d < 3; d++) {
+          peratom_array[i][1 + d] = x[i][d];
+          peratom_array[i][4 + d] = f[i][d];
+        }
+      }
+    }
+  }
 
   // Distribute CG force to each LOCAL AT atom. All additions target local
   // atoms, so no reverse_comm is needed.
@@ -352,6 +408,12 @@ void FixBackmap::post_force(int /*vflag*/) {
     f[i][0] += ratio * fx_cg;
     f[i][1] += ratio * fy_cg;
     f[i][2] += ratio * fz_cg;
+    if (peratom_full) {
+      for (int d = 0; d < 3; d++) peratom_array[i][1 + d] = x[cg][d];
+      peratom_array[i][4] = ratio * fx_cg;
+      peratom_array[i][5] = ratio * fy_cg;
+      peratom_array[i][6] = ratio * fz_cg;
+    }
   }
 
   // Zero CG forces on local CG beads after distribution.
@@ -374,6 +436,8 @@ void FixBackmap::end_of_step() {
   // lambda_global.
   int nlocal = atom->nlocal;
   for (int i = 0; i < nlocal; i++) lambda_display[i] = lambda_global;
+  if (peratom_full)
+    for (int i = 0; i < nlocal; i++) peratom_array[i][0] = lambda_global;
 
   comm->forward_comm(this);
 }
@@ -414,6 +478,8 @@ void FixBackmap::grow_arrays(int nmax) {
   int old_maxatom = maxatom;
   maxatom = nmax;
   memory->grow(lambda_display, maxatom, "backmap:lambda_display");
+  if (peratom_full)
+    memory->grow(peratom_array, maxatom, NCOLS_FULL, "backmap:peratom_array");
   memory->grow(atom2cg, maxatom, "backmap:atom2cg");
   memory->grow(com_buf, maxatom * 4, "backmap:com_buf");
   memory->grow(cg_denom, maxatom, "backmap:cg_denom");
@@ -422,8 +488,13 @@ void FixBackmap::grow_arrays(int nmax) {
     lambda_display[i] = lambda_global;
     atom2cg[i] = -1;
     cg_denom[i] = 0.0;
+    if (peratom_full) {
+      peratom_array[i][0] = lambda_global;
+      for (int k = 1; k < NCOLS_FULL; k++) peratom_array[i][k] = 0.0;
+    }
   }
   vector_atom = lambda_display;
+  if (peratom_full) array_atom = peratom_array;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -431,6 +502,9 @@ void FixBackmap::grow_arrays(int nmax) {
 void FixBackmap::copy_arrays(int i, int j, int /*delflag*/) {
   lambda_display[j] = lambda_display[i];
   atom2cg[j] = atom2cg[i];
+  if (peratom_full)
+    for (int k = 0; k < NCOLS_FULL; k++)
+      peratom_array[j][k] = peratom_array[i][k];
 }
 
 /* ---------------------------------------------------------------------- */
@@ -439,14 +513,24 @@ int FixBackmap::pack_forward_comm(int n, int *list, double *buf,
                                   int /*pbc_flag*/, int * /*pbc*/) {
   double **f = atom->f;
   int *type = atom->type;
+  int nlocal = atom->nlocal;
   int m = 0;
   for (int k = 0; k < n; k++) {
     int i = list[k];
-    if (is_cg_type(type[i])) {
+    if (is_cg_type(type[i]) && i < nlocal) {
       buf[m++] = f[i][0];
       buf[m++] = f[i][1];
       buf[m++] = f[i][2];
       buf[m++] = cg_denom[i];
+    } else if (is_cg_type(type[i])) {
+      // A ghost forwarded again (multi-dimensional or tiled decomposition,
+      // periodic images): send what it received, not its own partial force
+      // and zero mass sum.
+      const double *p = &cg_fwd[i * 4];
+      buf[m++] = p[0];
+      buf[m++] = p[1];
+      buf[m++] = p[2];
+      buf[m++] = p[3];
     } else {
       buf[m++] = 0.0;
       buf[m++] = 0.0;
@@ -500,8 +584,8 @@ void FixBackmap::unpack_reverse_comm(int n, int *list, double *buf) {
 
 double FixBackmap::memory_usage() {
   return static_cast<double>(maxatom) *
-         (2 * sizeof(double) + sizeof(int) + 4 * sizeof(double) +
-          4 * sizeof(double));
+         ((2 + (peratom_full ? NCOLS_FULL : 0)) * sizeof(double) + sizeof(int) +
+          4 * sizeof(double) + 4 * sizeof(double));
 }
 
 /* ---------------------------------------------------------------------- */
@@ -551,6 +635,10 @@ void FixBackmap::build_bead_map() {
   };
 
   std::map<tagint, MolInfo> mol_atoms;
+  // AT tag -> index of its bead (the image chosen below), so that every
+  // local and ghost copy of an AT atom, including all periodic images, can
+  // be given the same bead index (see the pass after the molecule loop).
+  std::unordered_map<tagint, int> bead_of_tag;
 
   for (int i = 0; i < ntotal; i++) {
     tagint mol_id = molecule[i];
@@ -635,6 +723,7 @@ void FixBackmap::build_bead_map() {
       for (int ai = at_offset; ai < at_offset + apb; ai++) {
         int at_idx = at_atoms[ai].local_idx;
         atom2cg[at_idx] = cg_idx;
+        bead_of_tag[at_atoms[ai].gtag] = cg_idx;
       }
 
       // bead_map entry kept for setup logging + validate_masses (local CG
@@ -657,6 +746,18 @@ void FixBackmap::build_bead_map() {
 
       at_offset += apb;
     }
+  }
+
+  // Every other copy of an AT atom (a ghost of a local atom, or another
+  // periodic image) gets the bead of its representative. The bonded and pair
+  // styles decide same-bead membership from atom2cg of the indices in their
+  // lists, which are often such images for terms that cross a periodic or
+  // processor boundary; left at -1, an intra-bead term would be weighted as
+  // inter-bead (lambda instead of 1).
+  for (int i = 0; i < ntotal; i++) {
+    if (atom2cg[i] >= 0 || is_cg_type(type[i]) || molecule[i] <= 0) continue;
+    auto it = bead_of_tag.find(tag[i]);
+    if (it != bead_of_tag.end()) atom2cg[i] = it->second;
   }
 
   // Warn if any local AT atom has no resolvable CG partner on this rank,
