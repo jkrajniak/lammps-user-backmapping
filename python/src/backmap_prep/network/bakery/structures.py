@@ -259,6 +259,12 @@ def _get_params(input_dict, key_list, raise_exception=True):
     return param
 
 
+# Atoms of neighboring fragments closer than this in the source molecule are bonded (nm).
+COVALENT_BOND_CUTOFF = 0.19
+# Gauss-Seidel sweeps that refine the fragment orientations against the bonds between fragments.
+ORIENTATION_SWEEPS = 4
+
+
 def rotation_aligning(template_vectors, target_vectors):
     """Proper rotation taking the template bond vectors onto the target ones.
 
@@ -697,11 +703,14 @@ class BackmapperSettings2:
                         transfer_to_map[tt_to_on] = tt_to
 
     def _fragment_rotations(self, selected_fragment, cg_nodes):
-        """Rotation of every fragment of one residue, from its bonded CG neighbors.
+        """Rotation of every fragment of one residue.
 
-        The template bond vector between two bead centers (fragment centers of mass in the
-        source molecule) is compared with the one between the CG beads; fragments cut from
-        different source chains are not compared.
+        The first estimate aligns the template vectors between fragment centers of mass
+        (source molecule) with the vectors between the bonded CG beads. It is then refined
+        with the covalent bonds that join fragments: an atom bonded to a neighbor fragment
+        should lie where the rigidly rotated neighbor puts it, which fixes the relative
+        orientation of the fragments (and the handedness of stereocenters that span them).
+        Fragments cut from different source chains are not compared.
         """
         box = np.array(self.cg_coordinate.box, dtype=float)
         members = set(cg_nodes)
@@ -711,26 +720,49 @@ class BackmapperSettings2:
             frags = self.fragments[selected_fragment][bead["name"]]
             return frags.get(str(bead["degree"]), frags.get("*"))
 
-        rotations = {}
+        centers = {}
+        links = {cg_id: [] for cg_id in cg_nodes}  # (neighbor, shift, d_cg, bonded atoms)
         for cg_id in cg_nodes:
             frag = fragment_of(cg_id)
-            templates, targets = [], []
+            centers[cg_id] = np.array(self.cg_coordinate.atoms[cg_id].position, dtype=float)
             for nb in self.cg_graph.neighbors(cg_id):
                 if nb == cg_id or nb not in members:
                     continue
                 nb_frag = fragment_of(nb)
                 if frag.source_chain != nb_frag.source_chain:
                     continue
-                d_cg = np.array(self.cg_coordinate.atoms[nb].position) - np.array(
-                    self.cg_coordinate.atoms[cg_id].position
-                )
+                d_cg = np.array(self.cg_coordinate.atoms[nb].position, dtype=float) - centers[cg_id]
                 d_cg -= box * np.round(d_cg / box)
-                d_at = np.array(nb_frag.com) - np.array(frag.com)
-                if np.linalg.norm(d_cg) < 1e-8 or np.linalg.norm(d_at) < 1e-8:
+                shift = np.array(nb_frag.com) - np.array(frag.com)
+                if np.linalg.norm(d_cg) < 1e-8 or np.linalg.norm(shift) < 1e-8:
                     continue
-                templates.append(d_at)
-                targets.append(d_cg)
-            rotations[cg_id] = rotation_aligning(templates, targets)
+                bonded = [
+                    np.array(a.position)
+                    for a in frag.atom_in_fragments
+                    for b in nb_frag.atom_in_fragments
+                    if np.linalg.norm(np.array(a.position) - np.array(b.position) - shift)
+                    < COVALENT_BOND_CUTOFF
+                ]
+                links[cg_id].append((nb, shift, d_cg, bonded))
+
+        rotations = {
+            cg_id: rotation_aligning(
+                [shift for _, shift, _, _ in links[cg_id]],
+                [d_cg for _, _, d_cg, _ in links[cg_id]],
+            )
+            for cg_id in cg_nodes
+        }
+        for _ in range(ORIENTATION_SWEEPS):
+            for cg_id in cg_nodes:
+                templates = [shift for _, shift, _, _ in links[cg_id]]
+                targets = [d_cg for _, _, d_cg, _ in links[cg_id]]
+                for nb, shift, d_cg, bonded in links[cg_id]:
+                    for rel in bonded:
+                        site = d_cg + rotations[nb] @ (rel - shift)
+                        if np.linalg.norm(site) > 1e-8 and np.linalg.norm(rel) > 1e-8:
+                            templates.append(rel)
+                            targets.append(site)
+                rotations[cg_id] = rotation_aligning(templates, targets)
         return rotations
 
     def prepare_hybrid(self):
