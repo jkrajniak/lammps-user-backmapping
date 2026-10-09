@@ -7,8 +7,16 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-09
+
 ### Added
 
+- **Review scripts for scaling, ramp length and network checks** (`scripts/review/`): MPI strong
+  scaling of a lambda-ramp block (`b2_scaling.sh`, `b2_summary.py`, `b2_figure.py`), metrics of the
+  ramp-time sweep (`b5_metrics.py`), the energy and temperature figure through the ramp
+  (`ramp_energy_figure.py`), the melamine topology comparison figure
+  (`melamine_topology_figure.py`), and the network RDF check against GROMACS
+  (`validate_network_rdf_vs_gmx.py`, `--plain` for pairs without exclusions).
 - **Resumable long runs for spot or preemptible machines.** The Tier C continuation protocols
   (`examples/common/in.at_reference_protocol` and the dodecane, pe4 and pe_aa `in.<example>_at`) run
   every stage to an absolute end step, write alternating restart files every `ckpt` steps and name the
