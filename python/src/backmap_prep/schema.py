@@ -353,6 +353,16 @@ class PrepConfig(BaseModel):
         description="Directory for OPLS/forcefield .itp includes (or set GMXDATA)",
     )
     allow_no_bonds: bool = False
+    fragment_orientation: Literal["translate", "align"] = Field(
+        default="translate",
+        description=(
+            "How atomistic fragments are oriented on the CG beads. 'translate' keeps the "
+            "orientation of the source molecule (bakery behavior). 'align' rotates each "
+            "fragment so that its template bond vectors to the bonded CG neighbors match "
+            "the CG configuration, which fixes the relative orientation of fragments "
+            "(handedness of stereocenters that span beads)."
+        ),
+    )
     chain_rng_seed: int | None = Field(
         default=None,
         description="RNG seed for random chain selection in multi-chain AT sources",

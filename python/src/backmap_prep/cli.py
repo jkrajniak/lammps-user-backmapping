@@ -414,6 +414,7 @@ def _cmd_build_hybrid(args: argparse.Namespace) -> int:
                 base_dir=xml_path.parent,
                 allow_no_bonds=allow_no_bonds,
                 chain_rng_seed=chain_rng_seed,
+                fragment_orientation=settings.prep.fragment_orientation,
             )
         else:
             result = build_hybrid_gromacs(
