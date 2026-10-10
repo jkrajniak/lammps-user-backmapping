@@ -95,6 +95,7 @@ ignore_missing_imports = true
 module = [
     "backmap_prep.network.*",
     "backmap_prep.builder",
+    "backmap_prep.stereo",
     "backmap_prep.parsers.top_parser",
 ]
 ignore_errors = true

@@ -47,6 +47,32 @@ Use `align` when a stereocenter, a ring, or a double bond has atoms in two beads
 are self-contained, `translate` gives the same structure after the ramp and keeps the output
 identical to earlier releases, which is why it is the default.
 
+## Keeping the handedness during the ramp: `simulation.stereo_restraint`
+
+Placement is not enough. In the MARTINI POPC bilayer the fragments are placed with the right
+handedness at the glycerol carbon, but a few percent of the lipids invert at the start of the ramp,
+when the bonds between fragments switch on from a nearly flat arrangement, and the atomistic force
+field has no term that brings them back. `simulation.stereo_restraint` (kJ/mol, robust protocol)
+restrains every stereocenter of the atomistic part at the handedness it has in the hybrid
+structure, from the start of the backmapping until the hybrid structure is written:
+
+```yaml
+simulation:
+  protocol: robust
+  stereo_restraint: 83.68   # kJ/mol (20 kcal/mol)
+```
+
+A stereocenter is an atom with four bonded atomistic neighbors that are all inequivalent (equal
+atom type and equal environment count as equivalent). It is restrained on the improper dihedral of
+three of its neighbors with the ideal tetrahedral value (35.26 degrees) and the sign of its
+handedness in the hybrid structure. The input script includes `stereo.lmp` before the first
+minimization and `stereo_release.lmp` after `<prefix>_hybrid.data` is written.
+
+The restraint is soft on purpose. In the POPC bilayer (128 lipids) it reduces the inverted
+centers at the end of the hybrid stage from 17 (`align` alone) to 6; a stiff restraint (about
+800 kJ/mol) holds all 128 but strains the center and destabilizes the 1 fs stage, and a restraint
+that decays over the stages releases the same lipids when it drops. It is off by default.
+
 ## Limits
 
 - Handedness is taken from the **source molecule**; the CG model carries no chirality, so a

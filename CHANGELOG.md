@@ -9,6 +9,9 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`simulation.stereo_restraint`** (robust protocol, off by default): restrains the handedness of
+  stereocenters of the atomistic part, detected from the topology, from the start of the
+  backmapping until the hybrid structure is written. Writes `stereo.lmp` and `stereo_release.lmp`.
 - **`prep.fragment_orientation: align`** orients each atomistic fragment on its CG bead instead of
   only translating it: a rotation fitted to the bonded neighbors, refined with the bonds between
   fragments, and a check that keeps the handedness of stereocenters that span beads. The default

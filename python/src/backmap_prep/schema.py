@@ -469,6 +469,11 @@ class SimulationParams(BaseModel):
     # SHAKE the AT bonds to hydrogen (mass < 1.1) in the bakery protocol
     shake_hydrogens: bool = False
     cap_force_ramp: float | None = None
+    # robust protocol: restrain the handedness of stereocenters (kJ/mol, cosine form
+    # E = K (1 - cos(phi - phi0)) on the improper dihedral of the center) from the start of the
+    # backmapping until the hybrid structure is written. None = off. A soft value (about 80)
+    # keeps most centers; stiff values strain the center and can destabilize the 1 fs stage.
+    stereo_restraint: float | None = Field(default=None, gt=0.0)
     em_steps: int = 0
     em_gamma: float = 0.0001
     em_ftol: float = 10.0
