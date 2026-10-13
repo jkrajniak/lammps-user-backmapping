@@ -21,15 +21,9 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      eq_steps:
-        description: "Stage 1 (lambda=0 eq) steps"
-        default: "500"
-      ramp_steps:
-        description: "Stage 2 (lambda ramp) steps"
-        default: "500"
-      prod_steps:
-        description: "Stage 3 (lambda=1 production) steps"
-        default: "200"
+      scale:
+        description: "Divide every stage length of the generated protocol by this factor"
+        default: "10"
 
 env:
   LAMMPS_VERSION: stable_22Jul2025_update2
@@ -106,10 +100,14 @@ jobs:
       - name: Run PET/Dacron smoke test
         working-directory: examples/pet/large
         run: |
-          EQ="${{ github.event.inputs.eq_steps || '500' }}"
-          RAMP="${{ github.event.inputs.ramp_steps || '500' }}"
-          PROD="${{ github.event.inputs.prod_steps || '200' }}"
-          echo "Steps: eq=$EQ ramp=$RAMP prod=$PROD"
+          SCALE="${{ github.event.inputs.scale || '10' }}"
+          # The example input is the generated `robust` protocol with fixed stage
+          # lengths (about 60 000 steps, an hour on 2 ranks). The smoke test runs a
+          # copy with every stage 1/SCALE as long and alpha SCALE times larger, so the
+          # ramp still reaches lambda = 1; it prints the stage markers checked below.
+          python3 "${GITHUB_WORKSPACE}/scripts/ci/make_smoke_input.py" \
+            in.pet pet.backmap.lmp --scale "$SCALE" \
+            --out in.pet.smoke --out-backmap pet.backmap.smoke.lmp | tee smoke.meta
           # This network's large comm_modify cutoff (spans most of the box)
           # scales poorly with rank count -- see Section "Parallel
           # performance" in the paper. 2 ranks keeps this fast without
@@ -117,8 +115,7 @@ jobs:
           # a performance benchmark.
           mpirun -np 2 --oversubscribe \
             "${GITHUB_WORKSPACE}/lammps/build/lmp" \
-            -in in.pet -log smoke.log \
-            -var eq_steps "$EQ" -var ramp_steps "$RAMP" -var prod_steps "$PROD" \
+            -in in.pet.smoke -log smoke.log \
             2>&1 | tee smoke.out
 
       - name: Check for hard failures
@@ -148,20 +145,18 @@ jobs:
 
           # Same rough scale check used to distinguish "genuinely equilibrating"
           # from "detonating" in the 2026-07-27/28 debugging session: a
-          # healthy PET/dacron run keeps E_bond/E_angle in the thousands,
-          # not the hundreds-of-thousands-to-millions range. The protocol
-          # deliberately skips a Phase 0 minimize, so E_angle legitimately
-          # starts around 3.8e6 and relaxes over a roughly fixed number of
-          # steps (observed ~200-1500 in full-length runs) that does NOT
-          # scale down with a short smoke-test eq_steps -- so Stage 1 (eq)
-          # is excluded entirely rather than fraction-scaled. The bound
-          # applies from Stage 2 (ramp) onward, where the real failure
-          # signature (uncontrolled escalation once fix backmap activates)
-          # would actually show up.
+          # healthy PET/dacron run ends with E_bond/E_angle in the thousands,
+          # not the hundreds-of-thousands-to-millions range. The ramp of the
+          # shortened input is 1/SCALE as long as the real one, so its
+          # transient (energies of 1e6 kcal/mol, 3e4 K, cooled by the
+          # thermostat within the staged NVT) is larger than in a full run and
+          # is not judged. The bound applies to the last thermo block of the log,
+          # which is the production run, and the run must have cooled back to
+          # near the target temperature.
           MAX_ENERGY = 5e5
-          WARMUP_STEPS = int(${{ github.event.inputs.eq_steps || '500' }})
+          MAX_FINAL_TEMP = 1000.0
 
-          rows = []
+          blocks = []
           with open("smoke.log") as f:
               in_thermo = False
               cols = []
@@ -170,19 +165,25 @@ jobs:
                   if s.startswith("Step") and "Temp" in s:
                       cols = s.split()
                       in_thermo = True
+                      blocks.append([])
                       continue
                   if in_thermo:
+                      if s.startswith("WARNING"):
+                          continue  # LAMMPS prints warnings between thermo rows
                       parts = s.split()
                       if len(parts) != len(cols) or not parts or not re.match(r"^-?\d", parts[0]):
                           in_thermo = False
                           continue
-                      rows.append(dict(zip(cols, parts)))
+                      blocks[-1].append(dict(zip(cols, parts)))
+
+          checked = blocks[-1] if blocks else []
+          if len(checked) < 3:
+              print("::error::the production run has fewer than three thermo rows")
+              sys.exit(1)
 
           bad = []
-          for row in rows:
+          for row in checked:
               step = int(float(row.get("Step", 0)))
-              if step < WARMUP_STEPS:
-                  continue
               for key in ("PotEng", "E_bond", "E_angle"):
                   if key in row:
                       try:
@@ -192,13 +193,17 @@ jobs:
                       if val > MAX_ENERGY:
                           bad.append((step, key, row[key]))
 
-          print(f"parsed {len(rows)} thermo rows, checked {sum(1 for r in rows if int(float(r.get('Step', 0))) >= WARMUP_STEPS)} past the {WARMUP_STEPS}-step warmup window")
+          final_temp = float(checked[-1]["Temp"])
+          print(f"parsed {len(blocks)} thermo blocks, checked the last one ({len(checked)} rows, production), final temperature {final_temp:.0f} K")
           if bad:
-              print(f"::error::{len(bad)} thermo rows exceeded the {MAX_ENERGY:.0e} sanity bound after warmup")
+              print(f"::error::{len(bad)} thermo rows exceeded the {MAX_ENERGY:.0e} sanity bound in the production run")
               for step, key, val in bad[:20]:
                   print(f"  step={step} {key}={val}")
               sys.exit(1)
-          print("Thermo values stayed within sane bounds after the expected startup transient.")
+          if final_temp > MAX_FINAL_TEMP:
+              print(f"::error::final temperature {final_temp:.0f} K above {MAX_FINAL_TEMP:.0f} K: the run did not cool")
+              sys.exit(1)
+          print("Production run stayed within sane bounds and cooled to the target range.")
           PY
 
       - name: Upload smoke test logs
