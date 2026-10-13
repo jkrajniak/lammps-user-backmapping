@@ -20,6 +20,20 @@ Two equivalent entry points:
   Set `prep.forcefield_dir: forcefield` in `settings.v2.yaml`, or point at a GROMACS
   install via `GMXDATA` / `GROMACS_DATA`.
 
+## Where the data comes from
+
+Neither entry point is self-contained; both read assets of the earlier publications.
+
+- **`settings.v2.yaml`** reads the CG coordinates, topology and tables from the published JCC 2018
+  reproducibility archive ([`paper-reverse-mapping-polymer-networks`](https://github.com/jkrajniak/paper-reverse-mapping-polymer-networks),
+  `preparation/rim135_small/backmapping/aa`). `data_dir` and `tables_dir` point at it as a sibling of
+  this repository; change them if it is elsewhere.
+- **`settings.yaml`** (legacy bridge) reads a bakery `settings.xml`, and the CG angle tables
+  `table_a<N>.xvg` it refers to must be in the directory of the settings file or in the tables
+  directory. Without them the build stops with `Missing angle table table_a1.xvg for func-8 angle`.
+  The archive above holds a `settings.xml` and the tables in the same directory:
+  set `prep.bakery_xml` to that `settings.xml` and copy its `*.xvg` files next to `settings.yaml`.
+
 ## Quick start
 
 ```bash
