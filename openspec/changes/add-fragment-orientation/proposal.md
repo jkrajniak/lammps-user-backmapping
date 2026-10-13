@@ -1,4 +1,4 @@
-# Add fragment orientation (`prep.fragment_orientation`)
+# Add fragment orientation and stereocenter restraint (`prep.fragment_orientation`, `simulation.stereo_restraint`)
 
 ## Why
 
@@ -20,13 +20,25 @@ double bonds were trans after the ramp
   neighbors lie in two fragments, require the handedness of the source molecule and give a
   violating fragment the best-fitting orientation among a fixed number of seeded random rotations.
   Beads and the internal geometry of fragments do not change.
+- New option `simulation.stereo_restraint` (kJ/mol, robust protocol, default off): `fix restrain
+  dihedral` on the improper dihedral of every stereocenter of the atomistic part, from the first
+  minimization until `<prefix>_hybrid.data` is written. A stereocenter is an atom with four bonded
+  atomistic neighbors that are inequivalent (Morgan classes over atom type and environment); the target
+  is the ideal tetrahedral improper (35.26 deg) with the sign it has in the hybrid structure.
+  `stereo.lmp` and `stereo_release.lmp` are written next to the input script. Reason: with `align`
+  the handedness is right at placement but 17 of 128 POPC lipids invert at the start of the ramp,
+  when the bonds between fragments switch on from a nearly flat arrangement. A soft restraint
+  (83.68 kJ/mol) leaves 6; stiffer restraints strain the center and a decaying restraint releases
+  the same lipids (`research/experiments/20261010_popc-stereo-restraint.md`,
+  `20261012_popc-aligned-restrained-tier-c.md`).
 - Documentation page with a figure (`docs/fragment-orientation.md`), settings reference row,
   changelog entry.
 
 ## Out of scope
 
-- A restraint that keeps double-bond isomers during the lambda ramp (separate question, see the
-  experiment note).
+- A restraint that keeps double-bond isomers: with `align` all double bonds of the POPC example stay cis.
+- A force-field improper term at the stereocenter: it is the same energy as the restraint kept on,
+  and would hold the sign at the price of a strained center.
 - Chirality that is not present in the source molecule.
 
 ## Tests
@@ -35,3 +47,5 @@ double bonds were trans after the ramp
 a mirrored target, single and collinear vectors), schema default and validation, and an end-to-end
 build of the dodecane example in both modes (beads fixed, fragments rigid, orientations differ).
 The default path is covered by the existing byte-parity tests.
+`python/tests/test_stereo_restraint.py`: stereocenter detection (handedness sign, hydrogen left out,
+equivalent neighbors, same-type neighbors told apart by environment), the written files, default off.
