@@ -7,6 +7,8 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-13
+
 ### Added
 
 - **`simulation.stereo_restraint`** (robust protocol, off by default): restrains the handedness of
@@ -16,6 +18,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   only translating it: a rotation fitted to the bonded neighbors, refined with the bonds between
   fragments, and a check that keeps the handedness of stereocenters that span beads. The default
   `translate` keeps the output identical to earlier releases. See `docs/fragment-orientation.md`.
+
+### Changed
+
+- **`examples/popc_martini`** builds with `prep.fragment_orientation: align` and
+  `simulation.stereo_restraint: 83.68`. In the 128-lipid bilayer this gives all oleoyl double bonds
+  cis and the handedness of the glycerol carbon C2 of the reference in 122 of 128 lipids, against
+  117 cis and 57 of 128 with fragments only translated; the area per lipid, thickness and chain
+  dihedrals agree with the independent Slipids reference as before.
 
 ## [1.3.0] - 2026-10-09
 
