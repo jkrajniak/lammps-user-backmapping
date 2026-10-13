@@ -353,6 +353,16 @@ class PrepConfig(BaseModel):
         description="Directory for OPLS/forcefield .itp includes (or set GMXDATA)",
     )
     allow_no_bonds: bool = False
+    fragment_orientation: Literal["translate", "align"] = Field(
+        default="translate",
+        description=(
+            "How atomistic fragments are oriented on the CG beads. 'translate' keeps the "
+            "orientation of the source molecule (bakery behavior). 'align' rotates each "
+            "fragment so that its template bond vectors to the bonded CG neighbors match "
+            "the CG configuration, which fixes the relative orientation of fragments "
+            "(handedness of stereocenters that span beads)."
+        ),
+    )
     chain_rng_seed: int | None = Field(
         default=None,
         description="RNG seed for random chain selection in multi-chain AT sources",
@@ -459,6 +469,11 @@ class SimulationParams(BaseModel):
     # SHAKE the AT bonds to hydrogen (mass < 1.1) in the bakery protocol
     shake_hydrogens: bool = False
     cap_force_ramp: float | None = None
+    # robust protocol: restrain the handedness of stereocenters (kJ/mol, cosine form
+    # E = K (1 - cos(phi - phi0)) on the improper dihedral of the center) from the start of the
+    # backmapping until the hybrid structure is written. None = off. A soft value (about 80)
+    # keeps most centers; stiff values strain the center and can destabilize the 1 fs stage.
+    stereo_restraint: float | None = Field(default=None, gt=0.0)
     em_steps: int = 0
     em_gamma: float = 0.0001
     em_ftol: float = 10.0

@@ -122,13 +122,17 @@ class CGFragment:
         # Select random chain from the ensemble of chains (bakery behaviour).
         chain_keys = list(chains.keys())
         atoms = None
+        self.source_chain = None
         for chain_idx in random.sample(chain_keys, len(chain_keys)):
             candidate = chains[chain_idx]
             if _chain_has_atoms(candidate, self.fragment_list):
                 atoms = candidate
+                self.source_chain = (fragment_name, chain_idx)
                 break
         if atoms is None:
-            atoms = chains[random.sample(chain_keys, 1)[0]]
+            chain_idx = random.sample(chain_keys, 1)[0]
+            atoms = chains[chain_idx]
+            self.source_chain = (fragment_name, chain_idx)
         self.atomparams = {}
         if fragment_name not in self.topology.chain_atom_names:
             logger.debug(80 * "!")
@@ -255,8 +259,63 @@ def _get_params(input_dict, key_list, raise_exception=True):
     return param
 
 
+# Atoms of neighboring fragments closer than this in the source molecule are bonded (nm).
+COVALENT_BOND_CUTOFF = 0.19
+# Gauss-Seidel sweeps that refine the fragment orientations against the bonds between fragments.
+ORIENTATION_SWEEPS = 8
+# Weight of a bond between fragments relative to the vector between fragment centers.
+BOND_WEIGHT = 3
+# Stereocenters are enforced when the signed volume of the source geometry exceeds this (nm^3).
+MIN_STEREO_VOLUME = 1e-4
+# Random orientations tried for a fragment that violates a stereocenter, and their seed.
+ORIENTATION_TRIALS = 2000
+ORIENTATION_SEED = 20261009
+
+
+def rotation_aligning(template_vectors, target_vectors):
+    """Proper rotation taking the template bond vectors onto the target ones.
+
+    Unit vectors are used so that every neighbor weighs the same. With two or more
+    non-collinear vectors this is the Kabsch rotation (determinant +1, so a fragment is
+    never mirrored). With a single vector, or collinear ones, it is the smallest rotation
+    that aligns the first vector. No vectors give the identity.
+    """
+    a = np.array([v / np.linalg.norm(v) for v in template_vectors], dtype=float)
+    b = np.array([v / np.linalg.norm(v) for v in target_vectors], dtype=float)
+    if len(a) == 0:
+        return np.eye(3)
+    if len(a) > 1:
+        u, sv, vt = np.linalg.svd(a.T @ b)
+        if sv[1] > 1e-6 * max(sv[0], 1e-12):
+            sign = np.sign(np.linalg.det(vt.T @ u.T))
+            return vt.T @ np.diag([1.0, 1.0, sign if sign != 0 else 1.0]) @ u.T
+    v1, v2 = a[0], b[0]
+    cross = np.cross(v1, v2)
+    sin, cos = np.linalg.norm(cross), float(np.dot(v1, v2))
+    if sin < 1e-12:
+        if cos > 0:
+            return np.eye(3)
+        axis = np.cross(v1, [1.0, 0.0, 0.0])
+        if np.linalg.norm(axis) < 1e-6:
+            axis = np.cross(v1, [0.0, 1.0, 0.0])
+        axis /= np.linalg.norm(axis)
+        return 2.0 * np.outer(axis, axis) - np.eye(3)
+    axis = cross / sin
+    k = np.array([[0.0, -axis[2], axis[1]], [axis[2], 0.0, -axis[0]], [-axis[1], axis[0], 0.0]])
+    return np.eye(3) + sin * k + (1.0 - cos) * (k @ k)
+
+
 class BackmapperSettings2:
-    def __init__(self, input_xml, allow_no_bonds=False, generate_only_graph=False):
+    def __init__(
+        self,
+        input_xml,
+        allow_no_bonds=False,
+        generate_only_graph=False,
+        fragment_orientation="translate",
+    ):
+        if fragment_orientation not in ("translate", "align"):
+            raise ValueError(f"unknown fragment_orientation {fragment_orientation!r}")
+        self.fragment_orientation = fragment_orientation
         self.res2atom = collections.defaultdict(list)
         self.cg_active_sites = collections.defaultdict(list)
         self.atom_id2fragment = {}
@@ -650,6 +709,148 @@ class BackmapperSettings2:
                         tt_to_on, tt_to = tt.split("#")
                         transfer_to_map[tt_to_on] = tt_to
 
+    def _fragment_rotations(self, selected_fragment, cg_nodes):
+        """Rotation of every fragment of one residue.
+
+        The first estimate aligns the template vectors between fragment centers of mass
+        (source molecule) with the vectors between the bonded CG beads. It is then refined
+        with the covalent bonds that join fragments: an atom bonded to a neighbor fragment
+        should lie where the rigidly rotated neighbor puts it. Finally, a stereocenter whose
+        neighbors lie in two fragments must keep the handedness of the source molecule; a
+        fragment that violates this is given the best-fitting orientation that does not.
+        Fragments cut from different source chains are not compared.
+        """
+        box = np.array(self.cg_coordinate.box, dtype=float)
+        members = set(cg_nodes)
+
+        def fragment_of(cg_id):
+            bead = self.cg_graph.nodes[cg_id]
+            frags = self.fragments[selected_fragment][bead["name"]]
+            return frags.get(str(bead["degree"]), frags.get("*"))
+
+        links = {cg_id: [] for cg_id in cg_nodes}  # (neighbor, shift, d_cg, bonded pairs)
+        stereo = []  # (center fragment, partner fragment, a, n1, n2, b + shift, d_cg, sign)
+        for cg_id in cg_nodes:
+            frag = fragment_of(cg_id)
+            origin = np.array(self.cg_coordinate.atoms[cg_id].position, dtype=float)
+            for nb in self.cg_graph.neighbors(cg_id):
+                if nb == cg_id or nb not in members:
+                    continue
+                nb_frag = fragment_of(nb)
+                if frag.source_chain != nb_frag.source_chain:
+                    continue
+                d_cg = np.array(self.cg_coordinate.atoms[nb].position, dtype=float) - origin
+                d_cg -= box * np.round(d_cg / box)
+                shift = np.array(nb_frag.com) - np.array(frag.com)
+                if np.linalg.norm(d_cg) < 1e-8 or np.linalg.norm(shift) < 1e-8:
+                    continue
+                bonded = []
+                for a in frag.atom_in_fragments:
+                    a_pos = np.array(a.position)
+                    for b in nb_frag.atom_in_fragments:
+                        b_pos = np.array(b.position)
+                        if np.linalg.norm(a_pos - b_pos - shift) >= COVALENT_BOND_CUTOFF:
+                            continue
+                        bonded.append(a_pos)
+                        near = [
+                            np.array(c.position)
+                            for c in frag.atom_in_fragments
+                            if 1e-6
+                            < np.linalg.norm(np.array(c.position) - a_pos)
+                            < COVALENT_BOND_CUTOFF
+                        ]
+                        best = None
+                        for p in range(len(near)):
+                            for q in range(p + 1, len(near)):
+                                vol = float(
+                                    np.dot(
+                                        near[p] - a_pos,
+                                        np.cross(near[q] - a_pos, b_pos + shift - a_pos),
+                                    )
+                                )
+                                if best is None or abs(vol) > abs(best[0]):
+                                    best = (vol, near[p], near[q])
+                        if best is not None and abs(best[0]) > MIN_STEREO_VOLUME:
+                            stereo.append(
+                                (
+                                    cg_id,
+                                    nb,
+                                    a_pos,
+                                    best[1],
+                                    best[2],
+                                    b_pos + shift,
+                                    d_cg,
+                                    np.sign(best[0]),
+                                )
+                            )
+                links[cg_id].append((nb, shift, d_cg, bonded))
+
+        def vectors(cg_id, rotations):
+            templates = [shift for _, shift, _, _ in links[cg_id]]
+            targets = [d_cg for _, _, d_cg, _ in links[cg_id]]
+            for nb, shift, d_cg, bonded in links[cg_id]:
+                for rel in bonded:
+                    site = d_cg + rotations[nb] @ (rel - shift)
+                    if np.linalg.norm(site) > 1e-8 and np.linalg.norm(rel) > 1e-8:
+                        templates.extend([rel] * BOND_WEIGHT)
+                        targets.extend([site] * BOND_WEIGHT)
+            return templates, targets
+
+        rotations = {
+            cg_id: rotation_aligning(
+                [shift for _, shift, _, _ in links[cg_id]],
+                [d_cg for _, _, d_cg, _ in links[cg_id]],
+            )
+            for cg_id in cg_nodes
+        }
+        for _ in range(ORIENTATION_SWEEPS):
+            for cg_id in cg_nodes:
+                rotations[cg_id] = rotation_aligning(*vectors(cg_id, rotations))
+
+        def inverted(cg_id, rotations):
+            """Stereocenters involving this fragment whose handedness differs from the source."""
+            count = 0
+            for center, partner, a, n1, n2, b, d_cg, sign in stereo:
+                if cg_id not in (center, partner):
+                    continue
+                rot_c, rot_p = rotations[center], rotations[partner]
+                a_w, n1_w, n2_w = rot_c @ a, rot_c @ n1, rot_c @ n2
+                b_w = d_cg + rot_p @ (
+                    b - (np.array(fragment_of(partner).com) - np.array(fragment_of(center).com))
+                )
+                vol = float(np.dot(n1_w - a_w, np.cross(n2_w - a_w, b_w - a_w)))
+                count += int(np.sign(vol) != sign)
+            return count
+
+        def misfit(cg_id, rotations):
+            templates, targets = vectors(cg_id, rotations)
+            rot = rotations[cg_id]
+            return sum(
+                float(np.sum((rot @ (t / np.linalg.norm(t)) - g / np.linalg.norm(g)) ** 2))
+                for t, g in zip(templates, targets, strict=True)
+            )
+
+        rng = np.random.default_rng(ORIENTATION_SEED)
+        for _ in range(2):
+            for cg_id in cg_nodes:
+                if not inverted(cg_id, rotations):
+                    continue
+                current = rotations[cg_id]
+                best_rot, best_cost = None, np.inf
+                for _ in range(ORIENTATION_TRIALS):
+                    q, r = np.linalg.qr(rng.normal(size=(3, 3)))
+                    q = q @ np.diag(np.sign(np.diag(r)))
+                    if np.linalg.det(q) < 0:
+                        q[:, 0] *= -1.0
+                    rotations[cg_id] = q
+                    if inverted(cg_id, rotations):
+                        continue
+                    cost = misfit(cg_id, rotations)
+                    if cost < best_cost:
+                        best_rot, best_cost = q, cost
+                rotations[cg_id] = current if best_rot is None else best_rot
+        return rotations
+
     def prepare_hybrid(self):
         """Creates hybrid files."""
         outfile = self.hybrid_configuration["file"]
@@ -727,10 +928,16 @@ class BackmapperSettings2:
                     f"Problem with the option file, could not find correct fragment for molecule {res_id}"
                 )
 
+            rotations = (
+                self._fragment_rotations(selected_fragment, cg_nodes)
+                if self.fragment_orientation == "align"
+                else {}
+            )
             for cg_id in cg_nodes:
                 cg_atom = self.cg_coordinate.atoms[cg_id]
                 cg_bead = self.cg_graph.nodes[cg_id]
                 cg_bead_id = new_at_id
+                rotation = rotations.get(cg_id)
 
                 fragments = self.fragments[selected_fragment][cg_bead["name"]]
 
@@ -786,12 +993,13 @@ class BackmapperSettings2:
                 cg_com = cg_atom.position
                 new_at_id += 1
                 for idx, at in enumerate(cg_fragment.atom_in_fragments):
+                    at_position = at.position if rotation is None else rotation @ at.position
                     new_at_atom = files_io.Atom(
                         new_at_id,
                         at.name,
                         cg_fragment.cg_molecule.ident,  # Change chain name to one from <ident> tag in the cg_molecule
                         res_id,
-                        at.position + cg_com,
+                        at_position + cg_com,
                     )
                     outfile.atoms[new_at_id] = new_at_atom
                     self.global_graph.add_node(
@@ -802,7 +1010,7 @@ class BackmapperSettings2:
                         res_id=res_id,
                         cg_bead_id=cg_bead_id,
                         orig_cg_bead_id=cg_id,
-                        position=at.position + cg_com,
+                        position=at_position + cg_com,
                         chain_name=chain_name,
                     )
                     if "atom_ids" not in self.global_graph.nodes[cg_bead_id]:

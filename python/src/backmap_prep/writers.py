@@ -10,6 +10,7 @@ from . import units
 from .builder import DihedralTypeInfo, System
 from .network.pbc import max_interaction_extent, validate_bond_geometry
 from .schema import Settings, SimulationParams
+from .stereo import write_stereo_files
 
 
 def normalize_file_end(path: Path) -> None:
@@ -885,6 +886,16 @@ def _write_robust_protocol(
         # after the force field and fix backmap (pair_style backmap needs it)
         f.write("reset_atoms image all\n\n")
     _write_cap_force(f, sim)
+    stereo_released = ""
+    if sim.stereo_restraint:
+        n_stereo = write_stereo_files(Path(f.name).parent, system, sim.stereo_restraint)
+        if n_stereo:
+            f.write(
+                f"# Restrain the handedness of {n_stereo} stereocenters until the hybrid structure is written\n"
+            )
+            f.write("include stereo.lmp\n\n")
+            stereo_released = "include stereo_release.lmp\n"
+
     f.write("compute at_temp at_atoms temp\n")
     f.write(f"thermo {sim.energy_interval}\n")
     f.write(
@@ -914,6 +925,7 @@ def _write_robust_protocol(
     f.write(f"fix nvt_cg cg_atoms nvt temp {temp:.1f} {temp:.1f} 100.0\n")
     f.write("timestep 0.25\nrun 10000\ntimestep 0.50\nrun 5000\ntimestep 1.00\nrun 5000\n\n")
     f.write(f"write_data {prefix}_hybrid.data\n")
+    f.write(stereo_released)
     if sim.cap_force is not None and sim.cap_force > 0:
         f.write("# CapForce released after the ramp and the staged NVT (as bakery does)\n")
         f.write("unfix cap\n")

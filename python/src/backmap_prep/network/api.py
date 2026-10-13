@@ -118,6 +118,7 @@ def build_hybrid_gromacs(
     output_dir: Path | None = None,
     allow_no_bonds: bool = False,
     chain_rng_seed: int | None = None,
+    fragment_orientation: str | None = None,
 ) -> HybridBuildResult:
     """Run the bakery network engine to produce hybrid GRO and topology files.
 
@@ -137,6 +138,8 @@ def build_hybrid_gromacs(
         label = settings_xml.name
     else:
         settings = settings_source
+        if fragment_orientation is None:
+            fragment_orientation = settings.prep.fragment_orientation
         if not has_native_network_config(settings):
             raise ValueError("Settings object is not a complete native network configuration")
         data_dir = (base_dir or Path.cwd()).resolve()
@@ -153,11 +156,13 @@ def build_hybrid_gromacs(
             backmapper = BackmapperSettings2(
                 xml_root,
                 allow_no_bonds=allow_no_bonds,
+                fragment_orientation=fragment_orientation or "translate",
             )
         else:
             backmapper = BackmapperSettings2(
                 str(settings_xml),
                 allow_no_bonds=allow_no_bonds,
+                fragment_orientation=fragment_orientation or "translate",
             )
         backmapper.prepare_hybrid()
     finally:
