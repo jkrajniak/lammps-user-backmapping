@@ -192,6 +192,25 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+Releases before 1.3.0 are affected by the first two entries in serial and parallel runs, and by
+the third in parallel runs; rerun hybrid stages made with them. Runs at lambda = 1 and AT-only
+runs are unaffected. All three were found by the static MPI parity check
+(`scripts/review/b1_mpi_parity.sh`); regression tests
+`python/tests/test_lammps_same_bead_images.py` and `test_lammps_cg_force_multihop.py`, PR #36.
+
+- **`fix backmap`: intra-bead terms across a periodic or processor boundary were weighted as
+  inter-bead.** The bead map was set for one copy of each AT atom only, so a term whose atoms
+  were other periodic images or ghosts got weight lambda instead of 1; at lambda = 0 an intra-bead
+  bond across the periodic boundary was switched off, even on one rank. Every copy of an atom now
+  carries the bead of its representative.
+- **`fix backmap`: no bead map during energy minimization.** The fix did not request
+  `min_pre_force`, so the first evaluation of a minimization (the first stage of the generated
+  protocol) ran without a bead map and weighted every intra-bead term as inter-bead. The map is now
+  built in `min_pre_force()` as in `pre_force()`.
+- **`fix backmap`: CG force lost on two-hop ghosts.** On 2-D/3-D brick and tiled decompositions a
+  bead can reach a diagonal neighbour rank in two forward-communication steps; the second step sent
+  the ghost's own partial force instead of the received one, so the AT atoms of that bead got no CG
+  force. 1-D slab decompositions were unaffected.
 - **Defects of the removed linear builder**, which built every dodecane and
   polyethylene example: AT fragments were placed relative to the first atom of
   the whole template molecule instead of with their COM on the bead (PE: 34 A
