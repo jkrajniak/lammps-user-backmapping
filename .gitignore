@@ -94,3 +94,6 @@ examples/melamine_network/large/exclusion_hyb_topol.list
 examples/melamine_network/large/graph_before_cross_bonds.pck
 examples/melamine_network/large/missing_definitions.txt
 examples/melamine_network/large/_*_*
+
+# Local manuscript, reviews, and reports (not part of the package)
+references/
