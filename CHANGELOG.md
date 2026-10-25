@@ -7,6 +7,18 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Added
+
+- **Applications of the method as optional citations**: the How to Cite section of the README and the
+  docs landing page list the published studies that applied the method: charged polymers,
+  microphase-separated block copolymers, and topologies formed by polymerization.
+
+### Changed
+
+- **Authors**: the README gives a contact address for Zidan Zhang.
+- **Citation**: the README BibTeX entry of the 2016 *J. Chem. Theory Comput.* paper now has its
+  volume, issue, pages, and DOI.
+
 ## [1.4.0] - 2026-10-13
 
 ### Added

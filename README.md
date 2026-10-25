@@ -221,7 +221,11 @@ please also cite:
   title={Generic Adaptive Resolution Method for Reverse Mapping of Polymers from Coarse-Grained to Atomistic Descriptions},
   author={Krajniak, Jakub and Pandiyan, Sudharsan and Nies, Erik and Samaey, Giovanni},
   journal={Journal of Chemical Theory and Computation},
+  volume={12},
+  number={11},
+  pages={5549--5562},
   year={2016},
+  doi={10.1021/acs.jctc.6b00595},
   publisher={American Chemical Society}
 }
 
@@ -238,6 +242,51 @@ please also cite:
 }
 ```
 
+### Applications (optional)
+
+The method has been applied in the studies below. If your system is close to
+one of them, you may also cite the relevant paper.
+
+If you are backmapping **charged polymers** (e.g. **polymeric ionic liquids**
+of different chain lengths), you may also cite:
+
+> Zhang, Wheatle, Krajniak, Keith, Ganesan, "Ion Mobilities, Transference
+> Numbers, and Inverse Haven Ratios of Polymeric Ionic Liquids",
+> *ACS Macro Lett.* **9**, 84--89 (**2020**).
+> [DOI: 10.1021/acsmacrolett.9b00908](https://doi.org/10.1021/acsmacrolett.9b00908)
+
+If you are backmapping **microphase-separated block copolymers** (morphology
+equilibrated at the CG level, atomistic detail added by backmapping), you may
+also cite:
+
+> Zhang, Krajniak, Keith, Ganesan, "Mechanisms of Ion Transport in Block
+> Copolymeric Polymerized Ionic Liquids", *ACS Macro Lett.* **8**, 1096--1101
+> (**2019**).
+> [DOI: 10.1021/acsmacrolett.9b00478](https://doi.org/10.1021/acsmacrolett.9b00478)
+
+> Zhang, Krajniak, Ganesan, "A Multiscale Simulation Study of Influence of
+> Morphology on Ion Transport in Block Copolymeric Ionic Liquids",
+> *Macromolecules* **54**, 4997--5010 (**2021**).
+> [DOI: 10.1021/acs.macromol.1c00025](https://doi.org/10.1021/acs.macromol.1c00025)
+
+> Zhang, Sass, Krajniak, Ganesan, "Ion Correlations and Partial Ionicities in
+> the Lamellar Phases of Block Copolymeric Ionic Liquids", *ACS Macro Lett.*
+> **11**, 1265--1271 (**2022**).
+> [DOI: 10.1021/acsmacrolett.2c00401](https://doi.org/10.1021/acsmacrolett.2c00401)
+
+> Zhang, Krajniak, Sass, Sachar, Marioni, Duncan, Ganesan, "Conductivity and
+> Transference Numbers in Lithium Salt-Doped Block Copolymeric Ionic Liquid
+> Electrolytes", *Macromolecules* **56**, 9750--9765 (**2023**).
+> [DOI: 10.1021/acs.macromol.3c01791](https://doi.org/10.1021/acs.macromol.3c01791)
+
+If you are backmapping **topologies formed by polymerization at the CG level**
+(e.g. **hyperbranched polymers**), you may also cite:
+
+> Zhang, Krajniak, Samaey, Nies, "A Parallel Multiscale Simulation Framework
+> for Complex Polymerization: AB2-Type Monomer Hyperbranched Polymerization as
+> an Example", *Adv. Theory Simul.* **2**, 1800102 (**2019**).
+> [DOI: 10.1002/adts.201800102](https://doi.org/10.1002/adts.201800102)
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -249,4 +298,4 @@ GPL-3.0-or-later — see [LICENSE](LICENSE) for the full text.
 ## Authors
 
 - Jakub Krajniak ([jkrajniak@gmail.com](mailto:jkrajniak@gmail.com))
-- Zidan Zhang
+- Zidan Zhang ([zhangzidan@gmail.com](mailto:zhangzidan@gmail.com))
