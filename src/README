@@ -17,6 +17,7 @@ Components:
   fix backmap/capforce  - absolute per-atom force clamp (E++ CapForce);
                           Fmax in LAMMPS force units; optional ramp
   fix backmap/pairs     - explicit AT/CG cross pairs from pairs.dat
+  fix backmap/stereo    - improper-dihedral restraints that keep stereocenters
   pair_style backmap    - lambda-weighted non-bonded pair forces
   pair_style lj/cut/coul/cut/ecap
                         - AT LJ energy-capped (E++ LennardJonesEnergyCapped);
