@@ -35,6 +35,50 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   the ramp state to the restart file, and velocities are created only before the first phase.
 - **`simulation.restart_interval` was ignored without a message** by the robust and bakery
   protocols. It is now rejected for them.
+- **Bonds and angles given by `#define` macros were dropped.** The topology parser recorded
+  `#define` names only for `#ifdef`, so a GROMOS line such as `1 2 2 gb_27` was skipped without a
+  message, together with its exclusions and the angles and dihedrals derived from it. Macros are
+  now substituted as grompp does, and a bond or angle parameter that is neither a number nor a
+  known macro is an error naming the line.
+- **Single-letter atom types were taken as CG beads.** The network builder treated every
+  one-letter upper-case type name as a CG bead in addition to the bead types of the settings, so
+  the GROMOS atomistic types C, O, N, H and S started molecules, were weighted as CG bonds and
+  entered the `cg_type` list of `fix backmap`. CG types now come from
+  `molecules[].beads[].type`; single-letter names are used only when the settings define no bead
+  types (the `bakery_xml` route), with a warning.
+- **The mass of an atom type overrode the mass in `[ atoms ]`.** The network builder took the
+  `[ atomtypes ]` mass whenever the type existed. GROMACS gives `[ atoms ]` precedence, so a force
+  field with its masses only in `[ atoms ]` gave zero type masses, and hydrogen mass
+  repartitioning written there was lost. Atomistic types now take the `[ atoms ]` mass, and atoms
+  of one type with different masses are an error (LAMMPS has one mass per type). CG beads keep
+  the mass of the CG force field. In `examples/popc_martini` this changes CTL2 from 12.0011 to
+  12.011 and CTL3 from 12.0111 to 12.011 (the `[ atoms ]` values, which GROMACS already used);
+  the data files of the other examples are unchanged.
+- **The phase of func-1 dihedrals was reduced to 0 or 180 degrees.** Func 1 was mapped to
+  `dihedral_style harmonic`, which has no phase, and a phase other than 0 or 180 degrees became 0
+  without a message. Such a dihedral is now written as a one-term `backmap/fourier`, the style
+  func 9 already uses; phases of 0 and 180 degrees stay harmonic.
+- **`build` ignored `prep.fragment_orientation` with `bakery_xml`.** On the `bakery_xml` route,
+  `backmap-prep build` built the hybrid with fragments translated, while `build-hybrid` used the
+  setting, so one settings file gave different hybrid coordinates from the two commands. `build`
+  now passes the setting as well.
+- **An untabulated CG pair was written as `pair_coeff i j cg 0.0 0.0`**, which LAMMPS read as a
+  table file named `0.0` and stopped. A CG pair without a table is now an error at preparation
+  time, naming the bead types.
+- **The atomistic Coulomb cutoff of the hybrid was cut at the LJ cutoff.** The first argument of
+  `pair_style backmap` bounds every atomistic pair, and the writer passed the LJ cutoff there. With
+  a longer Coulomb cutoff the hybrid truncated Coulomb at the LJ cutoff while the atomistic force
+  field used the longer one. The writer now passes the larger of the two cutoffs, and the
+  communication cutoff covers it. The examples use equal cutoffs and are unchanged.
+- **Pair-specific LJ parameters were ignored for atomistic pairs.** `[ nonbond_params ]` was used
+  only for CG pairs; every atomistic pair was mixed from its atom types, so GROMOS C12 values of
+  polar pairs or CHARMM NBFIX entries took the mixed value without a message. An atomistic pair
+  listed in `[ nonbond_params ]` now takes those values, as in GROMACS.
+- **A missing bond table fell back to the angle table.** For a func-8 bond with table index n
+  the builder looked for `table_bn.xvg` and then for `table_an.xvg`, the angle table of the same
+  index, read with its angle axis as a distance. Without either, `bond_coeff N cg None None` was
+  written and failed only in LAMMPS. The builder now uses only `table_bn.xvg` and raises an
+  error naming it when it is missing, as for angles and dihedrals.
 
 ## [1.4.0] - 2026-10-13
 
@@ -55,6 +99,7 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   cis and the handedness of the glycerol carbon C2 of the reference in 122 of 128 lipids, against
   117 cis and 57 of 128 with fragments only translated; the area per lipid, thickness and chain
   dihedrals agree with the independent Slipids reference as before.
+
 
 ## [1.3.0] - 2026-10-09
 

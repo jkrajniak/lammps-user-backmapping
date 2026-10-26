@@ -645,7 +645,8 @@ Pairs of CG bead types that interact via tabulated CG potentials. Used to
 set up the `pair_coeff` entries. Table files are looked up as
 `table_<a>_<b>.table` first, falling back to `table_<a>_<b>.xvg` (converted).
 When `cg_system.format: lammps`, use the numeric type-ID strings (e.g.
-`"1"`, `"2"`) here, matching `molecules[].beads[].type`.
+`"1"`, `"2"`) here, matching `molecules[].beads[].type`. Every CG-CG pair needs a table (from
+here or from `cg_system.nonbonded`); a pair without one is an error at preparation time.
 
 | | |
 |---|---|

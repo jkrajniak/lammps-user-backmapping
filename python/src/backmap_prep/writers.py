@@ -276,7 +276,10 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if has_backmap_dihedral_table:
         dihedral_styles.append(f"backmap/table linear {sim.table_points}")
 
-    interaction_cutoff_ang = max(lj_cut_ang, cg_cut_ang)
+    # pair_style backmap cuts every atomistic pair at its first argument, so it must cover both
+    # the LJ and the Coulomb cutoff of the atomistic sub-style
+    at_cut_ang = max(lj_cut_ang, coul_cut_ang)
+    interaction_cutoff_ang = max(at_cut_ang, cg_cut_ang)
     comm_skin_ang = 1.0
     comm_cutoff_ang = interaction_cutoff_ang + comm_skin_ang
     # Ghost atoms must cover the pair cutoff and the minimum-image extent of
@@ -288,6 +291,7 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     return {
         "timestep_fs": timestep_fs,
         "lj_cut_ang": lj_cut_ang,
+        "at_cut_ang": at_cut_ang,
         "cg_cut_ang": cg_cut_ang,
         "coul_cut_ang": coul_cut_ang,
         "comm_cutoff_ang": comm_cutoff_ang,
@@ -465,7 +469,7 @@ def _write_forcefield(
         if sim.coul_cap_radius > 0.0:
             at_extra += f" {units.distance(sim.coul_cap_radius):.10g}"
     f.write(
-        f"pair_style backmap {params['lj_cut_ang']:.2f} {at_style} "
+        f"pair_style backmap {params['at_cut_ang']:.2f} {at_style} "
         f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f}{at_extra} "
         f"{params['cg_cut_ang']:.2f} table linear {sim.table_points}{_cg_special(sim)}\n"
     )
@@ -475,10 +479,14 @@ def _write_forcefield(
                 f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.10g} {pt.sigma:.10g}\n"
             )
         elif pt.kind == "cg":
-            if pt.table_file:
-                f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
-            else:
-                f.write(f"pair_coeff {pt.itype} {pt.jtype} cg 0.0 0.0\n")
+            if not pt.table_file:
+                names = {t.type_id: t.name for t in system.atom_types}
+                raise ValueError(
+                    f"CG pair {names.get(pt.itype)}-{names.get(pt.jtype)} (types {pt.itype} "
+                    f"{pt.jtype}) has no table: cover both bead types in table_groups or "
+                    "provide the table file"
+                )
+            f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
         else:
             f.write(f"pair_coeff {pt.itype} {pt.jtype} none\n")
     f.write("\n")

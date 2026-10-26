@@ -56,7 +56,7 @@ def _make_system() -> System:
             AngleTypeInfo(1, "harmonic", "", [50.0, 111.0]),
         ],
         pair_types=[
-            PairTypeInfo(1, 1, "cg"),
+            PairTypeInfo(1, 1, "cg", table_file="cg.table", table_keyword="CG"),
             PairTypeInfo(1, 2, "none"),
             PairTypeInfo(2, 2, "atomistic", sigma=3.95, epsilon=0.382),
         ],
@@ -369,9 +369,9 @@ class TestWriteLammpsInput:
             AtomTypeInfo(4, "CH2", 14.0, False),
         ]
         system.pair_types = [
-            PairTypeInfo(1, 1, "cg"),
-            PairTypeInfo(1, 2, "cg"),
-            PairTypeInfo(2, 2, "cg"),
+            PairTypeInfo(1, 1, "cg", table_file="cg.table", table_keyword="CG"),
+            PairTypeInfo(1, 2, "cg", table_file="cg.table", table_keyword="CG"),
+            PairTypeInfo(2, 2, "cg", table_file="cg.table", table_keyword="CG"),
             PairTypeInfo(3, 3, "atomistic", sigma=3.75, epsilon=0.21),
             PairTypeInfo(3, 4, "none"),
             PairTypeInfo(4, 4, "atomistic", sigma=3.91, epsilon=0.12),
@@ -437,9 +437,9 @@ class TestWriteLammpsInput:
             AtomTypeInfo(4, "CH2", 14.0, False),
         ]
         system.pair_types = [
-            PairTypeInfo(1, 1, "cg"),
-            PairTypeInfo(1, 2, "cg"),
-            PairTypeInfo(2, 2, "cg"),
+            PairTypeInfo(1, 1, "cg", table_file="cg.table", table_keyword="CG"),
+            PairTypeInfo(1, 2, "cg", table_file="cg.table", table_keyword="CG"),
+            PairTypeInfo(2, 2, "cg", table_file="cg.table", table_keyword="CG"),
             PairTypeInfo(3, 3, "atomistic", sigma=3.75, epsilon=0.21),
             PairTypeInfo(3, 4, "none"),
             PairTypeInfo(4, 4, "atomistic", sigma=3.91, epsilon=0.12),
@@ -696,3 +696,27 @@ def test_robust_capforce_active_until_production(tmp_path: Path) -> None:
     assert cap < text.index("minimize")
     release = text.index("unfix cap")
     assert text.index("write_data test_hybrid.data") < release < text.index("# Production")
+
+
+def test_cg_pair_without_a_table_is_an_error(tmp_path: Path) -> None:
+    system = _make_system()
+    system.pair_types[0] = PairTypeInfo(1, 1, "cg")
+    with pytest.raises(ValueError, match=r"CG pair CG1-CG1 \(types 1 1\) has no table"):
+        write_lammps_input(system, _make_settings(), tmp_path / "in.test", "test.data")
+
+
+@pytest.mark.parametrize(
+    ("lj", "coul", "outer"), [(1.2, 1.2, 12.0), (1.0, 1.4, 14.0), (1.4, 1.0, 14.0)]
+)
+def test_atomistic_outer_cutoff_covers_lj_and_coulomb(
+    tmp_path: Path, lj: float, coul: float, outer: float
+) -> None:
+    settings = _make_settings()
+    settings.simulation.lj_cutoff = lj
+    settings.simulation.coulomb_cutoff = coul
+    write_lammps_input(_make_system(), settings, tmp_path / "in.test", "test.data")
+    content = read_input_with_includes(tmp_path / "in.test")
+    line = next(x for x in content.splitlines() if x.startswith("pair_style backmap"))
+    fields = line.split()
+    assert float(fields[2]) == pytest.approx(outer)
+    assert fields[3:6] == ["lj/cut/coul/cut", f"{10 * lj:.2f}", f"{10 * coul:.2f}"]
