@@ -1,0 +1,117 @@
+name: LAMMPS integration
+
+# Builds LAMMPS with the package for the oldest supported and the latest stable
+# release (resolved from the LAMMPS tags at run time) and runs the full pytest
+# suite against each binary, so the LAMMPS-in-the-loop tests (BACKMAP_LMP) run
+# on every LAMMPS version we claim to support. Scheduled and manual runs add
+# LAMMPS develop as a non-blocking canary for upstream API changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "python/**"
+      - "install.sh"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/lammps-integration.yml"
+      - ".github/scripts/lammps_versions.py"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "python/**"
+      - "install.sh"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/lammps-integration.yml"
+      - ".github/scripts/lammps_versions.py"
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: lammps-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  versions:
+    name: Resolve LAMMPS versions
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Oldest supported, latest stable (and develop on schedule)
+        id: resolve
+        run: python3 .github/scripts/lammps_versions.py "${{ github.event_name }}" >> "$GITHUB_OUTPUT"
+
+  integration:
+    name: Tests against LAMMPS ${{ matrix.ref }}
+    needs: versions
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !matrix.required }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
+    env:
+      # 2- and 4-rank tests on a 4-core runner (Open MPI 4 and 5)
+      OMPI_MCA_rmaps_base_oversubscribe: "1"
+      PRTE_MCA_rmaps_default_mapping_policy: ":oversubscribe"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libopenmpi-dev openmpi-bin ccache
+
+      - name: Download LAMMPS ${{ matrix.ref }}
+        run: git clone --depth 1 --branch "${{ matrix.ref }}" https://github.com/lammps/lammps.git lammps
+
+      - name: Cache compiler output
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.ref }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.ref }}-
+
+      - name: Install package into LAMMPS
+        run: ./install.sh lammps
+
+      - name: Build LAMMPS with the packages the tests use
+        run: |
+          cmake -S lammps/cmake -B lammps/build \
+            -D PKG_BACKMAP=yes -D PKG_MOLECULE=yes -D PKG_EXTRA-MOLECULE=yes \
+            -D PKG_KSPACE=yes -D PKG_RIGID=yes -D PKG_EXTRA-DUMP=yes \
+            -D BUILD_MPI=yes -D FFT=KISS -D BUILD_SHARED_LIBS=off \
+            -D CMAKE_BUILD_TYPE=Release -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build lammps/build -j "$(nproc)"
+          lammps/build/lmp -h | head -n 5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: |
+          uv python install 3.13
+          uv sync --extra dev
+
+      - name: Run the test suite against this LAMMPS
+        shell: bash
+        env:
+          BACKMAP_LMP: ${{ github.workspace }}/lammps/build/lmp
+        run: |
+          # scipy: the analysis scripts behind the RDF comparisons (test_network_tierc.py)
+          uv run --with scipy pytest python/tests -q -rs | tee pytest.out
+
+      - name: Fail if LAMMPS tests were skipped
+        shell: bash
+        run: |
+          if grep -E "SKIPPED.*(BACKMAP_LMP|mpirun)" pytest.out; then
+            echo "::error::LAMMPS-in-the-loop tests were skipped (binary or mpirun not found)"
+            exit 1
+          fi
