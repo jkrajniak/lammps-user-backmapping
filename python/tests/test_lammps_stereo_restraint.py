@@ -66,7 +66,8 @@ def _energy(tmp_path: Path, restrained: System, evaluated: System) -> float:
     assert write_stereo_files(tmp_path, restrained, K_KJ) == 1
     (tmp_path / "test.data").write_text(_data(evaluated))
     (tmp_path / "in.test").write_text(
-        "units real\natom_style atomic\nboundary p p p\nread_data test.data\n"
+        "units real\natom_style atomic\natom_modify map array\nboundary p p p\n"
+        "read_data test.data\n"
         "pair_style zero 5.0\npair_coeff * *\ninclude stereo.lmp\nrun 0\n"
         'print "RESULT $(f_stereo1:%.12e)"\n'
     )
