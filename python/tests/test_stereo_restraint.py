@@ -13,7 +13,6 @@ from backmap_prep.stereo import (
     IDEAL_IMPROPER_DEG,
     _dihedral,
     find_stereocenters,
-    restrain_target,
     write_stereo_files,
 )
 
@@ -75,19 +74,6 @@ def test_target_is_the_improper_of_the_current_geometry(mirror: bool) -> None:
         assert phi0 == pytest.approx(_dihedral(pos[a], pos[b], pos[c], pos[center]), abs=1e-3)
 
 
-@pytest.mark.parametrize(
-    ("phi", "target"),
-    [
-        (-IDEAL_IMPROPER_DEG, 180.0 - IDEAL_IMPROPER_DEG),
-        (IDEAL_IMPROPER_DEG, IDEAL_IMPROPER_DEG - 180.0),
-    ],
-)
-def test_restrain_target_puts_the_minimum_of_fix_restrain_at_phi(phi: float, target: float) -> None:
-    assert restrain_target(phi) == pytest.approx(target)
-    # fix restrain dihedral: E = K[1 + cos(phi - phi0)], zero at phi = phi0 + 180
-    assert 1.0 + np.cos(np.radians(phi - restrain_target(phi))) == pytest.approx(0.0, abs=1e-12)
-
-
 def test_heavy_quartet_leaves_hydrogen_out_and_the_second_holds_all_four_neighbors() -> None:
     heavy, second = find_stereocenters(_molecule([10, 11, 12, 13]))
     assert set(heavy[:3]) == {3, 4, 5}
@@ -125,16 +111,25 @@ def test_environment_distinguishes_neighbors_of_the_same_type() -> None:
 def test_files_hold_two_restraints_per_center(tmp_path: Path) -> None:
     n = write_stereo_files(tmp_path, _molecule([10, 11, 12, 13]), 83.68)
     assert n == 1
-    fixes = [line.split() for line in (tmp_path / "stereo.lmp").read_text().splitlines()[1:]]
     quartets = find_stereocenters(_molecule([10, 11, 12, 13]))
-    assert len(fixes) == len(quartets) == 2
-    for k, (fix, quartet) in enumerate(zip(fixes, quartets, strict=True), 1):
-        assert fix[:5] == ["fix", f"stereo{k}", "all", "restrain", "dihedral"]
-        assert [int(x) for x in fix[5:9]] == list(quartet[:4])
-        assert float(fix[-3]) == pytest.approx(83.68 / 4.184, rel=1e-3)
-        assert float(fix[-1]) == pytest.approx(restrain_target(quartet[4]), abs=1e-4)
+    rows = [line.split() for line in (tmp_path / "stereo_centers.txt").read_text().splitlines()[1:]]
+    assert len(rows) == len(quartets) == 2
+    for row, quartet in zip(rows, quartets, strict=True):
+        assert [int(x) for x in row[:4]] == list(quartet[:4])
+        # fix backmap/stereo has its minimum at the written target, no offset
+        assert float(row[4]) == pytest.approx(quartet[4], abs=1e-4)
+    fix = (tmp_path / "stereo.lmp").read_text().splitlines()[1:]
+    assert fix[0].split()[:4] == ["fix", "stereo", "all", "backmap/stereo"]
+    assert float(fix[0].split()[4]) == pytest.approx(83.68 / 4.184, rel=1e-3)
+    assert fix[0].split()[5] == "stereo_centers.txt"
+    assert fix[1] == "fix_modify stereo energy yes"
     release = (tmp_path / "stereo_release.lmp").read_text().splitlines()
-    assert release[1:] == ["unfix stereo1", "unfix stereo2"]
+    assert release[1:] == ["unfix stereo"]
+
+
+def test_no_files_without_stereocenters(tmp_path: Path) -> None:
+    assert write_stereo_files(tmp_path, _molecule([10, 10, 12, 13]), 83.68) == 0
+    assert not list(tmp_path.iterdir())
 
 
 def test_restraint_is_off_by_default_and_must_be_positive() -> None:

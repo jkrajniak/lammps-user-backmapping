@@ -70,13 +70,16 @@ sign of its handedness in the hybrid structure. Each restraint has zero energy a
 and 2K/3 at the mirror image. The heavy-atom improper alone keeps the center on its side of the
 heavy neighbors but not the hydrogen: under a stiff restraint the hydrogen crosses to the side of
 the heavy neighbors, the center becomes nearly planar, and it inverts as soon as the restraint is
-released. The second improper rises when the hydrogen crosses. The input script includes `stereo.lmp` before the first minimization and
-`stereo_release.lmp` after `<prefix>_hybrid.data` is written.
+released. The second improper rises when the hydrogen crosses.
 
-`fix restrain dihedral` has its energy minimum at the written target + 180 degrees, although its
-documentation puts the minimum at the target (LAMMPS stable_22Jul2025 to develop of 2026-10-25).
-`backmap-prep` writes the target shifted by 180 degrees, and the test
-`python/tests/test_lammps_stereo_restraint.py` fails if LAMMPS changes this convention.
+The input script includes `stereo.lmp` before the first minimization and `stereo_release.lmp`
+after `<prefix>_hybrid.data` is written. The restraints are applied by
+[`fix backmap/stereo`](components/fix-backmap-stereo.md), which reads them from
+`stereo_centers.txt` and has its energy minimum at the written target. Earlier versions used
+`fix restrain dihedral`. In parallel runs that fix loses part of the force of a restraint whose
+atoms lie on two MPI ranks (LAMMPS pull request 5266), and its documentation puts the energy
+minimum 180 degrees away from where the code puts it. `fix backmap/stereo` gives the same forces
+for any decomposition.
 
 In the POPC bilayer (128 lipids, `examples/popc_martini`), 2 to 5 centers cross briefly at the
 start of the ramp. With 836.8 kJ/mol (200 kcal/mol) all of them return, and all 128 keep their

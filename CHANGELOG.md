@@ -21,6 +21,16 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`simulation.stereo_restraint` lost part of its force in parallel runs.** `fix restrain
+  dihedral` adds its forces in `post_force`, after ghost forces have been sent back to their
+  owners, so with `newton_bond on` a restraint whose atoms lay on two MPI ranks lost the forces on
+  the atoms owned by the other rank (LAMMPS pull request 5266). The restraint is now applied by
+  the new `fix backmap/stereo`, which computes every restraint on each rank that owns one of its
+  atoms and gives the same forces for any decomposition. It reads the quartets from
+  `stereo_centers.txt`, has its energy minimum at the written target, and adds its energy to the
+  potential energy (`fix_modify energy yes`), so the minimizations before the ramp see a
+  consistent energy.
+
 - **`simulation.stereo_restraint` held every stereocenter away from the tetrahedral geometry.**
   The improper dihedral was computed with the opposite of the IUPAC sign, and `fix restrain
   dihedral` has its energy minimum at the written target + 180 degrees (its documentation puts it
