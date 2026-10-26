@@ -65,10 +65,18 @@ simulation:
 A stereocenter is an atom with four bonded atomistic neighbors that are all inequivalent (equal
 atom type and equal environment count as equivalent). It is restrained on the improper dihedral of
 three of its neighbors with the ideal tetrahedral value (35.26 degrees) and the sign of its
-handedness in the hybrid structure. The input script includes `stereo.lmp` before the first
-minimization and `stereo_release.lmp` after `<prefix>_hybrid.data` is written.
+handedness in the hybrid structure. The restraint energy is zero at that geometry and 2K/3 at
+the mirror image. The input script includes `stereo.lmp` before the first minimization and
+`stereo_release.lmp` after `<prefix>_hybrid.data` is written.
 
-The restraint is soft on purpose. In the POPC bilayer (128 lipids) it reduces the inverted
+`fix restrain dihedral` has its energy minimum at the written target + 180 degrees, although its
+documentation puts the minimum at the target (LAMMPS stable_22Jul2025 to develop of 2026-10-25).
+`backmap-prep` writes the target shifted by 180 degrees, and the test
+`python/tests/test_lammps_stereo_restraint.py` fails if LAMMPS changes this convention.
+
+The numbers below were measured with release 1.4.0, whose restraint had its energy minimum away
+from the tetrahedral geometry (fixed in the next release) and pushed every restrained center. The
+restraint is soft on purpose. In the POPC bilayer (128 lipids) it reduces the inverted
 centers at the end of the hybrid stage from 17 (`align` alone) to 6; a stiff restraint (about
 800 kJ/mol) holds all 128 but strains the center and destabilizes the 1 fs stage, and a restraint
 that decays over the stages releases the same lipids when it drops. It is off by default.

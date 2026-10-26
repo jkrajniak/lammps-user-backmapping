@@ -7,6 +7,25 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Fixed
+
+- **`simulation.stereo_restraint` held every stereocenter away from the tetrahedral geometry.**
+  The improper dihedral was computed with the opposite of the IUPAC sign, and `fix restrain
+  dihedral` has its energy minimum at the written target + 180 degrees (its documentation puts it
+  at the target; LAMMPS stable_22Jul2025 to develop of 2026-10-25). The written target lay near the
+  energy maximum: the restraint still favored the current handedness over the mirror image, by
+  2K/3, but at the current geometry it exerted a torque of about 0.94 K per radian. The target is
+  now written so that the energy is zero at the current geometry and 2K/3 at the mirror image; a
+  LAMMPS test checks both. Affects the `examples/popc_martini` hybrid stage of 1.4.0.
+- **The package builds with LAMMPS stable_30Sep2026 and later.** `pair_style backmap` used
+  `Force::pair_map`, which LAMMPS replaced by style registries. Both APIs are supported; CI builds
+  against stable_22Jul2025_update2 and stable_30Sep2026_update1.
+- **Restart phase scripts (`simulation.restart_interval`, standard protocol) ran the AT production
+  at lambda = 0** and re-created the velocities at every phase. `fix backmap` now writes lambda and
+  the ramp state to the restart file, and velocities are created only before the first phase.
+- **`simulation.restart_interval` was ignored without a message** by the robust and bakery
+  protocols. It is now rejected for them.
+
 ## [1.4.0] - 2026-10-13
 
 ### Added

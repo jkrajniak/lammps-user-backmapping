@@ -116,7 +116,7 @@ Singularity/Apptainer for HPC clusters with `apptainer build lammps-backmap.sif 
 full details.
 
 For cloud spot instances with automatic restart on preemption, add
-`restart_interval: 5000` to your `settings.yaml` and use the included
+`restart_interval: 5000` (with `protocol: standard`) to your `settings.yaml` and use the included
 `run-backmap.sh` entrypoint. See
 [Running on Cloud / HPC](https://jkrajniak.github.io/lammps-user-backmapping/cloud-hpc/)
 for Cloud Batch and Slurm examples.
