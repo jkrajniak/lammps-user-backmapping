@@ -6,7 +6,9 @@
 pair_style backmap cut_at at_style at_args ... cut_cg cg_style cg_args ... [cg_special w12 w13 w14]
 ```
 
-- **cut_at** -- cutoff for AT sub-style (distance units)
+- **cut_at** -- outer cutoff of every AT pair (distance units); the AT sub-style never sees a
+  pair beyond it, so it must be at least the largest cutoff in `at_args` (`backmap-prep`
+  writes the larger of the LJ and the Coulomb cutoff)
 - **at_style** -- name of the AT pair sub-style (e.g., `lj/cut/coul/cut`)
 - **at_args** -- arguments passed to the AT sub-style
 - **cut_cg** -- cutoff for CG sub-style (distance units)

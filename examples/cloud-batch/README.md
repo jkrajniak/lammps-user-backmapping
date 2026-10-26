@@ -40,10 +40,12 @@ gsutil -m cp *.data in.* *.table gs://${BUCKET}/simulation-data/
 ```
 
 Make sure your `settings.yaml` includes `restart_interval` to enable
-checkpointing:
+checkpointing. It requires `protocol: standard` (see
+[Running on Cloud / HPC](../../docs/cloud-hpc.md)):
 
 ```yaml
 simulation:
+  protocol: standard
   restart_interval: 5000
   # ... other settings
 ```

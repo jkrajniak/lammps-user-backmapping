@@ -43,6 +43,8 @@ class FixBackmap : public Fix {
   void end_of_step() override;
   int modify_param(int, char **) override;
   double compute_scalar() override;
+  void write_restart(FILE *) override;
+  void restart(char *) override;
 
   // Per-atom array grow/copy for domain decomposition
   void grow_arrays(int) override;
