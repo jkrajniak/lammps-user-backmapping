@@ -28,6 +28,7 @@
 #include <cstring>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "atom.h"
 #include "comm.h"
@@ -45,6 +46,9 @@ using namespace FixConst;
 static const std::set<std::string> KNOWN_KEYWORDS = {"alpha", "lambda0", "apb",
                                                      "peratom"};
 static constexpr int NCOLS_FULL = 7;
+// Largest molecule ID for which setup() checks that molecules are complete in
+// local + ghost (two int arrays of this size per rank).
+static constexpr tagint MAX_CHECKED_MOLECULES = 50000000;
 
 /* ---------------------------------------------------------------------- */
 
@@ -352,7 +356,10 @@ void FixBackmap::setup_pre_force(int vflag) {
   // different-bead branch, w=lambda_global). That corrupts the very
   // first velocity half-kick every AT atom receives. Delegate to
   // pre_force() so the bead map is ready before any force computation,
-  // matching every subsequent step.
+  // matching every subsequent step. The molecule extent is checked first,
+  // collectively, so that an incomplete molecule stops with that error
+  // rather than with a rank-local bead map error.
+  check_molecule_extent();
   pre_force(vflag);
 }
 
@@ -720,7 +727,7 @@ void FixBackmap::build_bead_map() {
     std::vector<int> apb_per_bead(n_cg);
     if (apb_map_.empty()) {
       if (n_at % n_cg != 0)
-        error->all(
+        error->one(
             FLERR,
             "fix backmap: molecule {} has {} AT atoms and {} CG beads, "
             "AT count must be divisible by CG count (or use apb keyword)",
@@ -733,13 +740,13 @@ void FixBackmap::build_bead_map() {
         int cg_type = type[cg_atoms[ci].local_idx];
         auto it = apb_map_.find(cg_type);
         if (it == apb_map_.end())
-          error->all(FLERR, "fix backmap: CG type {} not found in apb mapping",
+          error->one(FLERR, "fix backmap: CG type {} not found in apb mapping",
                      cg_type);
         apb_per_bead[ci] = it->second;
         expected_at += it->second;
       }
       if (expected_at != n_at)
-        error->all(
+        error->one(
             FLERR,
             "fix backmap: molecule {} apb sum ({}) != AT atom count ({})",
             mol_id, expected_at, n_at);
@@ -802,6 +809,78 @@ void FixBackmap::build_bead_map() {
                    "fix backmap: {} local AT atom(s) have no CG partner in "
                    "local+ghost range; increase comm_modify cutoff",
                    nmissing);
+}
+
+/* ----------------------------------------------------------------------
+   build_bead_map() assigns AT atoms to beads from the atoms one rank sees
+   (local + ghost). A molecule ID that extends beyond the ghost region gives
+   ranks different partial views of it, and the map is wrong or fails. Every
+   molecule with a CG bead and an atom on this rank must be complete in
+   local + ghost.
+------------------------------------------------------------------------- */
+
+void FixBackmap::check_molecule_extent() {
+  tagint *molecule = atom->molecule;
+  tagint *tag = atom->tag;
+  int nlocal = atom->nlocal;
+  int ntotal = nlocal + atom->nghost;
+
+  tagint maxmol_local = 0;
+  for (int i = 0; i < nlocal; i++)
+    maxmol_local = std::max(maxmol_local, molecule[i]);
+  tagint maxmol = 0;
+  MPI_Allreduce(&maxmol_local, &maxmol, 1, MPI_LMP_TAGINT, MPI_MAX, world);
+  if (maxmol <= 0) return;
+  if (maxmol > MAX_CHECKED_MOLECULES) {
+    if (comm->me == 0)
+      error->warning(FLERR,
+                     "fix backmap: {} molecule IDs, molecule extent not "
+                     "checked; each molecule must lie within the ghost "
+                     "region of every rank that owns one of its atoms",
+                     maxmol);
+    return;
+  }
+
+  // counts[m] = atoms of molecule m, counts[nmol + m] = its CG beads; only
+  // molecules with a bead enter the bead map
+  auto nmol = static_cast<int>(maxmol) + 1;
+  std::vector<int> counts(2 * nmol, 0), total(2 * nmol, 0), seen(nmol, 0);
+  int *type = atom->type;
+  for (int i = 0; i < nlocal; i++) {
+    if (molecule[i] <= 0) continue;
+    counts[molecule[i]]++;
+    if (is_cg_type(type[i])) counts[nmol + molecule[i]]++;
+  }
+  MPI_Allreduce(counts.data(), total.data(), 2 * nmol, MPI_INT, MPI_SUM, world);
+  std::vector<int> owned(counts.begin(), counts.begin() + nmol);
+  for (int m = 0; m < nmol; m++)
+    if (total[nmol + m] == 0) owned[m] = 0;
+
+  std::unordered_set<tagint> counted;
+  for (int i = 0; i < ntotal; i++) {
+    tagint m = molecule[i];
+    if (m > 0 && owned[m] > 0 && counted.insert(tag[i]).second) seen[m]++;
+  }
+
+  tagint first_bad = MAXTAGINT;
+  int nbad = 0;
+  for (int m = 1; m < nmol; m++) {
+    if (owned[m] > 0 && seen[m] != total[m]) {
+      nbad++;
+      first_bad = std::min(first_bad, static_cast<tagint>(m));
+    }
+  }
+  int nbad_all = 0;
+  tagint first_bad_all = MAXTAGINT;
+  MPI_Allreduce(&nbad, &nbad_all, 1, MPI_INT, MPI_SUM, world);
+  MPI_Allreduce(&first_bad, &first_bad_all, 1, MPI_LMP_TAGINT, MPI_MIN, world);
+  if (nbad_all > 0)
+    error->all(FLERR,
+               "fix backmap: molecule {} extends beyond the ghost region of a "
+               "rank that owns one of its atoms; give each bead its own "
+               "molecule ID, or increase comm_modify cutoff to cover a whole "
+               "molecule",
+               first_bad_all);
 }
 
 /* ---------------------------------------------------------------------- */

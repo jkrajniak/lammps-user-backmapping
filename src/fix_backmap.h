@@ -95,6 +95,7 @@ class FixBackmap : public Fix {
 
   bool is_cg_type(int t) const { return cg_types.count(t) > 0; }
   void build_bead_map();
+  void check_molecule_extent();
   void validate_masses();
   void zero_com_buf();
 };

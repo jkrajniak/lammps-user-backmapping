@@ -79,6 +79,27 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   index, read with its angle axis as a distance. Without either, `bond_coeff N cg None None` was
   written and failed only in LAMMPS. The builder now uses only `table_bn.xvg` and raises an
   error naming it when it is missing, as for angles and dihedrals.
+- **Six bonded styles doubled cross-rank forces with `newton_bond` off.** `bond_style
+  backmap/{harmonic,gromos,table}` and `angle_style backmap/{harmonic,table,cosine/squared}`
+  added force to every atom of a term, ghosts included, so with `newton on off` a term spanning
+  two ranks was counted on both. They now have the `newton_bond || i < nlocal` guard of the other
+  styles. The generated inputs keep the LAMMPS default `newton on` and were not affected.
+- **`dihedral_style backmap/table` read the table at -phi.** It took the dihedral sign of
+  `dihedral_style opls`, the opposite of the IUPAC sign that GROMACS tabulated dihedrals and
+  `dihedral_style table` (used by the CG-only input) use, so an asymmetric table was mirrored
+  between the CG equilibration and the hybrid stage. It now uses the IUPAC sign; a test compares
+  energies and forces with `dihedral_style table` for an asymmetric table. The CG dihedral tables
+  of the examples are symmetric except for a 2 degree offset at the edge of the flat cap of the
+  polyethylene table `table_d1.xvg` (shared by `examples/pe` and `examples/pe_aa`), whose hybrid
+  stages change accordingly.
+- **Molecules that extend beyond the ghost region gave a wrong or failing bead map in
+  parallel.** `fix backmap` builds the bead map from the atoms one rank sees, and with one
+  molecule ID per chain ranks saw different parts of a long chain: the run stopped with a
+  misleading divisibility error, could hang (the check called `error->all` from a rank-local
+  loop), or, when the partial counts divided, gave a wrong map without an error. The fix now
+  checks at the start of each run that every molecule is complete in local + ghost atoms on the
+  ranks that own its atoms and stops with an error naming the molecule; rank-local checks use
+  `error->one`. `backmap-prep` gives each bead its own molecule ID and is not affected.
 
 ## [1.4.0] - 2026-10-13
 
@@ -99,7 +120,6 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   cis and the handedness of the glycerol carbon C2 of the reference in 122 of 128 lipids, against
   117 cis and 57 of 128 with fragments only translated; the area per lipid, thickness and chain
   dihedrals agree with the independent Slipids reference as before.
-
 
 ## [1.3.0] - 2026-10-09
 
@@ -504,7 +524,6 @@ runs are unaffected. All three were found by the static MPI parity check
 
 - `fix backmap` under MPI: incomplete COM sum (AT atoms on non-ghost ranks
   missed) and lost CG-force contributions to ghost AT atoms.
-
 
 ## [0.1.0] - 2026-07-06
 

@@ -154,12 +154,16 @@ void BondBackmapGromos::compute(int eflag, int vflag) {
 
     double fbond = -4.0 * w * kdr2;
 
-    f[i1][0] += delx * fbond;
-    f[i1][1] += dely * fbond;
-    f[i1][2] += delz * fbond;
-    f[i2][0] -= delx * fbond;
-    f[i2][1] -= dely * fbond;
-    f[i2][2] -= delz * fbond;
+    if (newton_bond || i1 < nlocal) {
+      f[i1][0] += delx * fbond;
+      f[i1][1] += dely * fbond;
+      f[i1][2] += delz * fbond;
+    }
+    if (newton_bond || i2 < nlocal) {
+      f[i2][0] -= delx * fbond;
+      f[i2][1] -= dely * fbond;
+      f[i2][2] -= delz * fbond;
+    }
 
     double ebond = 0.0;
     if (eflag) ebond = w * kdr2 * dr2;
