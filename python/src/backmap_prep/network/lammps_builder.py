@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -69,6 +70,24 @@ def _single_letter_cg(atom_type: str) -> bool:
 
 def _cg_types_from_settings(settings: Settings) -> set[str]:
     return {bead.type for mol in settings.molecules for bead in mol.beads if bead.type}
+
+
+def _cg_type_names(settings: Settings, molecule: MoleculeType) -> set[str]:
+    """CG bead types of the settings; single-letter type names only when the settings give none.
+
+    GROMOS atomistic types (C, O, N, H, S) are single letters too, so the fallback warns.
+    """
+    names = _cg_types_from_settings(settings)
+    if names:
+        return names
+    names = {atom.type for atom in molecule.atoms if _single_letter_cg(atom.type)}
+    if names:
+        warnings.warn(
+            "settings.molecules define no bead types; taking the single-letter atom types "
+            f"{sorted(names)} as CG beads",
+            stacklevel=2,
+        )
+    return names
 
 
 def _cross_bond_defaults(
@@ -148,7 +167,7 @@ def _atom_type_info(
     for atom_type_name, type_id in type_ids.items():
         atom_type = topology.atom_types.get(atom_type_name)
         sample = type_samples[atom_type_name]
-        is_cg = atom_type_name in cg_type_names or _single_letter_cg(atom_type_name)
+        is_cg = atom_type_name in cg_type_names
         sigma_nm, epsilon_kj = _lj_sigma_epsilon(atom_type, topology.combination_rule)
         sigma = units.sigma(sigma_nm)
         epsilon = units.epsilon(epsilon_kj)
@@ -179,7 +198,7 @@ def _backmap_mol_ids(
     mol_ids: dict[int, int] = {}
     current_mol_id = 0
     for atom in molecule.atoms:
-        is_cg = atom.type in cg_type_names or _single_letter_cg(atom.type)
+        is_cg = atom.type in cg_type_names
         if is_cg:
             current_mol_id += 1
         if current_mol_id == 0:
@@ -250,7 +269,7 @@ def _hybrid_atoms(
     mol_ids = _backmap_mol_ids(molecule, cg_type_names)
     atoms: list[LammpsAtom] = []
     for top_atom, gro_atom in zip(molecule.atoms, gro_atoms, strict=False):
-        is_cg = top_atom.type in cg_type_names or _single_letter_cg(top_atom.type)
+        is_cg = top_atom.type in cg_type_names
         atoms.append(
             LammpsAtom(
                 atom_id=top_atom.index,
@@ -389,9 +408,7 @@ def _pair_14_terms(
         return
     cg_names = cg_type_names or set()
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
-    at_indices = {
-        a.index for a in molecule.atoms if a.type not in cg_names and not _single_letter_cg(a.type)
-    }
+    at_indices = {a.index for a in molecule.atoms if a.type not in cg_names}
     explicit: dict[tuple[int, int], tuple[int, list[float]]] = {}
     for pair in listed:
         key = (min(pair.i, pair.j), max(pair.i, pair.j))
@@ -535,10 +552,7 @@ def _dihedral_terms(
             _token_name(atom_k.name),
             _token_name(atom_l.name),
         )
-        is_cg_quad = all(
-            atom.type in cg_type_names or _single_letter_cg(atom.type)
-            for atom in (atom_i, atom_j, atom_k, atom_l)
-        )
+        is_cg_quad = all(atom.type in cg_type_names for atom in (atom_i, atom_j, atom_k, atom_l))
         keyword = "cg" if is_cg_quad else "at"
         style = "backmap/ryckaert"
         table_file: str | None = None
@@ -678,7 +692,7 @@ def _improper_terms(
         if dih.func != 2:
             continue
         atoms = [atom_by_index[i] for i in (dih.i, dih.j, dih.k, dih.atom_l)]
-        is_cg = all(a.type in cg_type_names or _single_letter_cg(a.type) for a in atoms)
+        is_cg = all(a.type in cg_type_names for a in atoms)
         keyword = "cg" if is_cg else "at"
         xi0, k_kj = resolve_improper_harmonic(
             dih, atom_type_by_index, topology.dihedraltypes, topology.atom_types
@@ -788,9 +802,7 @@ def _bond_terms(
     for bond_index, bond in enumerate(all_bonds, start=1):
         atom_i = atom_by_index[bond.i]
         atom_j = atom_by_index[bond.j]
-        is_cg_bond = (atom_i.type in cg_type_names or _single_letter_cg(atom_i.type)) and (
-            atom_j.type in cg_type_names or _single_letter_cg(atom_j.type)
-        )
+        is_cg_bond = (atom_i.type in cg_type_names) and (atom_j.type in cg_type_names)
         keyword = "cg" if is_cg_bond else "at"
 
         table_file: str | None = None
@@ -895,10 +907,7 @@ def _angle_terms(
         atom_i = atom_by_index[angle.i]
         atom_j = atom_by_index[angle.j]
         atom_k = atom_by_index[angle.k]
-        is_cg_angle = all(
-            atom.type in cg_type_names or _single_letter_cg(atom.type)
-            for atom in (atom_i, atom_j, atom_k)
-        )
+        is_cg_angle = all(atom.type in cg_type_names for atom in (atom_i, atom_j, atom_k))
         keyword = "cg" if is_cg_angle else "at"
         triple = (
             _token_name(atom_i.name),
@@ -1319,7 +1328,7 @@ def build_system_from_hybrid(
     )
     _merge_source_atom_types(top_file, settings, base_dir, ff_dirs)
     molecule = _topology_molecule(top_file)
-    cg_type_names = _cg_types_from_settings(settings)
+    cg_type_names = _cg_type_names(settings, molecule)
 
     system = System()
     system.box = (

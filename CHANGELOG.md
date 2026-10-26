@@ -14,6 +14,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   message, together with its exclusions and the angles and dihedrals derived from it. Macros are
   now substituted as grompp does, and a bond or angle parameter that is neither a number nor a
   known macro is an error naming the line.
+- **Single-letter atom types were taken as CG beads.** The network builder treated every
+  one-letter upper-case type name as a CG bead in addition to the bead types of the settings, so
+  the GROMOS atomistic types C, O, N, H and S started molecules, were weighted as CG bonds and
+  entered the `cg_type` list of `fix backmap`. CG types now come from
+  `molecules[].beads[].type`; single-letter names are used only when the settings define no bead
+  types (the `bakery_xml` route), with a warning.
+
 
 ## [1.4.0] - 2026-10-13
 
