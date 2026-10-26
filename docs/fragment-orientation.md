@@ -59,19 +59,32 @@ structure, from the start of the backmapping until the hybrid structure is writt
 ```yaml
 simulation:
   protocol: robust
-  stereo_restraint: 83.68   # kJ/mol (20 kcal/mol)
+  stereo_restraint: 836.8   # kJ/mol (200 kcal/mol)
 ```
 
 A stereocenter is an atom with four bonded atomistic neighbors that are all inequivalent (equal
-atom type and equal environment count as equivalent). It is restrained on the improper dihedral of
-three of its neighbors with the ideal tetrahedral value (35.26 degrees) and the sign of its
-handedness in the hybrid structure. The input script includes `stereo.lmp` before the first
-minimization and `stereo_release.lmp` after `<prefix>_hybrid.data` is written.
+atom type and equal environment count as equivalent). It is restrained on two improper
+dihedrals, one of its three heavy neighbors and one with the fourth neighbor (the hydrogen when
+there is one) in place of the third, each with the ideal tetrahedral value (35.26 degrees) and the
+sign of its handedness in the hybrid structure. Each restraint has zero energy at that geometry
+and 2K/3 at the mirror image. The heavy-atom improper alone keeps the center on its side of the
+heavy neighbors but not the hydrogen: under a stiff restraint the hydrogen crosses to the side of
+the heavy neighbors, the center becomes nearly planar, and it inverts as soon as the restraint is
+released. The second improper rises when the hydrogen crosses. The input script includes `stereo.lmp` before the first minimization and
+`stereo_release.lmp` after `<prefix>_hybrid.data` is written.
 
-The restraint is soft on purpose. In the POPC bilayer (128 lipids) it reduces the inverted
-centers at the end of the hybrid stage from 17 (`align` alone) to 6; a stiff restraint (about
-800 kJ/mol) holds all 128 but strains the center and destabilizes the 1 fs stage, and a restraint
-that decays over the stages releases the same lipids when it drops. It is off by default.
+`fix restrain dihedral` has its energy minimum at the written target + 180 degrees, although its
+documentation puts the minimum at the target (LAMMPS stable_22Jul2025 to develop of 2026-10-25).
+`backmap-prep` writes the target shifted by 180 degrees, and the test
+`python/tests/test_lammps_stereo_restraint.py` fails if LAMMPS changes this convention.
+
+In the POPC bilayer (128 lipids, `examples/popc_martini`), 2 to 5 centers cross briefly at the
+start of the ramp. With 836.8 kJ/mol (200 kcal/mol) all of them return, and all 128 keep their
+handedness through the release and the GROMACS minimization of the hybrid structure; the C2 improper
+is 33.9 +- 2.6 degrees (the reference structure has 33.3). With 83.68 kJ/mol (20 kcal/mol) 5 centers
+invert early in the ramp and stay inverted. Release 1.4.0, whose restraint had its energy minimum away
+from the tetrahedral geometry and no hydrogen restraint, left 6 inverted centers at 83.68 kJ/mol and
+strained the centers at 800 kJ/mol. The restraint is off by default.
 
 ## Limits
 

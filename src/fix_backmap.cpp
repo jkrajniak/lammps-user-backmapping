@@ -72,6 +72,10 @@ FixBackmap::FixBackmap(LAMMPS *lmp, int narg, char **arg)
   comm_forward = 4;  // CG (fx, fy, fz, at_mass_sum)
   comm_reverse = 4;  // COM (mass, mdx, mdy, mdz)
   create_attribute = 1;
+  // lambda and the ramp state go to the restart file, so that a run
+  // continued with read_restart resumes the ramp instead of starting it
+  // again at lambda0
+  restart_global = 1;
 
   int iarg = 3;
   while (iarg < narg) {
@@ -457,6 +461,33 @@ int FixBackmap::modify_param(int narg, char **arg) {
 /* ---------------------------------------------------------------------- */
 
 double FixBackmap::compute_scalar() { return lambda_global; }
+
+/* ---------------------------------------------------------------------- */
+
+void FixBackmap::write_restart(FILE *fp) {
+  double list[2] = {lambda_global, static_cast<double>(ramp_active)};
+  if (comm->me == 0) {
+    int size = 2 * sizeof(double);
+    fwrite(&size, sizeof(int), 1, fp);
+    fwrite(list, sizeof(double), 2, fp);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+
+void FixBackmap::restart(char *buf) {
+  auto *list = reinterpret_cast<double *>(buf);
+  lambda_global = list[0];
+  ramp_active = static_cast<int>(list[1]);
+  for (int i = 0; i < maxatom; i++) lambda_display[i] = lambda_global;
+  if (peratom_full)
+    for (int i = 0; i < maxatom; i++) peratom_array[i][0] = lambda_global;
+  if (comm->me == 0)
+    utils::logmesg(lmp,
+                   "fix backmap: lambda = {:.6g} and ramp {} from the restart "
+                   "file (lambda0 ignored)\n",
+                   lambda_global, ramp_active ? "active" : "inactive");
+}
 
 /* ---------------------------------------------------------------------- */
 

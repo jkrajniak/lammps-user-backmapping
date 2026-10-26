@@ -261,16 +261,21 @@ class TestRestartInterval:
         assert sp.restart_interval is None
 
     def test_positive_value_accepted(self) -> None:
-        sp = SimulationParams(restart_interval=5000)
+        sp = SimulationParams(protocol="standard", restart_interval=5000)
         assert sp.restart_interval == 5000
+
+    @pytest.mark.parametrize("protocol", ["robust", "bakery"])
+    def test_rejected_for_protocols_without_phase_scripts(self, protocol: str) -> None:
+        with pytest.raises(ValueError, match="only for protocol: standard"):
+            SimulationParams(protocol=protocol, restart_interval=5000)
 
     def test_zero_rejected(self) -> None:
         with pytest.raises(ValueError, match="restart_interval must be a positive integer"):
-            SimulationParams(restart_interval=0)
+            SimulationParams(protocol="standard", restart_interval=0)
 
     def test_negative_rejected(self) -> None:
         with pytest.raises(ValueError, match="restart_interval must be a positive integer"):
-            SimulationParams(restart_interval=-100)
+            SimulationParams(protocol="standard", restart_interval=-100)
 
 
 class TestMoleculeDef:

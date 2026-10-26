@@ -607,6 +607,17 @@ class TestRestartGeneration:
         assert "read_restart restart.backmap" in p3
         assert "Phase 3" in p3
 
+    def test_velocities_are_created_only_before_the_first_phase(self, tmp_path: Path) -> None:
+        """Phases continued with read_restart keep the velocities of the previous phase."""
+        system = _make_system()
+        settings = self._make_restart_settings()
+        settings.simulation.equilibration_steps = 500
+        p = tmp_path / "in.backmap"
+        write_lammps_input(system, settings, p, "test.data")
+        assert "velocity all create" in (tmp_path / "in.backmap.phase1").read_text()
+        for name in ("setup", "phase2", "phase3"):
+            assert "velocity" not in (tmp_path / f"in.backmap.{name}").read_text(), name
+
     def test_no_per_phase_without_restart(self, tmp_path: Path) -> None:
         system = _make_system()
         settings = _make_settings()
