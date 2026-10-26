@@ -28,6 +28,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   the mass of the CG force field. In `examples/popc_martini` this changes CTL2 from 12.0011 to
   12.011 and CTL3 from 12.0111 to 12.011 (the `[ atoms ]` values, which GROMACS already used);
   the data files of the other examples are unchanged.
+- **The phase of func-1 dihedrals was reduced to 0 or 180 degrees.** Func 1 was mapped to
+  `dihedral_style harmonic`, which has no phase, and a phase other than 0 or 180 degrees became 0
+  without a message. Such a dihedral is now written as a one-term `backmap/fourier`, the style
+  func 9 already uses; phases of 0 and 180 degrees stay harmonic.
 
 
 ## [1.4.0] - 2026-10-13

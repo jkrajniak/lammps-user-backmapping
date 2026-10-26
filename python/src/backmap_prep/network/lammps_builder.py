@@ -614,11 +614,16 @@ def _dihedral_terms(
                     f"{dih.i}-{dih.j}-{dih.k}-{dih.atom_l} ({quad})"
                 )
             phi0, k_kj, multiplicity = improper
-            params = units.gromacs_harmonic_dihedral(k_kj, multiplicity, phi0)
-            if _is_intra_bead_dihedral(atoms_by_id, dih.i, dih.j, dih.k, dih.atom_l):
+            if not units.harmonic_dihedral_phase(phi0):
+                # dihedral_style harmonic has no phase: E = K[1 + d cos(n phi)], d = +-1
+                style = "backmap/fourier"
+                params = [1.0, units.energy(k_kj), float(multiplicity), phi0]
+            elif _is_intra_bead_dihedral(atoms_by_id, dih.i, dih.j, dih.k, dih.atom_l):
+                params = units.gromacs_harmonic_dihedral(k_kj, multiplicity, phi0)
                 style = "harmonic"
                 keyword = ""
             else:
+                params = units.gromacs_harmonic_dihedral(k_kj, multiplicity, phi0)
                 style = "backmap/harmonic"
                 keyword = "at"
         elif func in (4, 9):
