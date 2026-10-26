@@ -246,8 +246,10 @@ void DihedralBackmapTable::compute(int eflag, int vflag) {
     if (c > 1.0) c = 1.0;
     if (c < -1.0) c = -1.0;
 
+    // IUPAC sign, as dihedral_style table and GROMACS tabulated dihedrals:
+    // (v1 x v2) . v3 > 0 gives phi < 0 here (v1 = x1 - x2, v2 = x3 - x2)
     phi = acos(c);
-    if (dx < 0.0) phi *= -1.0;
+    if (dx > 0.0) phi *= -1.0;
 
     double phi_deg = phi * RAD2DEG;
     double fforce;

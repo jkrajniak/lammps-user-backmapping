@@ -14,6 +14,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   added force to every atom of a term, ghosts included, so with `newton on off` a term spanning
   two ranks was counted on both. They now have the `newton_bond || i < nlocal` guard of the other
   styles. The generated inputs keep the LAMMPS default `newton on` and were not affected.
+- **`dihedral_style backmap/table` read the table at -phi.** It took the dihedral sign of
+  `dihedral_style opls`, the opposite of the IUPAC sign that GROMACS tabulated dihedrals and
+  `dihedral_style table` (used by the CG-only input) use, so an asymmetric table was mirrored
+  between the CG equilibration and the hybrid stage. It now uses the IUPAC sign; a test compares
+  energies and forces with `dihedral_style table` for an asymmetric table. The CG dihedral tables
+  of the examples are symmetric except for a 2 degree offset at the edge of the flat cap of the
+  all-atom polyethylene table (`examples/pe_aa`), whose hybrid stage changes accordingly.
 
 
 ## [1.4.0] - 2026-10-13
