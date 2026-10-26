@@ -107,8 +107,19 @@ def gromacs_charmm_dihedral(k_kj: float, multiplicity: int, phi0_deg: float) -> 
     return [energy(k_kj), float(multiplicity), phi0_deg]
 
 
+def harmonic_dihedral_phase(phi0_deg: float) -> bool:
+    """True when a func-1 phase is 0 or 180 degrees, the phases LAMMPS dihedral harmonic has."""
+    phase = abs((phi0_deg + 180.0) % 360.0 - 180.0)
+    return phase < 1.0 or abs(phase - 180.0) < 1.0
+
+
 def gromacs_harmonic_dihedral(k_kj: float, multiplicity: int, phi0_deg: float) -> list[float]:
-    """Convert GROMACS func-1 improper to LAMMPS harmonic dihedral K, sign, n."""
+    """Convert GROMACS func-1 improper to LAMMPS harmonic dihedral K, sign, n.
+
+    Only for a phase of 0 or 180 degrees (``harmonic_dihedral_phase``).
+    """
+    if not harmonic_dihedral_phase(phi0_deg):
+        raise ValueError(f"dihedral_style harmonic has no phase {phi0_deg} deg (only 0 or 180)")
     sign = -1.0 if abs(abs(phi0_deg) - 180.0) < 1.0 else 1.0
     return [energy(k_kj), sign, float(multiplicity)]
 

@@ -43,6 +43,8 @@ class FixBackmap : public Fix {
   void end_of_step() override;
   int modify_param(int, char **) override;
   double compute_scalar() override;
+  void write_restart(FILE *) override;
+  void restart(char *) override;
 
   // Per-atom array grow/copy for domain decomposition
   void grow_arrays(int) override;
@@ -93,6 +95,7 @@ class FixBackmap : public Fix {
 
   bool is_cg_type(int t) const { return cg_types.count(t) > 0; }
   void build_bead_map();
+  void check_molecule_extent();
   void validate_masses();
   void zero_com_buf();
 };

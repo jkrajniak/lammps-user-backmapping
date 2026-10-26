@@ -46,7 +46,23 @@
 #include "update.h"
 #include "utils.h"
 
+// LAMMPS stable_30Sep2026 replaced the style maps (Force::pair_map) by style
+// registries (Force::pair_styles()); support both.
+#if __has_include("creator_registry.h")
+#include "creator_registry.h"
+#define BACKMAP_HAS_STYLE_REGISTRY
+#endif
+
 using namespace LAMMPS_NS;
+
+static bool is_pair_style(Force *force, const char *name) {
+#ifdef BACKMAP_HAS_STYLE_REGISTRY
+  (void)force;
+  return Force::pair_styles().contains(name);
+#else
+  return force->pair_map->count(name) > 0;
+#endif
+}
 
 // Inter-bead (intermolecular) AT-AT pair interactions are lambda-weighted
 // from lambda_global=0 via compute_weight3(), which already gives a smooth
@@ -174,7 +190,7 @@ void PairBackmap::settings(int narg, char **arg) {
     double val = strtod(arg[i], &endptr);
     if (*endptr == '\0' && val > 0.0) {
       // Could be a cutoff — check if next arg is a pair style name
-      if (i + 1 < narg && force->pair_map->count(arg[i + 1])) {
+      if (i + 1 < narg && is_pair_style(force, arg[i + 1])) {
         cg_start = i;
         break;
       }

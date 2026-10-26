@@ -63,8 +63,9 @@ Makefile                    Top-level convenience targets
 
 ## Prerequisites
 
-- **LAMMPS** ≥ `stable_22Jul2025` source tree (C++17) — this package uses the
-`Domain::minimum_image(FLERR, ...)` API introduced in that release
+- **LAMMPS** ≥ `stable_22Jul2025` source tree (C++17), which introduced the
+`Domain::minimum_image(FLERR, ...)` API this package uses. CI builds against
+`stable_22Jul2025_update2` and `stable_30Sep2026_update1`.
 - **CMake** ≥ 3.16
 - **Python** ≥ 3.10
 - **uv** (Python dependency manager)
@@ -115,7 +116,7 @@ Singularity/Apptainer for HPC clusters with `apptainer build lammps-backmap.sif 
 full details.
 
 For cloud spot instances with automatic restart on preemption, add
-`restart_interval: 5000` to your `settings.yaml` and use the included
+`restart_interval: 5000` (with `protocol: standard`) to your `settings.yaml` and use the included
 `run-backmap.sh` entrypoint. See
 [Running on Cloud / HPC](https://jkrajniak.github.io/lammps-user-backmapping/cloud-hpc/)
 for Cloud Batch and Slurm examples.

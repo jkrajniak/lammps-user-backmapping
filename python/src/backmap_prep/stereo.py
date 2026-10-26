@@ -26,13 +26,24 @@ HYDROGEN_MASS = 1.5
 # Improper dihedral of the neighbors around the center of an ideal tetrahedron:
 # arctan(1/sqrt(2)).
 IDEAL_IMPROPER_DEG = 35.2644
+# fix restrain dihedral evaluates K[1 + cos(phi - phi0)] with the phi0 it is given, so its energy
+# minimum lies at phi0 + 180 deg, while its documentation puts the minimum at phi0 (LAMMPS
+# stable_22Jul2025, stable_30Sep2026 and develop of 2026-10-25). The written target is shifted by
+# this offset; test_lammps_stereo_restraint.py fails if LAMMPS changes the convention.
+RESTRAIN_MINIMUM_OFFSET_DEG = 180.0
 
 
 def _dihedral(p0: np.ndarray, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> float:
+    """Dihedral angle in degrees with the IUPAC sign, the sign LAMMPS uses."""
     b0, b1, b2 = p1 - p0, p2 - p1, p3 - p2
     n1, n2 = np.cross(b0, b1), np.cross(b1, b2)
-    m = np.cross(n1, b1 / np.linalg.norm(b1))
+    m = np.cross(b1 / np.linalg.norm(b1), n1)
     return float(np.degrees(np.arctan2(np.dot(m, n2), np.dot(n1, n2))))
+
+
+def restrain_target(phi_deg: float) -> float:
+    """The phi0 of ``fix restrain dihedral`` whose energy minimum lies at ``phi_deg``."""
+    return (phi_deg - RESTRAIN_MINIMUM_OFFSET_DEG + 180.0) % 360.0 - 180.0
 
 
 def _classes(types: dict[int, int], adjacency: dict[int, list[int]]) -> dict[int, int]:
@@ -48,10 +59,13 @@ def _classes(types: dict[int, int], adjacency: dict[int, list[int]]) -> dict[int
 def find_stereocenters(system: System) -> list[tuple[int, int, int, int, float]]:
     """Atoms with four bonded atomistic neighbors that are all inequivalent.
 
-    Returns ``(a, b, c, center, phi0)``: three neighbors (hydrogen left out when there is one,
-    otherwise the neighbor of lowest class), the center, and the target improper dihedral of
-    (a, b, c, center) in degrees. Its magnitude is the ideal tetrahedral value and its sign is
-    the handedness in ``system``.
+    Returns two quartets ``(a, b, x, center, phi0)`` per center: a and b are the two heavy
+    neighbors of lowest class, x is the third heavy neighbor in the first quartet and the fourth
+    neighbor (hydrogen when there is one) in the second, and phi0 is the target improper dihedral
+    of the quartet in degrees. Its magnitude is the ideal tetrahedral value and its sign is the
+    handedness in ``system`` (IUPAC sign). The first quartet alone keeps the center on its side of
+    the heavy neighbors but lets the hydrogen cross to that side under a stiff restraint, which
+    leaves a nearly planar center that inverts once the restraint is released.
     """
     mass = {t.type_id: t.mass for t in system.atom_types}
     pos = {a.atom_id: np.array([a.x, a.y, a.z]) for a in system.atoms if not a.is_cg}
@@ -75,23 +89,28 @@ def find_stereocenters(system: System) -> list[tuple[int, int, int, int, float]]
         heavy = [n for n in nbrs if mass.get(atype[n], 12.0) >= HYDROGEN_MASS]
         chosen = sorted(heavy if len(heavy) == 3 else nbrs, key=lambda n: cls[n])[:3]
         a, b, c = chosen
+        (d,) = set(nbrs) - set(chosen)
         origin = pos[center]
-        phi = _dihedral(
-            origin + image(pos[a] - origin),
-            origin + image(pos[b] - origin),
-            origin + image(pos[c] - origin),
-            origin,
-        )
-        if abs(phi) < 1e-3:
+        phis = [
+            _dihedral(
+                origin + image(pos[a] - origin),
+                origin + image(pos[b] - origin),
+                origin + image(pos[x] - origin),
+                origin,
+            )
+            for x in (c, d)
+        ]
+        if min(abs(phi) for phi in phis) < 1e-3:
             continue
-        out.append((a, b, c, center, float(np.sign(phi)) * IDEAL_IMPROPER_DEG))
+        for x, phi in zip((c, d), phis, strict=True):
+            out.append((a, b, x, center, float(np.sign(phi)) * IDEAL_IMPROPER_DEG))
     return out
 
 
 def write_stereo_files(directory: Path, system: System, k_kj: float) -> int:
     """Write ``stereo.lmp`` (fix lines) and ``stereo_release.lmp`` (unfix lines).
 
-    Returns the number of restrained centers.
+    Returns the number of restrained centers (two restraints each).
     """
     centers = find_stereocenters(system)
     k = units.energy(k_kj)
@@ -99,9 +118,10 @@ def write_stereo_files(directory: Path, system: System, k_kj: float) -> int:
     release = ["# release of the stereocenter restraints"]
     for n, (a, b, c, center, phi0) in enumerate(centers, 1):
         lines.append(
-            f"fix stereo{n} all restrain dihedral {a} {b} {c} {center} {k:.6g} {k:.6g} {phi0:.4f}"
+            f"fix stereo{n} all restrain dihedral {a} {b} {c} {center} {k:.6g} {k:.6g} "
+            f"{restrain_target(phi0):.4f}"
         )
         release.append(f"unfix stereo{n}")
     (directory / "stereo.lmp").write_text("\n".join(lines) + "\n")
     (directory / "stereo_release.lmp").write_text("\n".join(release) + "\n")
-    return len(centers)
+    return len({center for _, _, _, center, _ in centers})

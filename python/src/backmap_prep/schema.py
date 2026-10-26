@@ -503,6 +503,16 @@ class SimulationParams(BaseModel):
             raise ValueError("restart_interval must be a positive integer")
         return v
 
+    @model_validator(mode="after")
+    def restart_interval_needs_standard_protocol(self) -> SimulationParams:
+        if self.restart_interval is not None and self.protocol != "standard":
+            raise ValueError(
+                f"simulation.restart_interval writes restart checkpoints and phase scripts only "
+                f"for protocol: standard, not {self.protocol}; for the atomistic stages use the "
+                f"resumable inputs of docs/resumable-runs.md"
+            )
+        return self
+
 
 class OutputConfig(BaseModel):
     """Output file configuration."""
