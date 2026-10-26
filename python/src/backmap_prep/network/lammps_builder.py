@@ -843,10 +843,10 @@ def _bond_terms(
             style = "backmap/table"
             params = [0.0, 0.0]
             xvg_name = _cg_bond_table_name(bond, search_dirs)
-            if xvg_name:
-                table_out = _register_bond_table(system, xvg_name, search_dirs)
-                if table_out:
-                    table_file = table_out
+            if not xvg_name:
+                tablenr = int(bond.params[0]) if bond.params else 0
+                raise ValueError(f"Missing bond table table_b{tablenr}.xvg for func-8 bond")
+            table_file = _register_bond_table(system, xvg_name, search_dirs)
         elif bond.func == 0:
             style = "backmap/harmonic"
             default = bond_defaults.get(
@@ -1057,10 +1057,9 @@ def _register_bond_table(
 def _cg_bond_table_name(bond: TopBond, search_dirs: list[Path]) -> str | None:
     if bond.func != 8 or not bond.params:
         return None
-    index = int(bond.params[0])
-    for candidate in (f"table_b{index}.xvg", f"table_a{index}.xvg"):
-        if _find_xvg(candidate, search_dirs):
-            return candidate
+    candidate = f"table_b{int(bond.params[0])}.xvg"
+    if _find_xvg(candidate, search_dirs):
+        return candidate
     return None
 
 

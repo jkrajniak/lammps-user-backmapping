@@ -48,6 +48,11 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   only for CG pairs; every atomistic pair was mixed from its atom types, so GROMOS C12 values of
   polar pairs or CHARMM NBFIX entries took the mixed value without a message. An atomistic pair
   listed in `[ nonbond_params ]` now takes those values, as in GROMACS.
+- **A missing bond table fell back to the angle table.** For a func-8 bond with table index n
+  the builder looked for `table_bn.xvg` and then for `table_an.xvg`, the angle table of the same
+  index, read with its angle axis as a distance. Without either, `bond_coeff N cg None None` was
+  written and failed only in LAMMPS. The builder now uses only `table_bn.xvg` and raises an
+  error naming it when it is missing, as for angles and dihedrals.
 
 
 ## [1.4.0] - 2026-10-13
