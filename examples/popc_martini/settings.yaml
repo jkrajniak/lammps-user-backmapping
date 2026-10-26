@@ -221,7 +221,7 @@ simulation:
   protocol: robust  # single protocol, decisions/2026-09-27-single-protocol-robust.md
   alpha: 0.0001
   cap_force: 50000.0  # kJ/mol/nm = 1195 kcal/mol/A, released before production
-  stereo_restraint: 83.68  # kJ/mol (20 kcal/mol): keeps the handedness of the glycerol C2 until the hybrid structure is written
+  stereo_restraint: 836.8  # kJ/mol (200 kcal/mol): keeps the handedness of the glycerol C2 until the hybrid structure is written
   initial_resolution: 0.0
   timestep: 0.0005
   timestep_backmapping: 0.0005

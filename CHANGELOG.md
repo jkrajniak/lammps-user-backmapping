@@ -24,6 +24,9 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   within 1 ps (and in the GROMACS minimization of the hybrid structure). Each center is now
   restrained on a second improper that contains the fourth neighbor, so `stereo.lmp` holds two
   fixes per center.
+- **`examples/popc_martini` restrains the stereocenters with 836.8 kJ/mol (200 kcal/mol)** instead of
+  83.68 kJ/mol. With the corrected restraint (both entries above) it keeps the handedness of all 128
+  glycerol C2 through the hybrid stage and the GROMACS minimization; 83.68 kJ/mol leaves 5 inverted.
 - **The package builds with LAMMPS stable_30Sep2026 and later.** `pair_style backmap` used
   `Force::pair_map`, which LAMMPS replaced by style registries. Both APIs are supported; CI builds
   against stable_22Jul2025_update2 and stable_30Sep2026_update1.
