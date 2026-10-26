@@ -227,7 +227,6 @@ void FixBackmap::setup(int vflag) {
   comm->forward_comm(this);
 
   build_bead_map();
-  check_molecule_extent();
   validate_masses();
 
   if (comm->me == 0) {
@@ -353,7 +352,10 @@ void FixBackmap::setup_pre_force(int vflag) {
   // different-bead branch, w=lambda_global). That corrupts the very
   // first velocity half-kick every AT atom receives. Delegate to
   // pre_force() so the bead map is ready before any force computation,
-  // matching every subsequent step.
+  // matching every subsequent step. The molecule extent is checked first,
+  // collectively, so that an incomplete molecule stops with that error
+  // rather than with a rank-local bead map error.
+  check_molecule_extent();
   pre_force(vflag);
 }
 
