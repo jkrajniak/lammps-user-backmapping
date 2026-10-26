@@ -26,13 +26,24 @@ HYDROGEN_MASS = 1.5
 # Improper dihedral of the neighbors around the center of an ideal tetrahedron:
 # arctan(1/sqrt(2)).
 IDEAL_IMPROPER_DEG = 35.2644
+# fix restrain dihedral evaluates K[1 + cos(phi - phi0)] with the phi0 it is given, so its energy
+# minimum lies at phi0 + 180 deg, while its documentation puts the minimum at phi0 (LAMMPS
+# stable_22Jul2025, stable_30Sep2026 and develop of 2026-10-25). The written target is shifted by
+# this offset; test_lammps_stereo_restraint.py fails if LAMMPS changes the convention.
+RESTRAIN_MINIMUM_OFFSET_DEG = 180.0
 
 
 def _dihedral(p0: np.ndarray, p1: np.ndarray, p2: np.ndarray, p3: np.ndarray) -> float:
+    """Dihedral angle in degrees with the IUPAC sign, the sign LAMMPS uses."""
     b0, b1, b2 = p1 - p0, p2 - p1, p3 - p2
     n1, n2 = np.cross(b0, b1), np.cross(b1, b2)
-    m = np.cross(n1, b1 / np.linalg.norm(b1))
+    m = np.cross(b1 / np.linalg.norm(b1), n1)
     return float(np.degrees(np.arctan2(np.dot(m, n2), np.dot(n1, n2))))
+
+
+def restrain_target(phi_deg: float) -> float:
+    """The phi0 of ``fix restrain dihedral`` whose energy minimum lies at ``phi_deg``."""
+    return (phi_deg - RESTRAIN_MINIMUM_OFFSET_DEG + 180.0) % 360.0 - 180.0
 
 
 def _classes(types: dict[int, int], adjacency: dict[int, list[int]]) -> dict[int, int]:
@@ -51,7 +62,7 @@ def find_stereocenters(system: System) -> list[tuple[int, int, int, int, float]]
     Returns ``(a, b, c, center, phi0)``: three neighbors (hydrogen left out when there is one,
     otherwise the neighbor of lowest class), the center, and the target improper dihedral of
     (a, b, c, center) in degrees. Its magnitude is the ideal tetrahedral value and its sign is
-    the handedness in ``system``.
+    the handedness in ``system`` (IUPAC sign).
     """
     mass = {t.type_id: t.mass for t in system.atom_types}
     pos = {a.atom_id: np.array([a.x, a.y, a.z]) for a in system.atoms if not a.is_cg}
@@ -99,7 +110,8 @@ def write_stereo_files(directory: Path, system: System, k_kj: float) -> int:
     release = ["# release of the stereocenter restraints"]
     for n, (a, b, c, center, phi0) in enumerate(centers, 1):
         lines.append(
-            f"fix stereo{n} all restrain dihedral {a} {b} {c} {center} {k:.6g} {k:.6g} {phi0:.4f}"
+            f"fix stereo{n} all restrain dihedral {a} {b} {c} {center} {k:.6g} {k:.6g} "
+            f"{restrain_target(phi0):.4f}"
         )
         release.append(f"unfix stereo{n}")
     (directory / "stereo.lmp").write_text("\n".join(lines) + "\n")

@@ -9,7 +9,13 @@ import pytest
 
 from backmap_prep.builder import AtomTypeInfo, LammpsAtom, LammpsBond, System
 from backmap_prep.schema import SimulationParams
-from backmap_prep.stereo import IDEAL_IMPROPER_DEG, find_stereocenters, write_stereo_files
+from backmap_prep.stereo import (
+    IDEAL_IMPROPER_DEG,
+    _dihedral,
+    find_stereocenters,
+    restrain_target,
+    write_stereo_files,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -47,6 +53,33 @@ def test_chiral_center_gets_ideal_improper_with_the_sign_of_its_handedness() -> 
     assert np.sign(right[0][4]) == -np.sign(left[0][4])
 
 
+def test_dihedral_has_the_iupac_sign() -> None:
+    """Looking along 2 -> 3, the bond to 1 turns clockwise onto the bond to 4: +90 degrees."""
+    points = [np.array(p, dtype=float) for p in [(1, 0, 0), (0, 0, 0), (0, 0, 1), (0, 1, 1)]]
+    assert _dihedral(*points) == pytest.approx(90.0)
+
+
+@pytest.mark.parametrize("mirror", [False, True])
+def test_target_is_the_improper_of_the_current_geometry(mirror: bool) -> None:
+    system = _molecule([10, 11, 12, 13], mirror=mirror)
+    pos = {a.atom_id: np.array([a.x, a.y, a.z]) for a in system.atoms}
+    a, b, c, center, phi0 = find_stereocenters(system)[0]
+    assert phi0 == pytest.approx(_dihedral(pos[a], pos[b], pos[c], pos[center]), abs=1e-3)
+
+
+@pytest.mark.parametrize(
+    ("phi", "target"),
+    [
+        (-IDEAL_IMPROPER_DEG, 180.0 - IDEAL_IMPROPER_DEG),
+        (IDEAL_IMPROPER_DEG, IDEAL_IMPROPER_DEG - 180.0),
+    ],
+)
+def test_restrain_target_puts_the_minimum_of_fix_restrain_at_phi(phi: float, target: float) -> None:
+    assert restrain_target(phi) == pytest.approx(target)
+    # fix restrain dihedral: E = K[1 + cos(phi - phi0)], zero at phi = phi0 + 180
+    assert 1.0 + np.cos(np.radians(phi - restrain_target(phi))) == pytest.approx(0.0, abs=1e-12)
+
+
 def test_hydrogen_is_left_out() -> None:
     a, b, c, _, _ = find_stereocenters(_molecule([10, 11, 12, 13]))[0]
     assert 2 not in (a, b, c)
@@ -75,6 +108,8 @@ def test_files_hold_one_restraint_per_center(tmp_path: Path) -> None:
     fix = (tmp_path / "stereo.lmp").read_text().splitlines()[-1].split()
     assert fix[:4] == ["fix", "stereo1", "all", "restrain"]
     assert float(fix[-3]) == pytest.approx(83.68 / 4.184, rel=1e-3)
+    phi0 = find_stereocenters(_molecule([10, 11, 12, 13]))[0][4]
+    assert float(fix[-1]) == pytest.approx(restrain_target(phi0), abs=1e-4)
     assert "unfix stereo1" in (tmp_path / "stereo_release.lmp").read_text()
 
 
