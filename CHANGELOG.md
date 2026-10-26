@@ -7,6 +7,15 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Fixed
+
+- **Six bonded styles doubled cross-rank forces with `newton_bond` off.** `bond_style
+  backmap/{harmonic,gromos,table}` and `angle_style backmap/{harmonic,table,cosine/squared}`
+  added force to every atom of a term, ghosts included, so with `newton on off` a term spanning
+  two ranks was counted on both. They now have the `newton_bond || i < nlocal` guard of the other
+  styles. The generated inputs keep the LAMMPS default `newton on` and were not affected.
+
+
 ## [1.4.0] - 2026-10-13
 
 ### Added

@@ -221,15 +221,21 @@ void AngleBackmapTable::compute(int eflag, int vflag) {
     f3[1] = a22 * dely2 + a12 * dely1;
     f3[2] = a22 * delz2 + a12 * delz1;
 
-    f[i1][0] += f1[0];
-    f[i1][1] += f1[1];
-    f[i1][2] += f1[2];
-    f[i2][0] -= f1[0] + f3[0];
-    f[i2][1] -= f1[1] + f3[1];
-    f[i2][2] -= f1[2] + f3[2];
-    f[i3][0] += f3[0];
-    f[i3][1] += f3[1];
-    f[i3][2] += f3[2];
+    if (newton_bond || i1 < nlocal) {
+      f[i1][0] += f1[0];
+      f[i1][1] += f1[1];
+      f[i1][2] += f1[2];
+    }
+    if (newton_bond || i2 < nlocal) {
+      f[i2][0] -= f1[0] + f3[0];
+      f[i2][1] -= f1[1] + f3[1];
+      f[i2][2] -= f1[2] + f3[2];
+    }
+    if (newton_bond || i3 < nlocal) {
+      f[i3][0] += f3[0];
+      f[i3][1] += f3[1];
+      f[i3][2] += f3[2];
+    }
 
     if (evflag)
       ev_tally(i1, i2, i3, nlocal, newton_bond, eangle, f1, f3, delx1, dely1,
