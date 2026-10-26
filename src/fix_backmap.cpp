@@ -782,7 +782,8 @@ void FixBackmap::build_bead_map() {
    build_bead_map() assigns AT atoms to beads from the atoms one rank sees
    (local + ghost). A molecule ID that extends beyond the ghost region gives
    ranks different partial views of it, and the map is wrong or fails. Every
-   molecule with an atom on this rank must be complete in local + ghost.
+   molecule with a CG bead and an atom on this rank must be complete in
+   local + ghost.
 ------------------------------------------------------------------------- */
 
 void FixBackmap::check_molecule_extent() {
@@ -807,11 +808,20 @@ void FixBackmap::check_molecule_extent() {
     return;
   }
 
+  // counts[m] = atoms of molecule m, counts[nmol + m] = its CG beads; only
+  // molecules with a bead enter the bead map
   auto nmol = static_cast<int>(maxmol) + 1;
-  std::vector<int> owned(nmol, 0), total(nmol, 0), seen(nmol, 0);
-  for (int i = 0; i < nlocal; i++)
-    if (molecule[i] > 0) owned[molecule[i]]++;
-  MPI_Allreduce(owned.data(), total.data(), nmol, MPI_INT, MPI_SUM, world);
+  std::vector<int> counts(2 * nmol, 0), total(2 * nmol, 0), seen(nmol, 0);
+  int *type = atom->type;
+  for (int i = 0; i < nlocal; i++) {
+    if (molecule[i] <= 0) continue;
+    counts[molecule[i]]++;
+    if (is_cg_type(type[i])) counts[nmol + molecule[i]]++;
+  }
+  MPI_Allreduce(counts.data(), total.data(), 2 * nmol, MPI_INT, MPI_SUM, world);
+  std::vector<int> owned(counts.begin(), counts.begin() + nmol);
+  for (int m = 0; m < nmol; m++)
+    if (total[nmol + m] == 0) owned[m] = 0;
 
   std::unordered_set<tagint> counted;
   for (int i = 0; i < ntotal; i++) {
@@ -833,14 +843,12 @@ void FixBackmap::check_molecule_extent() {
   MPI_Allreduce(&first_bad, &first_bad_all, 1, MPI_LMP_TAGINT, MPI_MIN, world);
   if (nbad_all > 0)
     error->all(FLERR,
-               "fix backmap: molecule {} (and {} more on all ranks) extends "
-               "beyond the ghost region of a rank that owns one of its atoms; "
-               "give each bead its own molecule ID, or increase comm_modify "
-               "cutoff to cover a whole molecule",
-               first_bad_all, nbad_all - 1);
+               "fix backmap: molecule {} extends beyond the ghost region of a "
+               "rank that owns one of its atoms; give each bead its own "
+               "molecule ID, or increase comm_modify cutoff to cover a whole "
+               "molecule",
+               first_bad_all);
 }
-
-/* ---------------------------------------------------------------------- */
 
 /* ---------------------------------------------------------------------- */
 

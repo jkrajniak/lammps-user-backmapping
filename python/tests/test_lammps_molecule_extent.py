@@ -39,19 +39,33 @@ def _data(per_bead: bool) -> str:
         bonds.append((base + 2, base + 3))
         if b > 0:
             bonds.append((base - 0, base + 2))
-    lines = ["molecule extent test", "", f"{3 * N_BEADS} atoms", "2 atom types"]
+    lines = ["molecule extent test", "", f"{3 * N_BEADS} atoms", "3 atom types"]
     lines += [f"{len(bonds)} bonds", "1 bond types", ""]
     lines += [f"0.0 {SPACING * N_BEADS + 2.0:.3f} xlo xhi", "0.0 20.0 ylo yhi", "0.0 20.0 zlo zhi"]
-    lines += ["", "Masses", "", "1 28.0", "2 14.0", "", "Atoms # full", "", *atoms, "", "Bonds", ""]
+    lines += [
+        "",
+        "Masses",
+        "",
+        "1 28.0",
+        "2 14.0",
+        "3 1.0",
+        "",
+        "Atoms # full",
+        "",
+        *atoms,
+        "",
+        "Bonds",
+        "",
+    ]
     lines += [f"{k} 1 {i} {j}" for k, (i, j) in enumerate(bonds, 1)]
     return "\n".join(lines) + "\n"
 
 
-def _run(tmp: Path, nprocs: int, per_bead: bool) -> tuple[int, str]:
+def _run(tmp: Path, nprocs: int, per_bead: bool, cg_type: int = 1) -> tuple[int, str]:
     lmp = os.environ.get(LMP_ENV)
     if not lmp or not Path(lmp).is_file():
         pytest.skip(f"set {LMP_ENV} to a LAMMPS binary built with the backmap package")
-    d = tmp / f"np{nprocs}_{'bead' if per_bead else 'chain'}"
+    d = tmp / f"np{nprocs}_{'bead' if per_bead else 'chain'}_cg{cg_type}"
     d.mkdir()
     (d / "d.data").write_text(_data(per_bead))
     (d / "in.t").write_text(
@@ -64,7 +78,7 @@ pair_style zero 4.0
 pair_coeff * *
 bond_style backmap/harmonic
 bond_coeff 1 at 300.0 1.53
-fix bm all backmap cg_type 1 alpha 0.0001 lambda0 0.5
+fix bm all backmap cg_type {cg_type} alpha 0.0001 lambda0 0.5
 run 0
 """
     )
@@ -91,3 +105,10 @@ def test_chain_molecule_beyond_the_ghost_region_is_an_error(tmp_path: Path) -> N
     code, out = _run(tmp_path, 4, per_bead=False)
     assert code != 0
     assert "extends beyond the ghost region" in out, out[-2000:]
+
+
+@pytest.mark.integration
+def test_long_molecule_without_beads_is_not_checked(tmp_path: Path) -> None:
+    """Only molecules with a bead enter the bead map; an atomistic-only chain may be long."""
+    code, out = _run(tmp_path, 4, per_bead=False, cg_type=3)
+    assert code == 0, out[-2000:]
