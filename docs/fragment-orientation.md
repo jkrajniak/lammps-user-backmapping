@@ -63,10 +63,14 @@ simulation:
 ```
 
 A stereocenter is an atom with four bonded atomistic neighbors that are all inequivalent (equal
-atom type and equal environment count as equivalent). It is restrained on the improper dihedral of
-three of its neighbors with the ideal tetrahedral value (35.26 degrees) and the sign of its
-handedness in the hybrid structure. The restraint energy is zero at that geometry and 2K/3 at
-the mirror image. The input script includes `stereo.lmp` before the first minimization and
+atom type and equal environment count as equivalent). It is restrained on two improper
+dihedrals, one of its three heavy neighbors and one with the fourth neighbor (the hydrogen when
+there is one) in place of the third, each with the ideal tetrahedral value (35.26 degrees) and the
+sign of its handedness in the hybrid structure. Each restraint has zero energy at that geometry
+and 2K/3 at the mirror image. The heavy-atom improper alone keeps the center on its side of the
+heavy neighbors but not the hydrogen: under a stiff restraint the hydrogen crosses to the side of
+the heavy neighbors, the center becomes nearly planar, and it inverts as soon as the restraint is
+released. The second improper rises when the hydrogen crosses. The input script includes `stereo.lmp` before the first minimization and
 `stereo_release.lmp` after `<prefix>_hybrid.data` is written.
 
 `fix restrain dihedral` has its energy minimum at the written target + 180 degrees, although its

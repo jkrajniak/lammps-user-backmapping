@@ -17,6 +17,13 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   2K/3, but at the current geometry it exerted a torque of about 0.94 K per radian. The target is
   now written so that the energy is zero at the current geometry and 2K/3 at the mirror image; a
   LAMMPS test checks both. Affects the `examples/popc_martini` hybrid stage of 1.4.0.
+- **`simulation.stereo_restraint` let the hydrogen of a center cross over.** It restrained only the
+  improper dihedral of the three heavy neighbors. With the corrected target and a stiff restraint
+  (200 kcal/mol) the hydrogen crossed to the side of the heavy neighbors in 4 of the 128 POPC
+  glycerol centers, which stayed nearly planar until the restraint was released and then inverted
+  within 1 ps (and in the GROMACS minimization of the hybrid structure). Each center is now
+  restrained on a second improper that contains the fourth neighbor, so `stereo.lmp` holds two
+  fixes per center.
 - **The package builds with LAMMPS stable_30Sep2026 and later.** `pair_style backmap` used
   `Force::pair_map`, which LAMMPS replaced by style registries. Both APIs are supported; CI builds
   against stable_22Jul2025_update2 and stable_30Sep2026_update1.

@@ -1,7 +1,8 @@
 """LAMMPS regression test for the stereocenter restraint (``simulation.stereo_restraint``).
 
-The restraint written by ``backmap_prep.stereo`` must have zero energy at the geometry it keeps
-and a higher energy at the mirror image. The test fails if LAMMPS changes the convention of
+The restraints written by ``backmap_prep.stereo`` must have zero energy at the geometry they keep
+and a higher energy at the mirror image and when the hydrogen crosses to the side of the heavy
+neighbors. The test fails if LAMMPS changes the convention of
 ``fix restrain dihedral`` (see ``RESTRAIN_MINIMUM_OFFSET_DEG``).
 
 Skipped unless ``BACKMAP_LMP`` points to a LAMMPS binary.
@@ -34,9 +35,14 @@ def _lmp() -> Path:
     return Path(path)
 
 
-def _center(mirror: bool) -> System:
-    """A carbon with hydrogen, F, Cl and Br on the corners of an ideal tetrahedron."""
-    directions = TET * np.array([-1.0, 1.0, 1.0]) if mirror else TET
+def _center(mirror: bool, crossed: bool = False) -> System:
+    """A carbon with hydrogen, F, Cl and Br on the corners of an ideal tetrahedron.
+
+    ``crossed`` moves the hydrogen to the side of the three heavy neighbors.
+    """
+    directions = TET * np.array([-1.0, 1.0, 1.0]) if mirror else TET.copy()
+    if crossed:
+        directions[0] *= -0.6
     system = System(box=(30.0, 30.0, 30.0))
     system.atom_types = [
         AtomTypeInfo(1, "C", 12.0, False),
@@ -61,7 +67,7 @@ def _data(system: System) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _energy(tmp_path: Path, restrained: System, evaluated: System) -> float:
+def _energies(tmp_path: Path, restrained: System, evaluated: System) -> tuple[float, float]:
     tmp_path.mkdir()
     assert write_stereo_files(tmp_path, restrained, K_KJ) == 1
     (tmp_path / "test.data").write_text(_data(evaluated))
@@ -69,7 +75,7 @@ def _energy(tmp_path: Path, restrained: System, evaluated: System) -> float:
         "units real\natom_style atomic\natom_modify map array\nboundary p p p\n"
         "read_data test.data\n"
         "pair_style zero 5.0\npair_coeff * *\ninclude stereo.lmp\nrun 0\n"
-        'print "RESULT $(f_stereo1:%.12e)"\n'
+        'print "RESULT $(f_stereo1:%.12e) $(f_stereo2:%.12e)"\n'
     )
     proc = subprocess.run(
         [str(_lmp()), "-in", "in.test", "-log", "log.test", "-screen", "none"],
@@ -80,9 +86,9 @@ def _energy(tmp_path: Path, restrained: System, evaluated: System) -> float:
     )
     log = (tmp_path / "log.test").read_text() if (tmp_path / "log.test").exists() else ""
     assert proc.returncode == 0, (log + proc.stdout + proc.stderr)[-3000:]
-    match = re.search(r"^RESULT (\S+)$", log, re.MULTILINE)
+    match = re.search(r"^RESULT (\S+) (\S+)$", log, re.MULTILINE)
     assert match, log[-2000:]
-    return float(match.group(1))
+    return float(match.group(1)), float(match.group(2))
 
 
 @pytest.mark.integration
@@ -91,7 +97,19 @@ def test_restraint_is_zero_at_the_kept_geometry_and_raises_the_mirror_image(
     tmp_path: Path, mirror: bool
 ) -> None:
     kept, inverted = _center(mirror), _center(not mirror)
-    assert _energy(tmp_path / "kept", kept, kept) == pytest.approx(0.0, abs=1e-8)
-    # the mirror image is at -phi: E = K[1 + cos(2 * 35.26 deg + 180 deg)] = 2K/3
+    assert _energies(tmp_path / "kept", kept, kept) == pytest.approx((0.0, 0.0), abs=1e-8)
+    # the mirror image is at -phi: E = K[1 + cos(2 * 35.26 deg + 180 deg)] = 2K/3 for each
     expected = K_KCAL * (1.0 - np.cos(np.radians(2.0 * IDEAL_IMPROPER_DEG)))
-    assert _energy(tmp_path / "inverted", kept, inverted) == pytest.approx(expected, rel=1e-4)
+    assert _energies(tmp_path / "inverted", kept, inverted) == pytest.approx(
+        (expected, expected), rel=1e-4
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mirror", [False, True])
+def test_hydrogen_crossing_to_the_heavy_neighbors_raises_the_second_restraint(
+    tmp_path: Path, mirror: bool
+) -> None:
+    heavy, second = _energies(tmp_path / "crossed", _center(mirror), _center(mirror, crossed=True))
+    assert heavy == pytest.approx(0.0, abs=1e-8)
+    assert second > K_KCAL
