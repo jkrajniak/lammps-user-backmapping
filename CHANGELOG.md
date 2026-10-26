@@ -32,6 +32,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   `dihedral_style harmonic`, which has no phase, and a phase other than 0 or 180 degrees became 0
   without a message. Such a dihedral is now written as a one-term `backmap/fourier`, the style
   func 9 already uses; phases of 0 and 180 degrees stay harmonic.
+- **`build` ignored `prep.fragment_orientation` with `bakery_xml`.** On the `bakery_xml` route,
+  `backmap-prep build` built the hybrid with fragments translated, while `build-hybrid` used the
+  setting, so one settings file gave different hybrid coordinates from the two commands. `build`
+  now passes the setting as well.
 
 
 ## [1.4.0] - 2026-10-13
