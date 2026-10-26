@@ -22,6 +22,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   of the examples are symmetric except for a 2 degree offset at the edge of the flat cap of the
   polyethylene table `table_d1.xvg` (shared by `examples/pe` and `examples/pe_aa`), whose hybrid
   stages change accordingly.
+- **Molecules that extend beyond the ghost region gave a wrong or failing bead map in
+  parallel.** `fix backmap` builds the bead map from the atoms one rank sees, and with one
+  molecule ID per chain ranks saw different parts of a long chain: the run stopped with a
+  misleading divisibility error, could hang (the check called `error->all` from a rank-local
+  loop), or, when the partial counts divided, gave a wrong map without an error. The fix now
+  checks at the start of each run that every molecule is complete in local + ghost atoms on the
+  ranks that own its atoms and stops with an error naming the molecule; rank-local checks use
+  `error->one`. `backmap-prep` gives each bead its own molecule ID and is not affected.
 
 ## [1.4.0] - 2026-10-13
 

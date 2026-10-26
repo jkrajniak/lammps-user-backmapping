@@ -50,6 +50,14 @@ in global tag order: CG bead *i* receives AT atoms
 \[i \times \text{apb},\ (i+1) \times \text{apb})\] where
 `apb = num_AT / num_CG`.
 
+Each rank builds this map from the atoms it sees (its own and its ghost
+atoms), so every molecule must lie within the ghost region of each rank that
+owns one of its atoms. `backmap-prep` gives each bead its own molecule ID,
+which satisfies this. A molecule of several beads (one ID per chain, with
+`apb`) must be no longer than the communication cutoff (`comm_modify
+cutoff`). The fix checks this at the start of every run and stops with an
+error naming a molecule that extends beyond the ghost region.
+
 ```
 fix bm all backmap cg_type 1 2 alpha 0.001
 ```
