@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -71,6 +72,24 @@ def _cg_types_from_settings(settings: Settings) -> set[str]:
     return {bead.type for mol in settings.molecules for bead in mol.beads if bead.type}
 
 
+def _cg_type_names(settings: Settings, molecule: MoleculeType) -> set[str]:
+    """CG bead types of the settings; single-letter type names only when the settings give none.
+
+    GROMOS atomistic types (C, O, N, H, S) are single letters too, so the fallback warns.
+    """
+    names = _cg_types_from_settings(settings)
+    if names:
+        return names
+    names = {atom.type for atom in molecule.atoms if _single_letter_cg(atom.type)}
+    if names:
+        warnings.warn(
+            "settings.molecules define no bead types; taking the single-letter atom types "
+            f"{sorted(names)} as CG beads",
+            stacklevel=2,
+        )
+    return names
+
+
 def _cross_bond_defaults(
     settings: Settings,
 ) -> dict[frozenset[str], tuple[str, list[float] | None, str | None]]:
@@ -124,12 +143,39 @@ def _lj_sigma_epsilon(atom_type: AtomType | None, combination_rule: int) -> tupl
     """(sigma nm, epsilon kJ/mol) of an atom type; rule 1 stores C6, C12 instead."""
     if atom_type is None:
         return 0.0, 0.0
+    return _lj_values(atom_type.sigma, atom_type.epsilon, combination_rule)
+
+
+def _lj_values(v: float, w: float, combination_rule: int) -> tuple[float, float]:
+    """(sigma nm, epsilon kJ/mol) of the two LJ columns of GROMACS: (C6, C12) for rule 1."""
     if combination_rule != 1:
-        return atom_type.sigma, atom_type.epsilon
-    c6, c12 = atom_type.sigma, atom_type.epsilon
-    if c6 <= 0.0 or c12 <= 0.0:
+        return v, w
+    if v <= 0.0 or w <= 0.0:
         return 0.0, 0.0
-    return (c12 / c6) ** (1.0 / 6.0), c6 * c6 / (4.0 * c12)
+    return (w / v) ** (1.0 / 6.0), v * v / (4.0 * w)
+
+
+def _type_mass(
+    name: str, atom_masses: set[float], atom_type: AtomType | None, is_cg: bool
+) -> float:
+    """Mass of a LAMMPS atom type.
+
+    An atomistic type takes the [ atoms ] mass, as in GROMACS, else the [ atomtypes ] mass; LAMMPS
+    has one mass per type, so atomistic atoms of one type with different masses (hydrogen mass
+    repartitioning in [ atoms ]) are an error. A CG bead keeps the mass of the CG force field
+    ([ atomtypes ]): the [ atoms ] mass of a hybrid topology is the sum of the mapped atoms, and
+    beads of one type differ in it when a network bead loses atoms on reaction.
+    """
+    if is_cg and atom_type is not None:
+        return atom_type.mass
+    if len(atom_masses) > 1:
+        raise ValueError(
+            f"atoms of type {name} have different masses {sorted(atom_masses)} in [ atoms ]; "
+            "LAMMPS takes one mass per atom type"
+        )
+    if atom_masses:
+        return next(iter(atom_masses))
+    return atom_type.mass if atom_type else 0.0
 
 
 def _atom_type_info(
@@ -138,17 +184,18 @@ def _atom_type_info(
     cg_type_names: set[str],
 ) -> tuple[list[AtomTypeInfo], dict[str, int]]:
     type_ids: dict[str, int] = {}
-    type_samples: dict[str, TopAtom] = {}
+    masses: dict[str, set[float]] = {}
     for atom in molecule.atoms:
         if atom.type not in type_ids:
             type_ids[atom.type] = len(type_ids) + 1
-            type_samples[atom.type] = atom
+        if atom.mass > 0.0:
+            masses.setdefault(atom.type, set()).add(atom.mass)
 
     atom_types: list[AtomTypeInfo] = []
     for atom_type_name, type_id in type_ids.items():
         atom_type = topology.atom_types.get(atom_type_name)
-        sample = type_samples[atom_type_name]
-        is_cg = atom_type_name in cg_type_names or _single_letter_cg(atom_type_name)
+        is_cg = atom_type_name in cg_type_names
+        mass = _type_mass(atom_type_name, masses.get(atom_type_name, set()), atom_type, is_cg)
         sigma_nm, epsilon_kj = _lj_sigma_epsilon(atom_type, topology.combination_rule)
         sigma = units.sigma(sigma_nm)
         epsilon = units.epsilon(epsilon_kj)
@@ -156,7 +203,7 @@ def _atom_type_info(
             AtomTypeInfo(
                 type_id=type_id,
                 name=atom_type_name,
-                mass=atom_type.mass if atom_type else sample.mass,
+                mass=mass,
                 is_cg=is_cg,
                 sigma=sigma,
                 epsilon=epsilon,
@@ -179,7 +226,7 @@ def _backmap_mol_ids(
     mol_ids: dict[int, int] = {}
     current_mol_id = 0
     for atom in molecule.atoms:
-        is_cg = atom.type in cg_type_names or _single_letter_cg(atom.type)
+        is_cg = atom.type in cg_type_names
         if is_cg:
             current_mol_id += 1
         if current_mol_id == 0:
@@ -250,7 +297,7 @@ def _hybrid_atoms(
     mol_ids = _backmap_mol_ids(molecule, cg_type_names)
     atoms: list[LammpsAtom] = []
     for top_atom, gro_atom in zip(molecule.atoms, gro_atoms, strict=False):
-        is_cg = top_atom.type in cg_type_names or _single_letter_cg(top_atom.type)
+        is_cg = top_atom.type in cg_type_names
         atoms.append(
             LammpsAtom(
                 atom_id=top_atom.index,
@@ -389,9 +436,7 @@ def _pair_14_terms(
         return
     cg_names = cg_type_names or set()
     atom_by_index = {atom.index: atom for atom in molecule.atoms}
-    at_indices = {
-        a.index for a in molecule.atoms if a.type not in cg_names and not _single_letter_cg(a.type)
-    }
+    at_indices = {a.index for a in molecule.atoms if a.type not in cg_names}
     explicit: dict[tuple[int, int], tuple[int, list[float]]] = {}
     for pair in listed:
         key = (min(pair.i, pair.j), max(pair.i, pair.j))
@@ -535,10 +580,7 @@ def _dihedral_terms(
             _token_name(atom_k.name),
             _token_name(atom_l.name),
         )
-        is_cg_quad = all(
-            atom.type in cg_type_names or _single_letter_cg(atom.type)
-            for atom in (atom_i, atom_j, atom_k, atom_l)
-        )
+        is_cg_quad = all(atom.type in cg_type_names for atom in (atom_i, atom_j, atom_k, atom_l))
         keyword = "cg" if is_cg_quad else "at"
         style = "backmap/ryckaert"
         table_file: str | None = None
@@ -576,11 +618,16 @@ def _dihedral_terms(
                     f"{dih.i}-{dih.j}-{dih.k}-{dih.atom_l} ({quad})"
                 )
             phi0, k_kj, multiplicity = improper
-            params = units.gromacs_harmonic_dihedral(k_kj, multiplicity, phi0)
-            if _is_intra_bead_dihedral(atoms_by_id, dih.i, dih.j, dih.k, dih.atom_l):
+            if not units.harmonic_dihedral_phase(phi0):
+                # dihedral_style harmonic has no phase: E = K[1 + d cos(n phi)], d = +-1
+                style = "backmap/fourier"
+                params = [1.0, units.energy(k_kj), float(multiplicity), phi0]
+            elif _is_intra_bead_dihedral(atoms_by_id, dih.i, dih.j, dih.k, dih.atom_l):
+                params = units.gromacs_harmonic_dihedral(k_kj, multiplicity, phi0)
                 style = "harmonic"
                 keyword = ""
             else:
+                params = units.gromacs_harmonic_dihedral(k_kj, multiplicity, phi0)
                 style = "backmap/harmonic"
                 keyword = "at"
         elif func in (4, 9):
@@ -678,7 +725,7 @@ def _improper_terms(
         if dih.func != 2:
             continue
         atoms = [atom_by_index[i] for i in (dih.i, dih.j, dih.k, dih.atom_l)]
-        is_cg = all(a.type in cg_type_names or _single_letter_cg(a.type) for a in atoms)
+        is_cg = all(a.type in cg_type_names for a in atoms)
         keyword = "cg" if is_cg else "at"
         xi0, k_kj = resolve_improper_harmonic(
             dih, atom_type_by_index, topology.dihedraltypes, topology.atom_types
@@ -788,9 +835,7 @@ def _bond_terms(
     for bond_index, bond in enumerate(all_bonds, start=1):
         atom_i = atom_by_index[bond.i]
         atom_j = atom_by_index[bond.j]
-        is_cg_bond = (atom_i.type in cg_type_names or _single_letter_cg(atom_i.type)) and (
-            atom_j.type in cg_type_names or _single_letter_cg(atom_j.type)
-        )
+        is_cg_bond = (atom_i.type in cg_type_names) and (atom_j.type in cg_type_names)
         keyword = "cg" if is_cg_bond else "at"
 
         table_file: str | None = None
@@ -798,10 +843,10 @@ def _bond_terms(
             style = "backmap/table"
             params = [0.0, 0.0]
             xvg_name = _cg_bond_table_name(bond, search_dirs)
-            if xvg_name:
-                table_out = _register_bond_table(system, xvg_name, search_dirs)
-                if table_out:
-                    table_file = table_out
+            if not xvg_name:
+                tablenr = int(bond.params[0]) if bond.params else 0
+                raise ValueError(f"Missing bond table table_b{tablenr}.xvg for func-8 bond")
+            table_file = _register_bond_table(system, xvg_name, search_dirs)
         elif bond.func == 0:
             style = "backmap/harmonic"
             default = bond_defaults.get(
@@ -895,10 +940,7 @@ def _angle_terms(
         atom_i = atom_by_index[angle.i]
         atom_j = atom_by_index[angle.j]
         atom_k = atom_by_index[angle.k]
-        is_cg_angle = all(
-            atom.type in cg_type_names or _single_letter_cg(atom.type)
-            for atom in (atom_i, atom_j, atom_k)
-        )
+        is_cg_angle = all(atom.type in cg_type_names for atom in (atom_i, atom_j, atom_k))
         keyword = "cg" if is_cg_angle else "at"
         triple = (
             _token_name(atom_i.name),
@@ -1015,10 +1057,9 @@ def _register_bond_table(
 def _cg_bond_table_name(bond: TopBond, search_dirs: list[Path]) -> str | None:
     if bond.func != 8 or not bond.params:
         return None
-    index = int(bond.params[0])
-    for candidate in (f"table_b{index}.xvg", f"table_a{index}.xvg"):
-        if _find_xvg(candidate, search_dirs):
-            return candidate
+    candidate = f"table_b{int(bond.params[0])}.xvg"
+    if _find_xvg(candidate, search_dirs):
+        return candidate
     return None
 
 
@@ -1106,17 +1147,35 @@ def _martini_pair_tables(
             system.pair_table_files.append((xvg_name, table_out))
 
 
-def _pair_terms(atom_types: list[AtomTypeInfo], combination_rule: int) -> list[PairTypeInfo]:
+def _pair_terms(
+    atom_types: list[AtomTypeInfo],
+    combination_rule: int,
+    nonbond_params: dict[tuple[str, str], tuple[float, float]] | None = None,
+) -> list[PairTypeInfo]:
     """CG, AT and none pair types; AT sigma mixes per the GROMACS combination rule.
 
     Rule 2 is Lorentz-Berthelot (arithmetic sigma); rules 1 and 3 are geometric
     in sigma and epsilon (rule 1 is geometric in C6, C12, which is the same).
+    An AT pair listed in ``[ nonbond_params ]`` (GROMOS C12 of polar pairs, CHARMM NBFIX)
+    takes those values instead of the mixed ones, as in GROMACS.
     """
     pair_types: list[PairTypeInfo] = []
     for i, atom_type_i in enumerate(atom_types, start=1):
         for j, atom_type_j in enumerate(atom_types[i - 1 :], start=i):
+            pair = (nonbond_params or {}).get((atom_type_i.name, atom_type_j.name))
             if atom_type_i.is_cg and atom_type_j.is_cg:
                 pair_types.append(PairTypeInfo(itype=i, jtype=j, kind="cg"))
+            elif not atom_type_i.is_cg and not atom_type_j.is_cg and pair is not None:
+                sigma_nm, epsilon_kj = _lj_values(*pair, combination_rule)
+                pair_types.append(
+                    PairTypeInfo(
+                        itype=i,
+                        jtype=j,
+                        kind="atomistic",
+                        sigma=units.sigma(sigma_nm),
+                        epsilon=units.epsilon(epsilon_kj),
+                    )
+                )
             elif not atom_type_i.is_cg and not atom_type_j.is_cg:
                 if atom_type_i.sigma <= 0 or atom_type_j.sigma <= 0:
                     sigma = 0.0
@@ -1215,7 +1274,9 @@ def build_system_from_cg(
         search_dirs,
         plain_cg=True,
     )
-    system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
+    system.pair_types = _pair_terms(
+        system.atom_types, top_file.combination_rule, top_file.nonbond_params
+    )
     _resolve_pair_tables(system, settings, search_dirs)
     prepare_network_coordinates(system)
     cg_cut = units.distance(settings.simulation.cg_cutoff)
@@ -1319,7 +1380,7 @@ def build_system_from_hybrid(
     )
     _merge_source_atom_types(top_file, settings, base_dir, ff_dirs)
     molecule = _topology_molecule(top_file)
-    cg_type_names = _cg_types_from_settings(settings)
+    cg_type_names = _cg_type_names(settings, molecule)
 
     system = System()
     system.box = (
@@ -1349,7 +1410,9 @@ def build_system_from_hybrid(
     system.impropers = _improper_terms(system, molecule, top_file, cg_type_names)
     _pair_14_terms(system, molecule, top_file, cg_type_names)
     system.fudge_lj, system.fudge_qq = top_file.fudge_lj, top_file.fudge_qq
-    system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
+    system.pair_types = _pair_terms(
+        system.atom_types, top_file.combination_rule, top_file.nonbond_params
+    )
     _resolve_pair_tables(system, settings, search_dirs)
     if settings.cg_system is not None and settings.cg_system.nonbonded is not None:
         _martini_pair_tables(system, settings, base_dir, search_dirs)

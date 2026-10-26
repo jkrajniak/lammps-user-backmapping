@@ -237,3 +237,48 @@ class TestMissingFile:
     def test_missing_file_raises(self, tmp_path: Path) -> None:
         with pytest.raises(FileNotFoundError, match="Topology file not found"):
             parse_top(tmp_path / "nonexistent.top")
+
+
+class TestDefineMacros:
+    """GROMOS writes bonded parameters as #define macros (gb_/ga_), which grompp substitutes."""
+
+    BODY = """\
+        [ moleculetype ]
+        M  3
+        [ atoms ]
+        1  C  1  M  C1  1  0.0  12.0
+        2  C  1  M  C2  1  0.0  12.0
+        3  C  1  M  C3  1  0.0  12.0
+        [ bonds ]
+        1  2  2  {b}
+        2  3  2  {b}  ; comment {b}
+        [ angles ]
+        1  2  3  2  {a}
+        [ molecules ]
+        M 1
+        """
+
+    def _parse(self, tmp_path: Path, defines: str, b: str, a: str) -> Topology:
+        p = tmp_path / "m.top"
+        p.write_text(defines + dedent(self.BODY).format(b=b, a=a))
+        return parse_top(p)
+
+    def test_macros_parse_as_the_numbers_written_out(self, tmp_path: Path) -> None:
+        defines = "#define gb_27  0.1530  7.1500e+06\n#define ga_15  111.00  530.00\n"
+        (tmp_path / "macro").mkdir()
+        (tmp_path / "plain").mkdir()
+        macro = self._parse(tmp_path / "macro", defines, "gb_27", "ga_15").molecule_types["M"]
+        plain = self._parse(
+            tmp_path / "plain", "", "0.1530  7.1500e+06", "111.00  530.00"
+        ).molecule_types["M"]
+        assert len(macro.bonds) == len(plain.bonds) == 2
+        assert len(macro.angles) == len(plain.angles) == 1
+        assert [b.params for b in macro.bonds] == [b.params for b in plain.bonds]
+        assert macro.angles[0].params == plain.angles[0].params == pytest.approx([111.0, 530.0])
+
+    @pytest.mark.parametrize(
+        ("b", "a", "section"), [("gb_27", "111 530", "bonds"), ("0.153 7e6", "ga_15", "angles")]
+    )
+    def test_unknown_macro_is_an_error(self, tmp_path: Path, b: str, a: str, section: str) -> None:
+        with pytest.raises(ValueError, match=rf"\[ {section} \].*neither a number nor a #define"):
+            self._parse(tmp_path, "", b, a)

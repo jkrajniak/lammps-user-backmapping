@@ -18,6 +18,42 @@ atomistic detail while maintaining thermodynamic consistency.
     **Dec. 2017**) — networks (epoxy, melamine), hyperbranched polymer, PET.
     [DOI: 10.1002/jcc.25129](https://doi.org/10.1002/jcc.25129)
 
+??? cite "Applications (optional)"
+    Zhang, Wheatle, Krajniak, Keith, Ganesan, "Ion Mobilities, Transference
+    Numbers, and Inverse Haven Ratios of Polymeric Ionic Liquids",
+    *ACS Macro Lett.* **2020**, *9*, 84--89 — charged polymers (polymeric
+    ionic liquids of different chain lengths).
+    [DOI: 10.1021/acsmacrolett.9b00908](https://doi.org/10.1021/acsmacrolett.9b00908)
+
+    Zhang, Krajniak, Keith, Ganesan, "Mechanisms of Ion Transport in Block
+    Copolymeric Polymerized Ionic Liquids", *ACS Macro Lett.* **2019**, *8*,
+    1096--1101 — microphase-separated block copolymers.
+    [DOI: 10.1021/acsmacrolett.9b00478](https://doi.org/10.1021/acsmacrolett.9b00478)
+
+    Zhang, Krajniak, Ganesan, "A Multiscale Simulation Study of Influence of
+    Morphology on Ion Transport in Block Copolymeric Ionic Liquids",
+    *Macromolecules* **2021**, *54*, 4997--5010 — microphase-separated block
+    copolymers.
+    [DOI: 10.1021/acs.macromol.1c00025](https://doi.org/10.1021/acs.macromol.1c00025)
+
+    Zhang, Sass, Krajniak, Ganesan, "Ion Correlations and Partial Ionicities
+    in the Lamellar Phases of Block Copolymeric Ionic Liquids",
+    *ACS Macro Lett.* **2022**, *11*, 1265--1271 — microphase-separated block
+    copolymers (lamellar phase).
+    [DOI: 10.1021/acsmacrolett.2c00401](https://doi.org/10.1021/acsmacrolett.2c00401)
+
+    Zhang, Krajniak, Sass, Sachar, Marioni, Duncan, Ganesan, "Conductivity and
+    Transference Numbers in Lithium Salt-Doped Block Copolymeric Ionic Liquid
+    Electrolytes", *Macromolecules* **2023**, *56*, 9750--9765 —
+    microphase-separated block copolymers with salt.
+    [DOI: 10.1021/acs.macromol.3c01791](https://doi.org/10.1021/acs.macromol.3c01791)
+
+    Zhang, Krajniak, Samaey, Nies, "A Parallel Multiscale Simulation Framework
+    for Complex Polymerization: AB2-Type Monomer Hyperbranched Polymerization
+    as an Example", *Adv. Theory Simul.* **2019**, *2*, 1800102 — topologies
+    formed by polymerization at the CG level (hyperbranched polymers).
+    [DOI: 10.1002/adts.201800102](https://doi.org/10.1002/adts.201800102)
+
 ## Features
 
 - **Smooth resolution transition** -- lambda ramp with configurable rate drives

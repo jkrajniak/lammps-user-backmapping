@@ -75,8 +75,12 @@ def _write_full_example(base: Path) -> Path:
             }
         ],
         "cg_system": {"coordinates": "cg.gro", "topology": "cg.top"},
+        "simulation": {"table_groups": ["CG1"]},
         "output": {"prefix": "test_out"},
     }
+    # CG pair table (GROMACS format: r, f, -f', g, -g', h, -h')
+    rows = [f"{0.05 * k:.3f} 0 0 0 0 {1.0 / (0.05 * k) ** 12:.6e} 0" for k in range(1, 41)]
+    (base / "table_CG1_CG1.xvg").write_text("\n".join(rows) + "\n")
     settings_path = base / "settings.yaml"
     settings_path.write_text(yaml.dump(settings))
     return settings_path

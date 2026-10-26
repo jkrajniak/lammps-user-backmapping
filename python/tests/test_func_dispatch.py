@@ -6,12 +6,17 @@ Any two-parameter angle used to become LAMMPS harmonic, so MARTINI G96 angles
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from backmap_prep import units
 from backmap_prep.builder import System
 from backmap_prep.network.lammps_builder import _angle_terms, _bond_terms
 from backmap_prep.parsers.top_parser import MoleculeType, TopAngle, TopAtom, TopBond
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _molecule() -> MoleculeType:
@@ -64,3 +69,17 @@ def test_other_bond_functions_are_an_error(func: int) -> None:
     mol.bonds = [TopBond(1, 2, func, [0.47, 1250.0, 2.0])]
     with pytest.raises(ValueError, match=rf"Unsupported bond func {func}"):
         _bond_terms(System(), mol, {}, set(), [])
+
+
+def test_func8_bond_uses_only_its_bond_table(tmp_path: Path) -> None:
+    """An angle table of the same index is not a bond table."""
+    (tmp_path / "table_a1.xvg").write_text("0.0 0.0 0.0\n")
+    mol = _molecule()
+    mol.bonds = [TopBond(1, 2, 8, [1, 1.0])]
+    with pytest.raises(ValueError, match=r"Missing bond table table_b1\.xvg"):
+        _bond_terms(System(), mol, {}, set(), [tmp_path])
+    (tmp_path / "table_b1.xvg").write_text("0.0 0.0 0.0\n")
+    system = System()
+    _bond_terms(system, mol, {}, set(), [tmp_path])
+    assert system.bond_types[0].style == "backmap/table"
+    assert system.table_files == [("table_b1.xvg", "table_b1.table")]

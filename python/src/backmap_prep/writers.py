@@ -276,7 +276,10 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     if has_backmap_dihedral_table:
         dihedral_styles.append(f"backmap/table linear {sim.table_points}")
 
-    interaction_cutoff_ang = max(lj_cut_ang, cg_cut_ang)
+    # pair_style backmap cuts every atomistic pair at its first argument, so it must cover both
+    # the LJ and the Coulomb cutoff of the atomistic sub-style
+    at_cut_ang = max(lj_cut_ang, coul_cut_ang)
+    interaction_cutoff_ang = max(at_cut_ang, cg_cut_ang)
     comm_skin_ang = 1.0
     comm_cutoff_ang = interaction_cutoff_ang + comm_skin_ang
     # Ghost atoms must cover the pair cutoff and the minimum-image extent of
@@ -288,6 +291,7 @@ def _compute_params(system: System, settings: Settings) -> dict[str, Any]:
     return {
         "timestep_fs": timestep_fs,
         "lj_cut_ang": lj_cut_ang,
+        "at_cut_ang": at_cut_ang,
         "cg_cut_ang": cg_cut_ang,
         "coul_cut_ang": coul_cut_ang,
         "comm_cutoff_ang": comm_cutoff_ang,
@@ -465,7 +469,7 @@ def _write_forcefield(
         if sim.coul_cap_radius > 0.0:
             at_extra += f" {units.distance(sim.coul_cap_radius):.10g}"
     f.write(
-        f"pair_style backmap {params['lj_cut_ang']:.2f} {at_style} "
+        f"pair_style backmap {params['at_cut_ang']:.2f} {at_style} "
         f"{params['lj_cut_ang']:.2f} {params['coul_cut_ang']:.2f}{at_extra} "
         f"{params['cg_cut_ang']:.2f} table linear {sim.table_points}{_cg_special(sim)}\n"
     )
@@ -475,10 +479,14 @@ def _write_forcefield(
                 f"pair_coeff {pt.itype} {pt.jtype} atomistic {pt.epsilon:.10g} {pt.sigma:.10g}\n"
             )
         elif pt.kind == "cg":
-            if pt.table_file:
-                f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
-            else:
-                f.write(f"pair_coeff {pt.itype} {pt.jtype} cg 0.0 0.0\n")
+            if not pt.table_file:
+                names = {t.type_id: t.name for t in system.atom_types}
+                raise ValueError(
+                    f"CG pair {names.get(pt.itype)}-{names.get(pt.jtype)} (types {pt.itype} "
+                    f"{pt.jtype}) has no table: cover both bead types in table_groups or "
+                    "provide the table file"
+                )
+            f.write(f"pair_coeff {pt.itype} {pt.jtype} cg {pt.table_file} {pt.table_keyword}\n")
         else:
             f.write(f"pair_coeff {pt.itype} {pt.jtype} none\n")
     f.write("\n")
@@ -649,13 +657,15 @@ def _write_setup(
     data_filename: str,
     *,
     use_read_data: bool = True,
+    create_velocities: bool = True,
     ff_include: str | None = None,
     backmap_include: str | None = None,
 ) -> None:
     """Write the shared setup block (styles, coefficients, groups, fixes).
 
     With ``ff_include``/``backmap_include`` the force field and the backmap
-    fixes are included from those files instead of written inline.
+    fixes are included from those files instead of written inline. Without
+    ``create_velocities`` the velocities are left as read (restart scripts).
     """
     sim = settings.simulation
 
@@ -667,7 +677,8 @@ def _write_setup(
     else:
         _write_forcefield(f, system, settings, params)
 
-    _write_initial_velocities(f, sim, params)
+    if create_velocities:
+        _write_initial_velocities(f, sim, params)
 
     # Integration (AT atoms only) — must be defined BEFORE fix backmap so
     # that NVE/NVT initial_integrate runs first, updating AT positions before
@@ -1075,6 +1086,7 @@ def _write_restart_scripts(
             params,
             data_filename,
             use_read_data=False,
+            create_velocities=False,
             ff_include=f"{Path(data_filename).stem}.ff.lmp",
             backmap_include=f"{Path(data_filename).stem}.backmap.lmp",
         )
@@ -1097,6 +1109,7 @@ def _write_restart_scripts(
             f.write("boundary p p p\n\n")
             f.write(f"read_data {data_filename}\n\n")
             f.write(f"include {setup_name}\n\n")
+            _write_initial_velocities(f, sim, params)
             f.write("# Backmapping: λ 0 → 1\n")
             f.write(f"timestep {params['ts_backmap_fs']:.2f}\n")
             f.write("fix_modify bm active yes\n")
@@ -1129,6 +1142,7 @@ def _write_restart_scripts(
         f.write("boundary p p p\n\n")
         f.write(f"read_data {data_filename}\n\n")
         f.write(f"include {setup_name}\n\n")
+        _write_initial_velocities(f, sim, params)
         f.write("# Phase 1: CG equilibration\n")
         f.write("fix_modify bm active no\n")
         f.write(f"run {sim.equilibration_steps}\n")

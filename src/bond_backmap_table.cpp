@@ -198,12 +198,16 @@ void BondBackmapTable::compute(int eflag, int vflag) {
     else
       fbond = 0.0;
 
-    f[i1][0] += delx * fbond;
-    f[i1][1] += dely * fbond;
-    f[i1][2] += delz * fbond;
-    f[i2][0] -= delx * fbond;
-    f[i2][1] -= dely * fbond;
-    f[i2][2] -= delz * fbond;
+    if (newton_bond || i1 < nlocal) {
+      f[i1][0] += delx * fbond;
+      f[i1][1] += dely * fbond;
+      f[i1][2] += delz * fbond;
+    }
+    if (newton_bond || i2 < nlocal) {
+      f[i2][0] -= delx * fbond;
+      f[i2][1] -= dely * fbond;
+      f[i2][2] -= delz * fbond;
+    }
 
     if (evflag)
       ev_tally(i1, i2, nlocal, newton_bond, ebond, fbond, delx, dely, delz);

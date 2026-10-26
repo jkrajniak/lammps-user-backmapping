@@ -18,9 +18,6 @@ concurrency:
   group: cpp-ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  LAMMPS_VERSION: stable_22Jul2025_update2
-
 jobs:
   unit-tests:
     name: Fast unit tests (no LAMMPS build)
@@ -38,12 +35,14 @@ jobs:
         run: ctest --test-dir tests/unit/build --output-on-failure
 
   build:
-    name: Build against LAMMPS (${{ matrix.os }})
+    name: Build against LAMMPS ${{ matrix.lammps }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        # oldest supported release (Force::pair_map) and latest stable (style registries)
+        lammps: [stable_22Jul2025_update2, stable_30Sep2026_update1]
     steps:
       - uses: actions/checkout@v4
 
@@ -62,12 +61,12 @@ jobs:
         id: cache-lammps
         with:
           path: lammps
-          key: lammps-${{ env.LAMMPS_VERSION }}-${{ runner.os }}
+          key: lammps-${{ matrix.lammps }}-${{ runner.os }}
 
       - name: Download LAMMPS
         if: steps.cache-lammps.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 --branch ${{ env.LAMMPS_VERSION }} \
+          git clone --depth 1 --branch ${{ matrix.lammps }} \
             https://github.com/lammps/lammps.git
 
       - name: Clean stale artifacts from cached LAMMPS tree

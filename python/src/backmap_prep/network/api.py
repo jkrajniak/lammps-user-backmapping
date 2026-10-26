@@ -208,6 +208,7 @@ def build_network_lammps(
             base_dir=xml_path.parent,
             allow_no_bonds=settings.prep.allow_no_bonds,
             chain_rng_seed=settings.prep.chain_rng_seed,
+            fragment_orientation=settings.prep.fragment_orientation,
         )
     else:
         settings = materialize_lammps_sources(settings, work_dir, output_dir)
