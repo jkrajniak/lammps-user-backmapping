@@ -151,23 +151,47 @@ def _lj_sigma_epsilon(atom_type: AtomType | None, combination_rule: int) -> tupl
     return (c12 / c6) ** (1.0 / 6.0), c6 * c6 / (4.0 * c12)
 
 
+def _type_mass(
+    name: str, atom_masses: set[float], atom_type: AtomType | None, is_cg: bool
+) -> float:
+    """Mass of a LAMMPS atom type.
+
+    An atomistic type takes the [ atoms ] mass, as in GROMACS, else the [ atomtypes ] mass; LAMMPS
+    has one mass per type, so atomistic atoms of one type with different masses (hydrogen mass
+    repartitioning in [ atoms ]) are an error. A CG bead keeps the mass of the CG force field
+    ([ atomtypes ]): the [ atoms ] mass of a hybrid topology is the sum of the mapped atoms, and
+    beads of one type differ in it when a network bead loses atoms on reaction.
+    """
+    if is_cg and atom_type is not None:
+        return atom_type.mass
+    if len(atom_masses) > 1:
+        raise ValueError(
+            f"atoms of type {name} have different masses {sorted(atom_masses)} in [ atoms ]; "
+            "LAMMPS takes one mass per atom type"
+        )
+    if atom_masses:
+        return next(iter(atom_masses))
+    return atom_type.mass if atom_type else 0.0
+
+
 def _atom_type_info(
     topology: Topology,
     molecule: MoleculeType,
     cg_type_names: set[str],
 ) -> tuple[list[AtomTypeInfo], dict[str, int]]:
     type_ids: dict[str, int] = {}
-    type_samples: dict[str, TopAtom] = {}
+    masses: dict[str, set[float]] = {}
     for atom in molecule.atoms:
         if atom.type not in type_ids:
             type_ids[atom.type] = len(type_ids) + 1
-            type_samples[atom.type] = atom
+        if atom.mass > 0.0:
+            masses.setdefault(atom.type, set()).add(atom.mass)
 
     atom_types: list[AtomTypeInfo] = []
     for atom_type_name, type_id in type_ids.items():
         atom_type = topology.atom_types.get(atom_type_name)
-        sample = type_samples[atom_type_name]
         is_cg = atom_type_name in cg_type_names
+        mass = _type_mass(atom_type_name, masses.get(atom_type_name, set()), atom_type, is_cg)
         sigma_nm, epsilon_kj = _lj_sigma_epsilon(atom_type, topology.combination_rule)
         sigma = units.sigma(sigma_nm)
         epsilon = units.epsilon(epsilon_kj)
@@ -175,7 +199,7 @@ def _atom_type_info(
             AtomTypeInfo(
                 type_id=type_id,
                 name=atom_type_name,
-                mass=atom_type.mass if atom_type else sample.mass,
+                mass=mass,
                 is_cg=is_cg,
                 sigma=sigma,
                 epsilon=epsilon,

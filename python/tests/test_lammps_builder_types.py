@@ -12,7 +12,7 @@ from backmap_prep.network.lammps_builder import (
     _backmap_mol_ids,
     _cg_type_names,
 )
-from backmap_prep.parsers.top_parser import MoleculeType, TopAtom, Topology
+from backmap_prep.parsers.top_parser import AtomType, MoleculeType, TopAtom, Topology
 
 
 def _settings(*bead_types: str) -> Any:
@@ -44,3 +44,35 @@ def test_single_letter_atomistic_types_are_not_beads_when_the_settings_name_the_
 def test_single_letter_fallback_warns_when_the_settings_name_no_beads() -> None:
     with pytest.warns(UserWarning, match="single-letter"):
         assert _cg_type_names(_settings(), _molecule(["A", "c1", "c2", "B", "c3"])) == {"A", "B"}
+
+
+def _masses(mol: MoleculeType, top: Topology) -> dict[str, float]:
+    infos, _ = _atom_type_info(top, mol, {"CGA"})
+    return {i.name: i.mass for i in infos}
+
+
+def test_atoms_mass_takes_precedence_over_the_atomtypes_mass() -> None:
+    top = Topology(
+        atom_types={"C": AtomType("C", 12.011, 0.0, "A"), "H": AtomType("H", 1.008, 0.0, "A")}
+    )
+    # hydrogen mass repartitioning written in [ atoms ]; C keeps its type mass
+    mol = _molecule(["CGA", "C", "H"], masses=[72.0, 0.0, 3.024])
+    assert _masses(mol, top) == pytest.approx({"CGA": 72.0, "C": 12.011, "H": 3.024})
+
+
+def test_masses_kept_only_in_atoms_are_not_zero() -> None:
+    mol = _molecule(["CGA", "C"], masses=[72.0, 12.011])
+    assert _masses(mol, Topology()) == pytest.approx({"CGA": 72.0, "C": 12.011})
+
+
+def test_atoms_of_one_type_with_different_masses_are_an_error() -> None:
+    mol = _molecule(["CGA", "H", "H"], masses=[72.0, 1.008, 3.024])
+    with pytest.raises(ValueError, match="type H have different masses"):
+        _masses(mol, Topology())
+
+
+def test_cg_beads_keep_the_mass_of_the_cg_force_field() -> None:
+    """The [ atoms ] mass of a bead is the sum of its atoms and differs between reacted beads."""
+    top = Topology(atom_types={"CGA": AtomType("CGA", 72.0, 0.0, "A")})
+    mol = _molecule(["CGA", "C", "CGA", "C"], masses=[87.166, 12.011, 86.158, 12.011])
+    assert _masses(mol, top) == pytest.approx({"CGA": 72.0, "C": 12.011})

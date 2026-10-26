@@ -20,6 +20,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   entered the `cg_type` list of `fix backmap`. CG types now come from
   `molecules[].beads[].type`; single-letter names are used only when the settings define no bead
   types (the `bakery_xml` route), with a warning.
+- **The mass of an atom type overrode the mass in `[ atoms ]`.** The network builder took the
+  `[ atomtypes ]` mass whenever the type existed. GROMACS gives `[ atoms ]` precedence, so a force
+  field with its masses only in `[ atoms ]` gave zero type masses, and hydrogen mass
+  repartitioning written there was lost. Atomistic types now take the `[ atoms ]` mass, and atoms
+  of one type with different masses are an error (LAMMPS has one mass per type). CG beads keep
+  the mass of the CG force field. In `examples/popc_martini` this changes CTL2 from 12.0011 to
+  12.011 and CTL3 from 12.0111 to 12.011 (the `[ atoms ]` values, which GROMACS already used);
+  the data files of the other examples are unchanged.
 
 
 ## [1.4.0] - 2026-10-13
