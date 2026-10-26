@@ -1,4 +1,4 @@
-"""Atom types of the network LAMMPS builder: which types are CG beads, and their masses."""
+"""Atom types of the network LAMMPS builder: CG beads, masses, and atomistic pair parameters."""
 
 from __future__ import annotations
 
@@ -7,10 +7,13 @@ from typing import Any
 
 import pytest
 
+from backmap_prep import units
+from backmap_prep.builder import AtomTypeInfo
 from backmap_prep.network.lammps_builder import (
     _atom_type_info,
     _backmap_mol_ids,
     _cg_type_names,
+    _pair_terms,
 )
 from backmap_prep.parsers.top_parser import AtomType, MoleculeType, TopAtom, Topology
 
@@ -76,3 +79,30 @@ def test_cg_beads_keep_the_mass_of_the_cg_force_field() -> None:
     top = Topology(atom_types={"CGA": AtomType("CGA", 72.0, 0.0, "A")})
     mol = _molecule(["CGA", "C", "CGA", "C"], masses=[87.166, 12.011, 86.158, 12.011])
     assert _masses(mol, top) == pytest.approx({"CGA": 72.0, "C": 12.011})
+
+
+def _at(type_id: int, name: str, sigma_nm: float, eps_kj: float) -> AtomTypeInfo:
+    return AtomTypeInfo(
+        type_id, name, 12.0, False, sigma=units.sigma(sigma_nm), epsilon=units.epsilon(eps_kj)
+    )
+
+
+@pytest.mark.parametrize("rule", [2, 3])
+def test_nonbond_params_override_the_mixed_atomistic_pair(rule: int) -> None:
+    types = [_at(1, "OA", 0.30, 0.8), _at(2, "NT", 0.33, 0.6)]
+    nbfix = {("OA", "NT"): (0.29, 1.5), ("NT", "OA"): (0.29, 1.5)}
+    mixed = {(p.itype, p.jtype): p for p in _pair_terms(types, rule)}
+    fixed = {(p.itype, p.jtype): p for p in _pair_terms(types, rule, nbfix)}
+    assert fixed[1, 2].sigma == pytest.approx(units.sigma(0.29))
+    assert fixed[1, 2].epsilon == pytest.approx(units.epsilon(1.5))
+    assert mixed[1, 2].sigma != pytest.approx(fixed[1, 2].sigma)
+    for key in ((1, 1), (2, 2)):
+        assert (fixed[key].sigma, fixed[key].epsilon) == (mixed[key].sigma, mixed[key].epsilon)
+
+
+def test_nonbond_params_in_c6_c12_for_combination_rule_1() -> None:
+    types = [_at(1, "OA", 0.30, 0.8), _at(2, "NT", 0.33, 0.6)]
+    c6, c12 = 2.0e-3, 1.0e-6
+    (p,) = [p for p in _pair_terms(types, 1, {("OA", "NT"): (c6, c12)}) if p.itype != p.jtype]
+    assert p.sigma == pytest.approx(units.sigma((c12 / c6) ** (1 / 6)))
+    assert p.epsilon == pytest.approx(units.epsilon(c6 * c6 / (4 * c12)))

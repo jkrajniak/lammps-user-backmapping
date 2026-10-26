@@ -44,6 +44,10 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   a longer Coulomb cutoff the hybrid truncated Coulomb at the LJ cutoff while the atomistic force
   field used the longer one. The writer now passes the larger of the two cutoffs, and the
   communication cutoff covers it. The examples use equal cutoffs and are unchanged.
+- **Pair-specific LJ parameters were ignored for atomistic pairs.** `[ nonbond_params ]` was used
+  only for CG pairs; every atomistic pair was mixed from its atom types, so GROMOS C12 values of
+  polar pairs or CHARMM NBFIX entries took the mixed value without a message. An atomistic pair
+  listed in `[ nonbond_params ]` now takes those values, as in GROMACS.
 
 
 ## [1.4.0] - 2026-10-13

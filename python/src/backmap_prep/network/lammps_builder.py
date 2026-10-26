@@ -143,12 +143,16 @@ def _lj_sigma_epsilon(atom_type: AtomType | None, combination_rule: int) -> tupl
     """(sigma nm, epsilon kJ/mol) of an atom type; rule 1 stores C6, C12 instead."""
     if atom_type is None:
         return 0.0, 0.0
+    return _lj_values(atom_type.sigma, atom_type.epsilon, combination_rule)
+
+
+def _lj_values(v: float, w: float, combination_rule: int) -> tuple[float, float]:
+    """(sigma nm, epsilon kJ/mol) of the two LJ columns of GROMACS: (C6, C12) for rule 1."""
     if combination_rule != 1:
-        return atom_type.sigma, atom_type.epsilon
-    c6, c12 = atom_type.sigma, atom_type.epsilon
-    if c6 <= 0.0 or c12 <= 0.0:
+        return v, w
+    if v <= 0.0 or w <= 0.0:
         return 0.0, 0.0
-    return (c12 / c6) ** (1.0 / 6.0), c6 * c6 / (4.0 * c12)
+    return (w / v) ** (1.0 / 6.0), v * v / (4.0 * w)
 
 
 def _type_mass(
@@ -1144,17 +1148,35 @@ def _martini_pair_tables(
             system.pair_table_files.append((xvg_name, table_out))
 
 
-def _pair_terms(atom_types: list[AtomTypeInfo], combination_rule: int) -> list[PairTypeInfo]:
+def _pair_terms(
+    atom_types: list[AtomTypeInfo],
+    combination_rule: int,
+    nonbond_params: dict[tuple[str, str], tuple[float, float]] | None = None,
+) -> list[PairTypeInfo]:
     """CG, AT and none pair types; AT sigma mixes per the GROMACS combination rule.
 
     Rule 2 is Lorentz-Berthelot (arithmetic sigma); rules 1 and 3 are geometric
     in sigma and epsilon (rule 1 is geometric in C6, C12, which is the same).
+    An AT pair listed in ``[ nonbond_params ]`` (GROMOS C12 of polar pairs, CHARMM NBFIX)
+    takes those values instead of the mixed ones, as in GROMACS.
     """
     pair_types: list[PairTypeInfo] = []
     for i, atom_type_i in enumerate(atom_types, start=1):
         for j, atom_type_j in enumerate(atom_types[i - 1 :], start=i):
+            pair = (nonbond_params or {}).get((atom_type_i.name, atom_type_j.name))
             if atom_type_i.is_cg and atom_type_j.is_cg:
                 pair_types.append(PairTypeInfo(itype=i, jtype=j, kind="cg"))
+            elif not atom_type_i.is_cg and not atom_type_j.is_cg and pair is not None:
+                sigma_nm, epsilon_kj = _lj_values(*pair, combination_rule)
+                pair_types.append(
+                    PairTypeInfo(
+                        itype=i,
+                        jtype=j,
+                        kind="atomistic",
+                        sigma=units.sigma(sigma_nm),
+                        epsilon=units.epsilon(epsilon_kj),
+                    )
+                )
             elif not atom_type_i.is_cg and not atom_type_j.is_cg:
                 if atom_type_i.sigma <= 0 or atom_type_j.sigma <= 0:
                     sigma = 0.0
@@ -1253,7 +1275,9 @@ def build_system_from_cg(
         search_dirs,
         plain_cg=True,
     )
-    system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
+    system.pair_types = _pair_terms(
+        system.atom_types, top_file.combination_rule, top_file.nonbond_params
+    )
     _resolve_pair_tables(system, settings, search_dirs)
     prepare_network_coordinates(system)
     cg_cut = units.distance(settings.simulation.cg_cutoff)
@@ -1387,7 +1411,9 @@ def build_system_from_hybrid(
     system.impropers = _improper_terms(system, molecule, top_file, cg_type_names)
     _pair_14_terms(system, molecule, top_file, cg_type_names)
     system.fudge_lj, system.fudge_qq = top_file.fudge_lj, top_file.fudge_qq
-    system.pair_types = _pair_terms(system.atom_types, top_file.combination_rule)
+    system.pair_types = _pair_terms(
+        system.atom_types, top_file.combination_rule, top_file.nonbond_params
+    )
     _resolve_pair_tables(system, settings, search_dirs)
     if settings.cg_system is not None and settings.cg_system.nonbonded is not None:
         _martini_pair_tables(system, settings, base_dir, search_dirs)
