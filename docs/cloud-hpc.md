@@ -5,10 +5,14 @@ checkpoint/restart support for fault tolerance.
 
 ## Enabling Restart Checkpoints
 
-Add `restart_interval` to your `settings.yaml`:
+Add `restart_interval` to your `settings.yaml`. Checkpoints and phase scripts are written
+only for `protocol: standard`; `backmap-prep` rejects `restart_interval` with the `robust`
+(default) and `bakery` protocols. For the long atomistic stages after a robust backmapping, use
+the resumable inputs of [Resumable runs](resumable-runs.md).
 
 ```yaml
 simulation:
+  protocol: standard
   restart_interval: 5000   # write checkpoint every 5000 steps
   alpha: 0.001
   # ... other settings
@@ -39,6 +43,10 @@ compatible).
    (`phase_1.done`, `phase_2.done`, `phase_3.done`) are written.
 3. On restart, the entrypoint script checks sentinels to determine which phase
    to resume.
+4. `fix backmap` stores λ and the ramp state in the restart file, so a phase
+   continued with `read_restart` resumes at the λ the previous phase ended with
+   (the `lambda0` of the setup is ignored). Velocities are created only before
+   the first phase and are read from the restart file afterwards.
 
 ## Entrypoint Script
 

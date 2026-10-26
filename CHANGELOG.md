@@ -9,6 +9,32 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Fixed
 
+- **`simulation.stereo_restraint` held every stereocenter away from the tetrahedral geometry.**
+  The improper dihedral was computed with the opposite of the IUPAC sign, and `fix restrain
+  dihedral` has its energy minimum at the written target + 180 degrees (its documentation puts it
+  at the target; LAMMPS stable_22Jul2025 to develop of 2026-10-25). The written target lay near the
+  energy maximum: the restraint still favored the current handedness over the mirror image, by
+  2K/3, but at the current geometry it exerted a torque of about 0.94 K per radian. The target is
+  now written so that the energy is zero at the current geometry and 2K/3 at the mirror image; a
+  LAMMPS test checks both. Affects the `examples/popc_martini` hybrid stage of 1.4.0.
+- **`simulation.stereo_restraint` let the hydrogen of a center cross over.** It restrained only the
+  improper dihedral of the three heavy neighbors. With the corrected target and a stiff restraint
+  (200 kcal/mol) the hydrogen crossed to the side of the heavy neighbors in 4 of the 128 POPC
+  glycerol centers, which stayed nearly planar until the restraint was released and then inverted
+  within 1 ps (and in the GROMACS minimization of the hybrid structure). Each center is now
+  restrained on a second improper that contains the fourth neighbor, so `stereo.lmp` holds two
+  fixes per center.
+- **`examples/popc_martini` restrains the stereocenters with 836.8 kJ/mol (200 kcal/mol)** instead of
+  83.68 kJ/mol. With the corrected restraint (both entries above) it keeps the handedness of all 128
+  glycerol C2 through the hybrid stage and the GROMACS minimization; 83.68 kJ/mol leaves 5 inverted.
+- **The package builds with LAMMPS stable_30Sep2026 and later.** `pair_style backmap` used
+  `Force::pair_map`, which LAMMPS replaced by style registries. Both APIs are supported; CI builds
+  against stable_22Jul2025_update2 and stable_30Sep2026_update1.
+- **Restart phase scripts (`simulation.restart_interval`, standard protocol) ran the AT production
+  at lambda = 0** and re-created the velocities at every phase. `fix backmap` now writes lambda and
+  the ramp state to the restart file, and velocities are created only before the first phase.
+- **`simulation.restart_interval` was ignored without a message** by the robust and bakery
+  protocols. It is now rejected for them.
 - **Bonds and angles given by `#define` macros were dropped.** The topology parser recorded
   `#define` names only for `#ifdef`, so a GROMOS line such as `1 2 2 gb_27` was skipped without a
   message, together with its exclusions and the angles and dihedrals derived from it. Macros are

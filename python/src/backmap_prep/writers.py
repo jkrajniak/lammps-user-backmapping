@@ -657,13 +657,15 @@ def _write_setup(
     data_filename: str,
     *,
     use_read_data: bool = True,
+    create_velocities: bool = True,
     ff_include: str | None = None,
     backmap_include: str | None = None,
 ) -> None:
     """Write the shared setup block (styles, coefficients, groups, fixes).
 
     With ``ff_include``/``backmap_include`` the force field and the backmap
-    fixes are included from those files instead of written inline.
+    fixes are included from those files instead of written inline. Without
+    ``create_velocities`` the velocities are left as read (restart scripts).
     """
     sim = settings.simulation
 
@@ -675,7 +677,8 @@ def _write_setup(
     else:
         _write_forcefield(f, system, settings, params)
 
-    _write_initial_velocities(f, sim, params)
+    if create_velocities:
+        _write_initial_velocities(f, sim, params)
 
     # Integration (AT atoms only) — must be defined BEFORE fix backmap so
     # that NVE/NVT initial_integrate runs first, updating AT positions before
@@ -1083,6 +1086,7 @@ def _write_restart_scripts(
             params,
             data_filename,
             use_read_data=False,
+            create_velocities=False,
             ff_include=f"{Path(data_filename).stem}.ff.lmp",
             backmap_include=f"{Path(data_filename).stem}.backmap.lmp",
         )
@@ -1105,6 +1109,7 @@ def _write_restart_scripts(
             f.write("boundary p p p\n\n")
             f.write(f"read_data {data_filename}\n\n")
             f.write(f"include {setup_name}\n\n")
+            _write_initial_velocities(f, sim, params)
             f.write("# Backmapping: λ 0 → 1\n")
             f.write(f"timestep {params['ts_backmap_fs']:.2f}\n")
             f.write("fix_modify bm active yes\n")
@@ -1137,6 +1142,7 @@ def _write_restart_scripts(
         f.write("boundary p p p\n\n")
         f.write(f"read_data {data_filename}\n\n")
         f.write(f"include {setup_name}\n\n")
+        _write_initial_velocities(f, sim, params)
         f.write("# Phase 1: CG equilibration\n")
         f.write("fix_modify bm active no\n")
         f.write(f"run {sim.equilibration_steps}\n")
