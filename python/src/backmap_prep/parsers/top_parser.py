@@ -334,9 +334,29 @@ def _preprocess(
                 result.extend(_preprocess(inc_path, include_dirs, forcefield_dirs, defines))
             continue
 
-        result.append(raw_line)
+        result.append(_substitute_defines(raw_line, defines))
 
     return result
+
+
+def _substitute_defines(line: str, defines: dict[str, str]) -> str:
+    """Replace every token that names a ``#define`` with a value, as grompp does (GROMOS gb_/ga_)."""
+    data, sep, comment = line.partition(";")
+    tokens = data.split()
+    if not any(defines.get(t) for t in tokens):
+        return line
+    return " ".join(defines.get(t) or t for t in tokens) + (f" {sep}{comment}" if sep else "")
+
+
+def _floats(tokens: list[str], first: int, section: str) -> list[float]:
+    """Parameters ``tokens[first:]`` of a bonded line; a token that is neither a number nor a known
+    macro is an error."""
+    try:
+        return [float(t) for t in tokens[first:]]
+    except ValueError:
+        raise ValueError(
+            f"[ {section} ] line '{' '.join(tokens)}': parameter is neither a number nor a #define"
+        ) from None
 
 
 def _resolve_include(
@@ -641,10 +661,7 @@ def _parse_atom(tokens: list[str], mol: MoleculeType) -> None:
 def _parse_bond(tokens: list[str], mol: MoleculeType) -> None:
     if len(tokens) < 3:
         return
-    try:
-        params = [float(t) for t in tokens[3:]]
-    except ValueError:
-        return
+    params = _floats(tokens, 3, "bonds")
     mol.bonds.append(
         TopBond(
             i=int(tokens[0]),
@@ -668,10 +685,7 @@ def _parse_cross_bond(tokens: list[str], mol: MoleculeType) -> None:
             )
         )
         return
-    try:
-        params = [float(t) for t in tokens[3:]]
-    except ValueError:
-        return
+    params = _floats(tokens, 3, "cross_bonds")
     mol.cross_bonds.append(
         TopBond(
             i=int(tokens[0]),
@@ -685,10 +699,7 @@ def _parse_cross_bond(tokens: list[str], mol: MoleculeType) -> None:
 def _parse_angle(tokens: list[str], mol: MoleculeType) -> None:
     if len(tokens) < 4:
         return
-    try:
-        params = [float(t) for t in tokens[4:]]
-    except ValueError:
-        return
+    params = _floats(tokens, 4, "angles")
     mol.angles.append(
         TopAngle(
             i=int(tokens[0]),
@@ -714,10 +725,7 @@ def _parse_cross_angle(tokens: list[str], mol: MoleculeType) -> None:
             )
         )
         return
-    try:
-        params = [float(t) for t in tokens[4:]]
-    except ValueError:
-        return
+    params = _floats(tokens, 4, "cross_angles")
     mol.cross_angles.append(
         TopAngle(
             i=int(tokens[0]),

@@ -7,6 +7,8 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+### Fixed
+
 ## [1.4.0] - 2026-10-13
 
 ### Added
@@ -26,6 +28,12 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   cis and the handedness of the glycerol carbon C2 of the reference in 122 of 128 lipids, against
   117 cis and 57 of 128 with fragments only translated; the area per lipid, thickness and chain
   dihedrals agree with the independent Slipids reference as before.
+- **Bonds and angles given by `#define` macros were dropped.** The topology parser recorded
+  `#define` names only for `#ifdef`, so a GROMOS line such as `1 2 2 gb_27` was skipped without a
+  message, together with its exclusions and the angles and dihedrals derived from it. Macros are
+  now substituted as grompp does, and a bond or angle parameter that is neither a number nor a
+  known macro is an error naming the line.
+
 
 ## [1.3.0] - 2026-10-09
 
