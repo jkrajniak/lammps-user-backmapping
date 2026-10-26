@@ -20,8 +20,8 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   between the CG equilibration and the hybrid stage. It now uses the IUPAC sign; a test compares
   energies and forces with `dihedral_style table` for an asymmetric table. The CG dihedral tables
   of the examples are symmetric except for a 2 degree offset at the edge of the flat cap of the
-  all-atom polyethylene table (`examples/pe_aa`), whose hybrid stage changes accordingly.
-
+  polyethylene table `table_d1.xvg` (shared by `examples/pe` and `examples/pe_aa`), whose hybrid
+  stages change accordingly.
 
 ## [1.4.0] - 2026-10-13
 
@@ -446,7 +446,6 @@ runs are unaffected. All three were found by the static MPI parity check
 
 - `fix backmap` under MPI: incomplete COM sum (AT atoms on non-ghost ranks
   missed) and lost CG-force contributions to ghost AT atoms.
-
 
 ## [0.1.0] - 2026-07-06
 
