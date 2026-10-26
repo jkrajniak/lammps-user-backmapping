@@ -36,6 +36,14 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   `backmap-prep build` built the hybrid with fragments translated, while `build-hybrid` used the
   setting, so one settings file gave different hybrid coordinates from the two commands. `build`
   now passes the setting as well.
+- **An untabulated CG pair was written as `pair_coeff i j cg 0.0 0.0`**, which LAMMPS read as a
+  table file named `0.0` and stopped. A CG pair without a table is now an error at preparation
+  time, naming the bead types.
+- **The atomistic Coulomb cutoff of the hybrid was cut at the LJ cutoff.** The first argument of
+  `pair_style backmap` bounds every atomistic pair, and the writer passed the LJ cutoff there. With
+  a longer Coulomb cutoff the hybrid truncated Coulomb at the LJ cutoff while the atomistic force
+  field used the longer one. The writer now passes the larger of the two cutoffs, and the
+  communication cutoff covers it. The examples use equal cutoffs and are unchanged.
 
 
 ## [1.4.0] - 2026-10-13
