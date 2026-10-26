@@ -53,7 +53,7 @@ def _center(mirror: bool, crossed: bool = False) -> System:
     ]
     system.atoms.append(LammpsAtom(1, 1, 1, 0.0, 15.0, 15.0, 15.0))
     for n, d in enumerate(directions, 2):
-        system.atoms.append(LammpsAtom(n, 1, n - 1, 0.0, *(15.0 + BOND * d)))
+        system.atoms.append(LammpsAtom(n, 1, n, 0.0, *(15.0 + BOND * d)))
         system.bonds.append(LammpsBond(n - 1, 1, 1, n))
     return system
 
