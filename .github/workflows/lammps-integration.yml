@@ -105,7 +105,8 @@ jobs:
         env:
           BACKMAP_LMP: ${{ github.workspace }}/lammps/build/lmp
         run: |
-          uv run pytest python/tests -q -rs | tee pytest.out
+          # scipy: the analysis scripts behind the RDF comparisons (test_network_tierc.py)
+          uv run --with scipy pytest python/tests -q -rs | tee pytest.out
 
       - name: Fail if LAMMPS tests were skipped
         shell: bash
