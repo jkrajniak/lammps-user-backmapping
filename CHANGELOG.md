@@ -54,7 +54,6 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
   written and failed only in LAMMPS. The builder now uses only `table_bn.xvg` and raises an
   error naming it when it is missing, as for angles and dihedrals.
 
-
 ## [1.4.0] - 2026-10-13
 
 ### Added
