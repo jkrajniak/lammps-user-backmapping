@@ -63,8 +63,9 @@ Makefile                    Top-level convenience targets
 
 ## Prerequisites
 
-- **LAMMPS** ≥ `stable_22Jul2025` source tree (C++17) — this package uses the
-`Domain::minimum_image(FLERR, ...)` API introduced in that release
+- **LAMMPS** ≥ `stable_22Jul2025` source tree (C++17), which introduced the
+`Domain::minimum_image(FLERR, ...)` API this package uses. CI builds against
+`stable_22Jul2025_update2` and `stable_30Sep2026_update1`.
 - **CMake** ≥ 3.16
 - **Python** ≥ 3.10
 - **uv** (Python dependency manager)
