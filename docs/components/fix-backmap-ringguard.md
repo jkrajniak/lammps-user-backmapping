@@ -6,15 +6,15 @@
 fix ID group backmap/ringguard K rc rcb file
 ```
 
-- **K** -- wall constant (energy/distance^2 units)
-- **rc** -- wall radius around each ring centroid (distance units)
-- **rcb** -- smaller wall radius for the atoms bonded to the ring (distance units, 0 to rc)
+- **K** -- force constant (energy/distance^2 units)
+- **rc** -- radius of the repulsive sphere around each ring centroid (distance units)
+- **rcb** -- smaller radius for the atoms bonded to the ring (distance units, 0 to rc)
 - **file** -- one ring per line: the atom IDs of the ring (3 to 12 atoms), optionally followed
   by `|` and the IDs of the atoms bonded to the ring; `#` starts a comment
 
 ## Description
 
-Puts a repulsive wall around the centroid of every listed ring. An atom of the fix group that is
+Centres a repulsive sphere of radius \( r_c \) on the centroid of every listed ring. An atom of the fix group that is
 not in the ring and lies at distance \( d < r_c \) from the centroid (the unweighted mean of the
 ring atoms) adds
 
@@ -25,7 +25,7 @@ E = K (r_c - d)^2
 and is pushed out along the centroid-atom axis. An atom listed after the `|` of the ring adds
 \( K (r_{cb} - d)^2 \) for \( d < r_{cb} \) instead.
 
-A stretched bond can also sweep through a ring while both of its atoms stay outside the wall. Each
+A stretched bond can also sweep through a ring while both of its atoms stay outside the sphere. Each
 bond of the fix group with no atom in the ring therefore adds
 
 \[
@@ -34,10 +34,11 @@ E = w(s) - w(d_\mathrm{near}), \qquad w(x) = K (r_w - x)^2 \text{ for } x < r_w
 
 when the point of the bond nearest the centroid lies between its two atoms, at distance \( s \).
 Here \( d_\mathrm{near} \) is the distance of the nearer bond atom, and \( r_w = r_{cb} \) if a
-bond atom is bonded to the ring, otherwise \( r_c \). The term adds only what the atom walls do
+bond atom is bonded to the ring, otherwise \( r_c \). The term keeps the bond out of the same sphere, adds only what the atom terms do
 not already cover and vanishes when the nearest point reaches an end of the bond, so the energy is
 continuous. The ring atoms share every reaction force equally, so the total force is zero. The
-walls do not depend on lambda.
+forces do not depend on lambda. The excluded region is a sphere, not a cylinder along the ring
+axis, so atoms above the ring face (a stacked ring at about 0.35 nm) are not affected.
 
 `backmap-prep` writes the ring list (`rings.txt`) and the fix (`ring_guard.lmp`, on `at_atoms`)
 in the robust protocol whenever the system has rings: `simulation.ring_guard` defaults to 0.20 nm,
@@ -51,7 +52,7 @@ about 0.35 nm apart. The atoms bonded to a ring (its hydrogens and the first ato
 substituent) are 0.145 nm or more from its centroid in a normal ring (axial hydrogens of
 cyclohexane about 0.18 nm), so they get the smaller radius `ring_guard_bonded` (default 0.12 nm).
 A substituent folded into its own ring sits at 0.07-0.11 nm and is pushed out. The default
-`ring_guard_k` is 418400 kJ/mol/nm\(^2\) (1000 kcal/mol/Å\(^2\)). A ten times softer wall let atoms
+`ring_guard_k` is 418400 kJ/mol/nm\(^2\) (1000 kcal/mol/Å\(^2\)). A ten times smaller K let atoms
 through during the heat spike at the start of the ramp.
 
 ### Why
@@ -66,7 +67,7 @@ rings split over several CG beads, at the CG level. This fix acts on the atoms.
 
 ### Parallel evaluation
 
-Each atom wall is evaluated by the rank that owns the atom, each bond wall by the rank that owns the
+Each atom term is evaluated by the rank that owns the atom, each bond term by the rank that owns the
 atom storing the bond. The rings near an atom or a bond are found with a cell grid of ring
 centroids rather than a neighbor list, because neighbor lists leave out special pairs with weight
 0, and an atom two bonds from a ring atom is such a pair. A rank builds a ring around the owned
@@ -78,9 +79,9 @@ communication of the fix, so forces and energies do not depend on the decomposit
 
 ## Output
 
-- `f_ID` -- wall energy (extensive)
-- `f_ID[1]` -- wall energy
-- `f_ID[2]` -- number of atom-ring and bond-ring contacts inside the wall
+- `f_ID` -- guard energy (extensive)
+- `f_ID[1]` -- guard energy
+- `f_ID[2]` -- number of atom-ring and bond-ring contacts inside the sphere
 
 `fix_modify ID energy yes` adds the energy to the potential energy, which minimization needs.
 `ring_guard.lmp` sets it and also writes `f_ID[1]` and `f_ID[2]` to `ring_guard.log` every 1000

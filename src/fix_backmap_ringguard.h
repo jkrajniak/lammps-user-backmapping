@@ -25,7 +25,7 @@ FixStyle(backmap/ringguard,FixBackmapRingGuard);
 
 namespace LAMMPS_NS {
 
-/* Repulsive wall around ring centroids that keeps atoms from passing through
+/* Repulsive sphere around ring centroids that keeps atoms from passing through
  * rings while the atomistic nonbonded repulsion is still scaled down.
  *
  * Syntax: fix ID group-ID backmap/ringguard K rc rcb file
@@ -39,13 +39,13 @@ namespace LAMMPS_NS {
  * ring atoms.
  *
  * A bond can sweep through a ring while both its atoms stay outside the
- * wall, so each bond of the group (neither atom in the ring) also adds
+ * sphere, so each bond of the group (neither atom in the ring) also adds
  * w(s) - w(d_near), w(x) = K (rw - x)^2 for x < rw, where s is the distance of
  * the bond segment from the centroid and d_near that of the nearer bond atom.
  * The term is zero when the nearest point of the segment is an end, so the
  * energy is continuous; rw = rcb when a bond atom is bonded to the ring.
  *
- * Each atom wall is evaluated by the owner of the atom, each bond wall by the
+ * Each atom term is evaluated by the owner of the atom, each bond term by the
  * owner of the atom that stores the bond, against the centroids of the rings
  * whose atoms are all present as owned or ghost atoms (a periodic cell grid).
  * A ring is built around the owned image of its first atom, or the ghost image
@@ -58,7 +58,7 @@ namespace LAMMPS_NS {
  * depend on the decomposition.
  *
  * f_ID is the energy, f_ID[1] the energy, f_ID[2] the number of atom-ring and
- * bond-ring contacts inside the wall. The virial is not tallied.
+ * bond-ring contacts inside the sphere. The virial is not tallied.
  */
 
 class FixBackmapRingGuard : public Fix {

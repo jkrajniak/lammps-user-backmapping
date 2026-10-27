@@ -371,7 +371,7 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
   int *mask = atom->mask;
   std::vector<int> near;
 
-  // atom walls, evaluated by the owner of the atom
+  // atom terms, evaluated by the owner of the atom
   for (int i = 0; i < nlocal; ++i) {
     if (!(mask[i] & groupbit)) continue;
     double lo[3], hi[3];
@@ -404,8 +404,8 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
     }
   }
 
-  // bond walls: the distance s of the bond segment from the centroid, beyond
-  // the atom walls, E = w(s) - w(d_near) with w(x) = K (rw - x)^2 for x < rw
+  // bond terms: the distance s of the bond segment from the centroid, beyond
+  // the atom terms, E = w(s) - w(d_near) with w(x) = K (rw - x)^2 for x < rw
   // and d_near the distance of the nearer bond atom. Zero when the nearest
   // point of the segment is an end, so the energy is continuous. Evaluated
   // once per bond, by the owner of the atom that stores it.
@@ -463,7 +463,8 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
           contacts_local += 1.0;
           // w(s): pushes the nearest point out, shared by the bond atoms
           const double fs = 2.0 * kwall * gap / s;
-          // -w(d_near): pulls the nearer atom back in by its atom wall force
+          // -w(d_near): pulls the nearer atom back in by the force of its atom
+          // term
           const double fn = rn > 0.0 ? 2.0 * kwall * gapn / rn : 0.0;
           const int near_atom = t < 0.5 ? i : j;
           double fring[3];

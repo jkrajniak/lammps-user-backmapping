@@ -30,15 +30,16 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
   unweighted mean of the ring atoms, a massless virtual site). An atom bonded to the ring adds
   K (rcb - d)^2 for d < rcb instead: its normal place is 0.145 nm or more from the centroid (axial
   hydrogens about 0.18 nm), and a substituent folded into its own ring sits at 0.07-0.11 nm. The
-  reaction force is shared equally by the ring atoms, so total force is conserved. The wall is
+  reaction force is shared equally by the ring atoms, so total force is conserved. The guard is
   independent of lambda.
-  - Bond walls: a stretched bond can sweep through a ring with both atoms outside rc (seen in the
+  - Bonds: a stretched bond can sweep through a ring with both atoms outside rc (seen in the
     prototype). Each bond with no atom in the ring adds E = w(s) - w(d_near), w(x) = K (rw - x)^2
     for x < rw, when the point of the bond nearest the centroid (distance s) lies between its
     atoms. d_near is the distance of the nearer bond atom, rw = rcb if a bond atom is bonded to
     the ring, else rc. The term is zero when the nearest point is an end, so the energy is
-    continuous, and it adds only what the atom walls miss.
-  - Parallel: atom walls are evaluated by the owner of the atom, bond walls by the owner of the
+    continuous, and it adds only what the atom terms miss. Atoms and bonds are kept
+    out of the same sphere around the centroid.
+  - Parallel: atom terms are evaluated by the owner of the atom, bond terms by the owner of the
     atom storing the bond, against a cell grid of ring centroids, not a neighbor list, which
     drops special pairs with weight 0 (an atom two bonds from a ring atom is one). Each rank
     builds a ring around the owned image of its first atom, else the ghost image nearest its
@@ -49,11 +50,11 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
     depend on the decomposition (the failure mode of `fix restrain`, see `fix backmap/stereo`).
     Orthogonal boxes only.
   - Output: `f_ID` energy (with `fix_modify energy yes` part of pe, needed for minimization),
-    `f_ID[1]` energy, `f_ID[2]` number of atom and bond contacts inside the wall.
+    `f_ID[1]` energy, `f_ID[2]` number of atom and bond contacts inside the sphere.
   - Virial: not tallied in the prototype. The guard acts only in the backmapping stages, which
     run at constant volume; documented as a restriction.
-- New `backmap-prep` options (robust protocol, default off, output unchanged when off):
-  - `simulation.ring_guard`: wall radius rc in nm (proposal 0.20 nm). Physical contacts stay
+- New `backmap-prep` options (robust protocol, on by default, `ring_guard: null` switches it off):
+  - `simulation.ring_guard`: sphere radius rc in nm (proposal 0.20 nm). Physical contacts stay
     outside: stacked rings are about 0.35 nm apart and a C-H pointing at a ring puts the H about
     0.25 nm from the centroid, while an atom passing through a six-membered ring comes within
     0.14 nm.
