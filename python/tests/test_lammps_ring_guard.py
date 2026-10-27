@@ -150,3 +150,13 @@ def test_forces_do_not_depend_on_the_mpi_decomposition(tmp_path: Path) -> None:
     assert parallel[0] == pytest.approx(serial[0], rel=1e-12)
     assert np.abs(serial[3][:, 1:]).max() > 1.0
     np.testing.assert_allclose(parallel[3], serial[3], rtol=0, atol=1e-9)
+
+
+@pytest.mark.integration
+def test_atom_bonded_to_the_ring_is_not_repelled(tmp_path: Path) -> None:
+    """Atom 7 bonded to ring atom 1 is listed after | in rings.txt and feels nothing."""
+    system = _ring_and_atom(np.array([0.0, 0.0, 0.5]))
+    system.bonds.append(LammpsBond(7, 1, 1, 7))
+    energy, contacts, _, forces = _run(tmp_path / "b", system)
+    assert (energy, contacts) == (0.0, 0.0)
+    assert np.abs(forces[:, 1:]).max() == 0.0

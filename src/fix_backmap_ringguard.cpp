@@ -32,6 +32,7 @@ using namespace FixConst;
 
 static constexpr int MIN_RING = 3;
 static constexpr int MAX_RING = 12;
+static constexpr int MAX_EXCLUDED = 64;
 
 /* ---------------------------------------------------------------------- */
 
@@ -73,12 +74,14 @@ FixBackmapRingGuard::FixBackmapRingGuard(LAMMPS *lmp, int narg, char **arg)
 FixBackmapRingGuard::~FixBackmapRingGuard() { memory->destroy(fbuf); }
 
 /* ----------------------------------------------------------------------
-   rank 0 reads one ring per line (atom IDs) and broadcasts them
+   rank 0 reads one ring per line (atom IDs, then optionally | and the IDs of
+   atoms the ring does not repel) and broadcasts them
 ------------------------------------------------------------------------- */
 
 void FixBackmapRingGuard::read_rings(const char *file) {
   std::string errmsg;
   ring_start.assign(1, 0);
+  excl_start.assign(1, 0);
 
   if (comm->me == 0) {
     std::ifstream in(file);
@@ -90,23 +93,38 @@ void FixBackmapRingGuard::read_rings(const char *file) {
       ++lineno;
       auto words = utils::split_words(utils::trim_comment(line));
       if (words.empty()) continue;
-      const int n = static_cast<int>(words.size());
+      const auto bar = std::find(words.begin(), words.end(), "|");
+      const int n = static_cast<int>(bar - words.begin());
+      const int nexcl =
+          bar == words.end() ? 0 : static_cast<int>(words.end() - bar) - 1;
       if (n < MIN_RING || n > MAX_RING) {
         errmsg = fmt::format(
             "fix backmap/ringguard {} line {}: a ring needs {} to {} atom IDs",
             file, lineno, MIN_RING, MAX_RING);
         break;
       }
-      for (const auto &w : words) {
-        if (!utils::is_integer(w)) {
+      if (nexcl > MAX_EXCLUDED) {
+        errmsg = fmt::format(
+            "fix backmap/ringguard {} line {}: more than {} excluded atom IDs",
+            file, lineno, MAX_EXCLUDED);
+        break;
+      }
+      for (auto it = words.begin(); it != words.end(); ++it) {
+        if (it == bar) continue;
+        if (!utils::is_integer(*it)) {
           errmsg =
               fmt::format("fix backmap/ringguard {} line {}: invalid atom ID",
                           file, lineno);
           break;
         }
-        ring_atoms.push_back(static_cast<tagint>(std::stoll(w)));
+        const auto id = static_cast<tagint>(std::stoll(*it));
+        if (it < bar)
+          ring_atoms.push_back(id);
+        else
+          excl_atoms.push_back(id);
       }
       ring_start.push_back(static_cast<int>(ring_atoms.size()));
+      excl_start.push_back(static_cast<int>(excl_atoms.size()));
     }
     if (errmsg.empty() && ring_start.size() < 2)
       errmsg = fmt::format("fix backmap/ringguard {} holds no rings", file);
@@ -122,12 +140,18 @@ void FixBackmapRingGuard::read_rings(const char *file) {
 
   int nrings = static_cast<int>(ring_start.size()) - 1;
   int natoms = static_cast<int>(ring_atoms.size());
+  int nexcl = static_cast<int>(excl_atoms.size());
   MPI_Bcast(&nrings, 1, MPI_INT, 0, world);
   MPI_Bcast(&natoms, 1, MPI_INT, 0, world);
+  MPI_Bcast(&nexcl, 1, MPI_INT, 0, world);
   ring_start.resize(nrings + 1);
   ring_atoms.resize(natoms);
+  excl_start.resize(nrings + 1);
+  excl_atoms.resize(nexcl);
   MPI_Bcast(ring_start.data(), nrings + 1, MPI_INT, 0, world);
   MPI_Bcast(ring_atoms.data(), natoms, MPI_LMP_TAGINT, 0, world);
+  MPI_Bcast(excl_start.data(), nrings + 1, MPI_INT, 0, world);
+  if (nexcl > 0) MPI_Bcast(excl_atoms.data(), nexcl, MPI_LMP_TAGINT, 0, world);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -226,6 +250,8 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
     const int first = ring_start[m];
     const int n = ring_start[m + 1] - first;
     const tagint *ring = &ring_atoms[first];
+    const tagint *excl = excl_atoms.data() + excl_start[m];
+    const int nexcl = excl_start[m + 1] - excl_start[m];
 
     // the owner of the first ring atom evaluates the ring
     const int anchor = atom->map(ring[0]);
@@ -268,6 +294,8 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
             if (rsq >= rcsq || rsq == 0.0) continue;
             bool member = false;
             for (int k = 0; k < n && !member; ++k) member = (tag[j] == ring[k]);
+            for (int k = 0; k < nexcl && !member; ++k)
+              member = (tag[j] == excl[k]);
             if (member) continue;
 
             const double r = sqrt(rsq);
@@ -347,5 +375,5 @@ double FixBackmapRingGuard::compute_vector(int n) {
 double FixBackmapRingGuard::memory_usage() {
   return 3.0 * nmax * sizeof(double) +
          (cell_head.capacity() + cell_next.capacity()) * sizeof(int) +
-         ring_atoms.capacity() * sizeof(tagint);
+         (ring_atoms.capacity() + excl_atoms.capacity()) * sizeof(tagint);
 }

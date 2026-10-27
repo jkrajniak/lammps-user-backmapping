@@ -30,10 +30,12 @@ namespace LAMMPS_NS {
  *
  * Syntax: fix ID group-ID backmap/ringguard K rc file
  *
- * Each non-comment line of file lists the atom IDs of one ring. An atom of the
- * group that is not in the ring and lies at distance d < rc from the ring
- * centroid (unweighted mean of the ring atoms) adds E = K (rc - d)^2; the
- * reaction force is shared equally by the ring atoms.
+ * Each non-comment line of file lists the atom IDs of one ring, optionally
+ * followed by | and the IDs of atoms the ring does not repel (its own
+ * hydrogens and substituents, which sit close to the centroid). Any other atom
+ * of the group at distance d < rc from the ring centroid (unweighted mean of
+ * the ring atoms) adds E = K (rc - d)^2; the reaction force is shared equally
+ * by the ring atoms.
  *
  * Each ring is evaluated once, by the processor that owns its first atom. The
  * atoms near the centroid are found with a cell grid over owned and ghost
@@ -67,6 +69,8 @@ class FixBackmapRingGuard : public Fix {
   double kwall, rc;
   std::vector<tagint> ring_atoms;  // all rings, concatenated
   std::vector<int> ring_start;     // ring m is [ring_start[m], ring_start[m+1])
+  std::vector<tagint> excl_atoms;  // atoms not repelled, per ring, concatenated
+  std::vector<int> excl_start;     // same layout as ring_start
   double **fbuf;
   int nmax;
   double energy_local, contacts_local;

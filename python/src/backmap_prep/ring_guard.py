@@ -52,13 +52,8 @@ def _shortest_cycle_through(
     return None
 
 
-def find_rings(system: System) -> list[tuple[int, ...]]:
-    """Rings of 5 to 7 atomistic atoms: the shortest cycle through each bond, deduplicated.
-
-    Atoms are listed in ring order starting from the lowest ID. Fused rings give one ring each
-    (naphthalene: two six-membered rings); the envelope cycle of a fused system is not the
-    shortest cycle through any bond and is not listed.
-    """
+def _adjacency(system: System) -> dict[int, list[int]]:
+    """Bonded neighbours of every atomistic atom (CG beads and bonds to them left out)."""
     at_ids = {a.atom_id for a in system.atoms if not a.is_cg}
     adjacency: dict[int, list[int]] = {i: [] for i in at_ids}
     for bond in system.bonds:
@@ -67,7 +62,17 @@ def find_rings(system: System) -> list[tuple[int, ...]]:
             adjacency[bond.j].append(bond.i)
     for nbrs in adjacency.values():
         nbrs.sort()
+    return adjacency
 
+
+def find_rings(system: System) -> list[tuple[int, ...]]:
+    """Rings of 5 to 7 atomistic atoms: the shortest cycle through each bond, deduplicated.
+
+    Atoms are listed in ring order starting from the lowest ID. Fused rings give one ring each
+    (naphthalene: two six-membered rings); the envelope cycle of a fused system is not the
+    shortest cycle through any bond and is not listed.
+    """
+    adjacency = _adjacency(system)
     seen: set[frozenset[int]] = set()
     rings: list[tuple[int, ...]] = []
     for u in sorted(adjacency):
@@ -93,14 +98,25 @@ def write_ring_guard_files(directory: Path, system: System, radius_nm: float, k_
     E = K (rc - d)^2 for an atom at distance d < rc from a ring centroid, K converted from
     kJ/mol/nm^2 and rc from nm. ``ring_guard_release.lmp`` removes it. Nothing is written when
     there are no rings.
+
+    Each line of ``rings.txt`` is a ring, then ``|`` and the atoms bonded to it (its hydrogens
+    and the first atom of each substituent). The ring does not repel them: an axial hydrogen of
+    cyclohexane sits about 0.18 nm from the centroid, and an atom one bond from the ring cannot
+    pass through it.
     """
     rings = find_rings(system)
     if not rings:
         return 0
+    adjacency = _adjacency(system)
     k = units.energy(k_kj) / units.distance(1.0) ** 2
     rc = units.distance(radius_nm)
-    table = ["# atom IDs of one ring per line (backmap-prep, simulation.ring_guard)"]
-    table += [" ".join(str(a) for a in ring) for ring in rings]
+    table = [
+        "# atom IDs of one ring per line, then | and the atoms bonded to it, which the ring"
+        " does not repel (backmap-prep, simulation.ring_guard)"
+    ]
+    for ring in rings:
+        bonded = sorted({b for a in ring for b in adjacency[a]} - set(ring))
+        table.append(" ".join(map(str, ring)) + " | " + " ".join(map(str, bonded)))
     (directory / "rings.txt").write_text("\n".join(table) + "\n")
     (directory / "ring_guard.lmp").write_text(
         "# ring guard: repulsive wall around ring centroids (backmap-prep, simulation.ring_guard)\n"

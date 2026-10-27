@@ -77,7 +77,7 @@ def test_files_and_units(tmp_path: Path) -> None:
     system = _system(12, [*_cycle([1, 2, 3, 4, 5, 6]), *_cycle([7, 8, 9, 10, 11, 12])])
     assert write_ring_guard_files(tmp_path, system, 0.2, 41840.0) == 2
     rows = [
-        line.split()
+        line.split("|")[0].split()
         for line in (tmp_path / "rings.txt").read_text().splitlines()
         if not line.startswith("#")
     ]
@@ -112,3 +112,13 @@ def test_positions_do_not_change_detection() -> None:
     for atom in system.atoms:
         atom.x, atom.y, atom.z = rng.uniform(0.0, 50.0, 3)
     assert len(find_rings(system)) == 1
+
+
+def test_atoms_bonded_to_a_ring_are_listed_as_not_repelled(tmp_path: Path) -> None:
+    # ring 1-6, hydrogen 7 on 1, CH2 8 on 4 with N 9 on 8: 7 and 8 are excluded, N 9 is not
+    system = _system(9, [*_cycle([1, 2, 3, 4, 5, 6]), (1, 7), (4, 8), (8, 9)])
+    assert write_ring_guard_files(tmp_path, system, 0.2, 41840.0) == 1
+    line = (tmp_path / "rings.txt").read_text().splitlines()[1]
+    ring, excluded = line.split("|")
+    assert set(map(int, ring.split())) == set(range(1, 7))
+    assert sorted(map(int, excluded.split())) == [7, 8]
