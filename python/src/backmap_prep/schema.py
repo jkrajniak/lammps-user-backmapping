@@ -474,6 +474,12 @@ class SimulationParams(BaseModel):
     # backmapping until the hybrid structure is written. None = off. A soft value (about 80)
     # keeps most centers; stiff values strain the center and can destabilize the 1 fs stage.
     stereo_restraint: float | None = Field(default=None, gt=0.0)
+    # robust protocol: repulsive wall E = K (rc - d)^2 around the centroid of every ring of 5 to 7
+    # atomistic atoms, from the first minimization until the hybrid structure is written. Keeps
+    # substituents from passing through rings while the atomistic repulsion is scaled down.
+    # ring_guard is rc in nm (None = off), ring_guard_k is K in kJ/mol/nm^2 (100 kcal/mol/A^2).
+    ring_guard: float | None = Field(default=None, gt=0.0)
+    ring_guard_k: float = Field(default=41840.0, gt=0.0)
     em_steps: int = 0
     em_gamma: float = 0.0001
     em_ftol: float = 10.0

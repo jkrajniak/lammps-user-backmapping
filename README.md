@@ -28,6 +28,7 @@ publication cited below (first published online **December 2017**).
 | `fix backmap/pairs`                  | Lambda-weighted explicit 1-4 pairs                              |
 | `fix backmap/capforce`               | Per-atom force cap                                              |
 | `fix backmap/stereo`                 | Stereocenter restraints, correct across MPI ranks               |
+| `fix backmap/ringguard`              | Repulsive wall at ring centroids against ring spearing          |
 | `pair_style backmap`                 | Lambda-weighted non-bonded pair forces (AT and CG sub-styles)   |
 | `bond_style backmap/harmonic`        | Lambda-weighted harmonic bonds                                  |
 | `bond_style backmap/gromos`          | Lambda-weighted GROMOS quartic bonds                            |
