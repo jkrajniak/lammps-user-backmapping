@@ -38,16 +38,23 @@ namespace LAMMPS_NS {
  * E = K (rcb - d)^2 for d < rcb; the reaction force is shared equally by the
  * ring atoms.
  *
- * Each ring is evaluated once, by the processor that owns its first atom. The
- * atoms near the centroid are found with a cell grid over owned and ghost
- * atoms, not a neighbor list, because neighbor lists leave out special pairs
- * with weight 0 (an atom two bonds from a ring atom is one). Forces go into a
- * per-atom buffer on owned and ghost atoms, which a reverse communication of
- * the fix sums onto the owners, so the result does not depend on the
- * decomposition.
+ * A bond can sweep through a ring while both its atoms stay outside the
+ * wall, so each bond of the group (neither atom in the ring) also adds
+ * w(s) - w(d_near), w(x) = K (rw - x)^2 for x < rw, where s is the distance of
+ * the bond segment from the centroid and d_near that of the nearer bond atom.
+ * The term is zero when the nearest point of the segment is an end, so the
+ * energy is continuous; rw = rcb when a bond atom is bonded to the ring.
  *
- * f_ID is the energy, f_ID[1] the energy, f_ID[2] the number of atom-ring
- * contacts inside rc. The virial is not tallied.
+ * Each atom wall is evaluated by the owner of the atom, each bond wall by the
+ * owner of the atom that stores the bond, against the centroids of the rings
+ * whose atoms are all present as owned or ghost atoms (a periodic cell grid).
+ * Neighbor lists are not used: they leave out special pairs with weight 0. The
+ * forces go into a per-atom buffer on owned and ghost atoms, which a reverse
+ * communication of the fix sums onto the owners, so the result does not
+ * depend on the decomposition.
+ *
+ * f_ID is the energy, f_ID[1] the energy, f_ID[2] the number of atom-ring and
+ * bond-ring contacts inside the wall. The virial is not tallied.
  */
 
 class FixBackmapRingGuard : public Fix {
@@ -77,12 +84,19 @@ class FixBackmapRingGuard : public Fix {
   double energy_local, contacts_local;
   double sums[2];
   bool reduced;
-  std::vector<int> cell_head, cell_next;
-  double cell_lo[3];
+  std::vector<int> ring_idx;     // local index of each ring atom, as ring_atoms
+  std::vector<double> ring_cen;  // centroid of ring m at [3m, 3m+3)
+  std::vector<int> cell_head;    // first ring in each cell of the centroid grid
+  std::vector<int> cell_next;    // next ring in the same cell
+  double cell_lo[3], cell_w[3];
   int cell_n[3];
 
   void read_rings(const char *);
-  void build_cells();
+  void build_rings();
+  int cell_of(double, int) const;
+  void rings_near(const double *, const double *, std::vector<int> &) const;
+  int relation(int, tagint) const;
+  void push_ring(int, const double *);
 };
 
 }  // namespace LAMMPS_NS

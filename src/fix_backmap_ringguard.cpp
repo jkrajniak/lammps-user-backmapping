@@ -23,6 +23,7 @@
 #include "comm.h"
 #include "domain.h"
 #include "error.h"
+#include "force.h"
 #include "memory.h"
 #include "update.h"
 #include "utils.h"
@@ -48,7 +49,8 @@ FixBackmapRingGuard::FixBackmapRingGuard(LAMMPS *lmp, int narg, char **arg)
       sums{0.0, 0.0},
       reduced(false),
       cell_lo{0.0, 0.0, 0.0},
-      cell_n{0, 0, 0} {
+      cell_w{1.0, 1.0, 1.0},
+      cell_n{1, 1, 1} {
   if (narg != 7)
     error->all(FLERR,
                "Illegal fix backmap/ringguard command: fix ID group "
@@ -173,6 +175,8 @@ void FixBackmapRingGuard::init() {
   if (atom->map_style == Atom::MAP_NONE)
     error->all(FLERR,
                "fix backmap/ringguard requires an atom map, see atom_modify");
+  if (domain->triclinic)
+    error->all(FLERR, "fix backmap/ringguard needs an orthogonal box");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -188,43 +192,124 @@ void FixBackmapRingGuard::min_setup(int vflag) { post_force(vflag); }
 void FixBackmapRingGuard::min_post_force(int vflag) { post_force(vflag); }
 
 /* ----------------------------------------------------------------------
-   linked-list cell grid with cell size rc over owned and ghost group atoms
+   centroids of the rings whose atoms are all present on this proc (owned or
+   ghost), binned on a periodic grid of cell size >= rc over the global box
 ------------------------------------------------------------------------- */
 
-void FixBackmapRingGuard::build_cells() {
+void FixBackmapRingGuard::build_rings() {
   double **x = atom->x;
-  int *mask = atom->mask;
-  const int nall = atom->nlocal + atom->nghost;
+  const int nrings = static_cast<int>(ring_start.size()) - 1;
+  ring_idx.resize(ring_atoms.size());
+  ring_cen.resize(3 * nrings);
 
-  double lo[3] = {1.0e300, 1.0e300, 1.0e300};
-  double hi[3] = {-1.0e300, -1.0e300, -1.0e300};
-  for (int i = 0; i < nall; ++i) {
-    if (!(mask[i] & groupbit)) continue;
-    for (int k = 0; k < 3; ++k) {
-      lo[k] = std::min(lo[k], x[i][k]);
-      hi[k] = std::max(hi[k], x[i][k]);
-    }
-  }
-  long ncell = 1;
   for (int k = 0; k < 3; ++k) {
-    if (hi[k] < lo[k]) hi[k] = lo[k] = 0.0;
-    cell_lo[k] = lo[k];
-    cell_n[k] = static_cast<int>((hi[k] - lo[k]) / rc) + 1;
-    ncell *= cell_n[k];
+    cell_lo[k] = domain->boxlo[k];
+    cell_n[k] = std::max(1, static_cast<int>(domain->prd[k] / rc));
+    cell_w[k] = domain->prd[k] / cell_n[k];
   }
-  cell_head.assign(ncell, -1);
-  cell_next.assign(nall, -1);
-  for (int i = 0; i < nall; ++i) {
-    if (!(mask[i] & groupbit)) continue;
+  cell_head.assign(static_cast<long>(cell_n[0]) * cell_n[1] * cell_n[2], -1);
+  cell_next.assign(nrings, -1);
+
+  for (int m = 0; m < nrings; ++m) {
+    const int first = ring_start[m];
+    const int n = ring_start[m + 1] - first;
+    const int anchor = atom->map(ring_atoms[first]);
+    if (anchor < 0) continue;
+    double *cen = &ring_cen[3 * m];
+    cen[0] = cen[1] = cen[2] = 0.0;
+    bool present = true;
+    for (int k = 0; k < n && present; ++k) {
+      const int j = atom->map(ring_atoms[first + k]);
+      if (j < 0) {
+        present = false;
+        break;
+      }
+      ring_idx[first + k] = domain->closest_image(anchor, j);
+      for (int d = 0; d < 3; ++d) cen[d] += x[ring_idx[first + k]][d];
+    }
+    if (!present) continue;
     int c[3];
-    for (int k = 0; k < 3; ++k)
-      c[k] = std::min(static_cast<int>((x[i][k] - cell_lo[k]) / rc),
-                      cell_n[k] - 1);
+    for (int d = 0; d < 3; ++d) {
+      cen[d] /= n;
+      c[d] = cell_of(cen[d], d);
+    }
     const long id =
         (static_cast<long>(c[2]) * cell_n[1] + c[1]) * cell_n[0] + c[0];
-    cell_next[i] = cell_head[id];
-    cell_head[id] = i;
+    cell_next[m] = cell_head[id];
+    cell_head[id] = m;
   }
+}
+
+/* ----------------------------------------------------------------------
+   cell index of coordinate v along dimension d: wrapped when periodic,
+   clamped otherwise
+------------------------------------------------------------------------- */
+
+int FixBackmapRingGuard::cell_of(double v, int d) const {
+  int c = static_cast<int>(std::floor((v - cell_lo[d]) / cell_w[d]));
+  if (domain->periodicity[d]) {
+    c %= cell_n[d];
+    if (c < 0) c += cell_n[d];
+  } else {
+    c = std::min(std::max(c, 0), cell_n[d] - 1);
+  }
+  return c;
+}
+
+/* ----------------------------------------------------------------------
+   rings whose centroid may lie within the box [lo, hi] (absolute coords)
+------------------------------------------------------------------------- */
+
+void FixBackmapRingGuard::rings_near(const double *lo, const double *hi,
+                                     std::vector<int> &out) const {
+  out.clear();
+  int c0[3], nc[3];
+  for (int d = 0; d < 3; ++d) {
+    const int a =
+        static_cast<int>(std::floor((lo[d] - cell_lo[d]) / cell_w[d]));
+    const int b =
+        static_cast<int>(std::floor((hi[d] - cell_lo[d]) / cell_w[d]));
+    c0[d] = a;
+    nc[d] = std::min(b - a + 1, cell_n[d]);
+  }
+  for (int iz = 0; iz < nc[2]; ++iz) {
+    const int cz = cell_of(cell_lo[2] + (c0[2] + iz + 0.5) * cell_w[2], 2);
+    for (int iy = 0; iy < nc[1]; ++iy) {
+      const int cy = cell_of(cell_lo[1] + (c0[1] + iy + 0.5) * cell_w[1], 1);
+      for (int ix = 0; ix < nc[0]; ++ix) {
+        const int cx = cell_of(cell_lo[0] + (c0[0] + ix + 0.5) * cell_w[0], 0);
+        const long id =
+            (static_cast<long>(cz) * cell_n[1] + cy) * cell_n[0] + cx;
+        for (int m = cell_head[id]; m >= 0; m = cell_next[m]) out.push_back(m);
+      }
+    }
+  }
+  // a clamped non-periodic range can visit a cell twice
+  std::sort(out.begin(), out.end());
+  out.erase(std::unique(out.begin(), out.end()), out.end());
+}
+
+/* ----------------------------------------------------------------------
+   0 = not related to ring m, 1 = ring atom, 2 = atom bonded to the ring
+------------------------------------------------------------------------- */
+
+int FixBackmapRingGuard::relation(int m, tagint t) const {
+  for (int k = ring_start[m]; k < ring_start[m + 1]; ++k)
+    if (ring_atoms[k] == t) return 1;
+  for (int k = excl_start[m]; k < excl_start[m + 1]; ++k)
+    if (excl_atoms[k] == t) return 2;
+  return 0;
+}
+
+/* ----------------------------------------------------------------------
+   add force f to the ring atoms of ring m, shared equally
+------------------------------------------------------------------------- */
+
+void FixBackmapRingGuard::push_ring(int m, const double *f) {
+  const int first = ring_start[m];
+  const int n = ring_start[m + 1] - first;
+  for (int k = 0; k < n; ++k)
+    for (int d = 0; d < 3; ++d) fbuf[ring_idx[first + k]][d] += f[d] / n;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -242,90 +327,117 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
   const int nall = nlocal + atom->nghost;
   for (int i = 0; i < nall; ++i) fbuf[i][0] = fbuf[i][1] = fbuf[i][2] = 0.0;
 
-  build_cells();
+  build_rings();
 
   double **x = atom->x;
   tagint *tag = atom->tag;
-  const double rcsq = rc * rc;
-  const double rcbsq = rcb * rcb;
-  const int nrings = static_cast<int>(ring_start.size()) - 1;
-  int idx[MAX_RING];
+  int *mask = atom->mask;
+  std::vector<int> near;
 
-  for (int m = 0; m < nrings; ++m) {
-    const int first = ring_start[m];
-    const int n = ring_start[m + 1] - first;
-    const tagint *ring = &ring_atoms[first];
-    const tagint *excl = excl_atoms.data() + excl_start[m];
-    const int nexcl = excl_start[m + 1] - excl_start[m];
-
-    // the owner of the first ring atom evaluates the ring
-    const int anchor = atom->map(ring[0]);
-    if (anchor < 0 || anchor >= nlocal) continue;
-
-    double cen[3] = {0.0, 0.0, 0.0};
-    for (int k = 0; k < n; ++k) {
-      const int j = atom->map(ring[k]);
-      if (j < 0)
-        error->one(
-            FLERR,
-            "fix backmap/ringguard ring atom {} missing on proc {} at step {}",
-            ring[k], comm->me, update->ntimestep);
-      idx[k] = domain->closest_image(anchor, j);
-      cen[0] += x[idx[k]][0];
-      cen[1] += x[idx[k]][1];
-      cen[2] += x[idx[k]][2];
+  // atom walls, evaluated by the owner of the atom
+  for (int i = 0; i < nlocal; ++i) {
+    if (!(mask[i] & groupbit)) continue;
+    double lo[3], hi[3];
+    for (int d = 0; d < 3; ++d) {
+      lo[d] = x[i][d] - rc;
+      hi[d] = x[i][d] + rc;
     }
-    cen[0] /= n;
-    cen[1] /= n;
-    cen[2] /= n;
+    rings_near(lo, hi, near);
+    for (int m : near) {
+      const int rel = relation(m, tag[i]);
+      if (rel == 1) continue;
+      const double rw = rel == 2 ? rcb : rc;
+      double del[3];
+      for (int d = 0; d < 3; ++d) del[d] = x[i][d] - ring_cen[3 * m + d];
+      domain->minimum_image(FLERR, del);
+      const double r =
+          sqrt(del[0] * del[0] + del[1] * del[1] + del[2] * del[2]);
+      if (r >= rw || r == 0.0) continue;
+      const double gap = rw - r;
+      energy_local += kwall * gap * gap;
+      contacts_local += 1.0;
+      const double fpair = 2.0 * kwall * gap / r;
+      double f[3];
+      for (int d = 0; d < 3; ++d) {
+        f[d] = fpair * del[d];
+        fbuf[i][d] += f[d];
+        f[d] = -f[d];
+      }
+      push_ring(m, f);
+    }
+  }
 
-    int c[3];
-    for (int k = 0; k < 3; ++k)
-      c[k] = static_cast<int>(std::floor((cen[k] - cell_lo[k]) / rc));
-
-    for (int cz = c[2] - 1; cz <= c[2] + 1; ++cz) {
-      if (cz < 0 || cz >= cell_n[2]) continue;
-      for (int cy = c[1] - 1; cy <= c[1] + 1; ++cy) {
-        if (cy < 0 || cy >= cell_n[1]) continue;
-        for (int cx = c[0] - 1; cx <= c[0] + 1; ++cx) {
-          if (cx < 0 || cx >= cell_n[0]) continue;
-          const long id =
-              (static_cast<long>(cz) * cell_n[1] + cy) * cell_n[0] + cx;
-          for (int j = cell_head[id]; j >= 0; j = cell_next[j]) {
-            const double dx = x[j][0] - cen[0];
-            const double dy = x[j][1] - cen[1];
-            const double dz = x[j][2] - cen[2];
-            const double rsq = dx * dx + dy * dy + dz * dz;
-            if (rsq >= rcsq || rsq == 0.0) continue;
-            bool member = false;
-            for (int k = 0; k < n && !member; ++k) member = (tag[j] == ring[k]);
-            if (member) continue;
-            // atoms bonded to the ring sit about 0.18 nm from the centroid and
-            // are repelled only inside the smaller radius rcb
-            double rwall = rc;
-            for (int k = 0; k < nexcl; ++k)
-              if (tag[j] == excl[k]) {
-                rwall = rcb;
-                break;
-              }
-            if (rwall < rc && rsq >= rcbsq) continue;
-
-            const double r = sqrt(rsq);
-            const double gap = rwall - r;
-            energy_local += kwall * gap * gap;
-            contacts_local += 1.0;
-            // force on the atom along the centroid-atom axis, reaction shared
-            // equally by the ring atoms
-            const double fpair = 2.0 * kwall * gap / r;
-            fbuf[j][0] += fpair * dx;
-            fbuf[j][1] += fpair * dy;
-            fbuf[j][2] += fpair * dz;
-            for (int k = 0; k < n; ++k) {
-              fbuf[idx[k]][0] -= fpair * dx / n;
-              fbuf[idx[k]][1] -= fpair * dy / n;
-              fbuf[idx[k]][2] -= fpair * dz / n;
-            }
+  // bond walls: the distance s of the bond segment from the centroid, beyond
+  // the atom walls, E = w(s) - w(d_near) with w(x) = K (rw - x)^2 for x < rw
+  // and d_near the distance of the nearer bond atom. Zero when the nearest
+  // point of the segment is an end, so the energy is continuous. Evaluated
+  // once per bond, by the owner of the atom that stores it.
+  if (atom->molecular == Atom::MOLECULAR && atom->num_bond) {
+    int *num_bond = atom->num_bond;
+    int **bond_type = atom->bond_type;
+    tagint **bond_atom = atom->bond_atom;
+    const int newton_bond = force->newton_bond;
+    for (int i = 0; i < nlocal; ++i) {
+      if (!(mask[i] & groupbit)) continue;
+      for (int b = 0; b < num_bond[i]; ++b) {
+        if (bond_type[i][b] <= 0) continue;
+        const tagint tj = bond_atom[i][b];
+        if (!newton_bond && tag[i] > tj) continue;
+        int j = atom->map(tj);
+        if (j < 0)
+          error->one(FLERR,
+                     "fix backmap/ringguard bond atom {} missing on proc {} at "
+                     "step {}",
+                     tj, comm->me, update->ntimestep);
+        j = domain->closest_image(i, j);
+        if (!(mask[j] & groupbit)) continue;
+        double u[3], lo[3], hi[3];
+        for (int d = 0; d < 3; ++d) u[d] = x[j][d] - x[i][d];
+        domain->minimum_image(FLERR, u);
+        for (int d = 0; d < 3; ++d) {
+          lo[d] = x[i][d] + std::min(0.0, u[d]) - rc;
+          hi[d] = x[i][d] + std::max(0.0, u[d]) + rc;
+        }
+        const double uu = u[0] * u[0] + u[1] * u[1] + u[2] * u[2];
+        if (uu == 0.0) continue;
+        rings_near(lo, hi, near);
+        for (int m : near) {
+          const int ri = relation(m, tag[i]);
+          const int rj = relation(m, tj);
+          if (ri == 1 || rj == 1) continue;
+          const double rw = (ri == 2 || rj == 2) ? rcb : rc;
+          // centroid relative to atom i
+          double c[3];
+          for (int d = 0; d < 3; ++d) c[d] = ring_cen[3 * m + d] - x[i][d];
+          domain->minimum_image(FLERR, c);
+          const double t = (c[0] * u[0] + c[1] * u[1] + c[2] * u[2]) / uu;
+          if (t <= 0.0 || t >= 1.0) continue;
+          double p[3], dn[3];
+          for (int d = 0; d < 3; ++d) {
+            p[d] = t * u[d] - c[d];                 // centroid -> nearest point
+            dn[d] = (t < 0.5 ? 0.0 : u[d]) - c[d];  // centroid -> nearer atom
           }
+          const double s = sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2]);
+          if (s >= rw || s == 0.0) continue;
+          const double rn = sqrt(dn[0] * dn[0] + dn[1] * dn[1] + dn[2] * dn[2]);
+          const double gap = rw - s;
+          const double gapn = rn < rw ? rw - rn : 0.0;
+          energy_local += kwall * (gap * gap - gapn * gapn);
+          contacts_local += 1.0;
+          // w(s): pushes the nearest point out, shared by the bond atoms
+          const double fs = 2.0 * kwall * gap / s;
+          // -w(d_near): pulls the nearer atom back in by its atom wall force
+          const double fn = rn > 0.0 ? 2.0 * kwall * gapn / rn : 0.0;
+          const int near_atom = t < 0.5 ? i : j;
+          double fring[3];
+          for (int d = 0; d < 3; ++d) {
+            const double f = fs * p[d];
+            fbuf[i][d] += (1.0 - t) * f;
+            fbuf[j][d] += t * f;
+            fbuf[near_atom][d] -= fn * dn[d];
+            fring[d] = -f + fn * dn[d];
+          }
+          push_ring(m, fring);
         }
       }
     }
@@ -386,6 +498,8 @@ double FixBackmapRingGuard::compute_vector(int n) {
 
 double FixBackmapRingGuard::memory_usage() {
   return 3.0 * nmax * sizeof(double) +
-         (cell_head.capacity() + cell_next.capacity()) * sizeof(int) +
+         (cell_head.capacity() + cell_next.capacity() + ring_idx.capacity()) *
+             sizeof(int) +
+         ring_cen.capacity() * sizeof(double) +
          (ring_atoms.capacity() + excl_atoms.capacity()) * sizeof(tagint);
 }
