@@ -75,7 +75,7 @@ def test_cg_atoms_are_ignored() -> None:
 
 def test_files_and_units(tmp_path: Path) -> None:
     system = _system(12, [*_cycle([1, 2, 3, 4, 5, 6]), *_cycle([7, 8, 9, 10, 11, 12])])
-    assert write_ring_guard_files(tmp_path, system, 0.2, 41840.0) == 2
+    assert write_ring_guard_files(tmp_path, system, 0.2, 41840.0, 0.12) == 2
     rows = [
         line.split("|")[0].split()
         for line in (tmp_path / "rings.txt").read_text().splitlines()
@@ -87,7 +87,8 @@ def test_files_and_units(tmp_path: Path) -> None:
     # 41840 kJ/mol/nm^2 = 100 kcal/mol/A^2, 0.2 nm = 2 A
     assert float(fix[4]) == pytest.approx(100.0)
     assert float(fix[5]) == pytest.approx(2.0)
-    assert fix[6] == "rings.txt"
+    assert float(fix[6]) == pytest.approx(1.2)
+    assert fix[7] == "rings.txt"
     assert "unfix ring_guard" in (tmp_path / "ring_guard_release.lmp").read_text()
 
 
@@ -99,11 +100,14 @@ def test_no_files_without_rings(tmp_path: Path) -> None:
 def test_guard_is_off_by_default_and_must_be_positive() -> None:
     params = SimulationParams()
     assert params.ring_guard is None
-    assert params.ring_guard_k == pytest.approx(41840.0)
+    assert params.ring_guard_k == pytest.approx(418400.0)
+    assert params.ring_guard_bonded == pytest.approx(0.12)
     with pytest.raises(ValueError, match="ring_guard"):
         SimulationParams(ring_guard=-0.2)
     with pytest.raises(ValueError, match="ring_guard_k"):
         SimulationParams(ring_guard=0.2, ring_guard_k=0.0)
+    with pytest.raises(ValueError, match="ring_guard_bonded"):
+        SimulationParams(ring_guard=0.2, ring_guard_bonded=0.25)
 
 
 def test_positions_do_not_change_detection() -> None:
@@ -114,7 +118,7 @@ def test_positions_do_not_change_detection() -> None:
     assert len(find_rings(system)) == 1
 
 
-def test_atoms_bonded_to_a_ring_are_listed_as_not_repelled(tmp_path: Path) -> None:
+def test_atoms_bonded_to_a_ring_are_listed_after_the_bar(tmp_path: Path) -> None:
     # ring 1-6, hydrogen 7 on 1, CH2 8 on 4 with N 9 on 8: 7 and 8 are excluded, N 9 is not
     system = _system(9, [*_cycle([1, 2, 3, 4, 5, 6]), (1, 7), (4, 8), (8, 9)])
     assert write_ring_guard_files(tmp_path, system, 0.2, 41840.0) == 1

@@ -26,6 +26,8 @@ LMP_ENV = "BACKMAP_LMP"
 RC_NM = 0.2
 K_KJ = 41840.0
 RC = 2.0  # A
+RCB_NM = 0.12
+RCB = 1.2  # A
 K = 100.0  # kcal/mol/A^2
 CENTER = np.array([15.0, 15.0, 15.0])
 RING_RADIUS = 1.4
@@ -66,7 +68,7 @@ def _data(system: System) -> str:
 def _run(d: Path, system: System, ranks: int = 1) -> tuple[float, float, float, np.ndarray]:
     """Energy, contact count, pe and forces (id, fx, fy, fz) of one evaluation."""
     d.mkdir()
-    assert write_ring_guard_files(d, system, RC_NM, K_KJ) == 1
+    assert write_ring_guard_files(d, system, RC_NM, K_KJ, RCB_NM) == 1
     (d / "test.data").write_text(_data(system))
     (d / "in.test").write_text(
         f"units real\natom_style atomic\natom_modify map array\nboundary p p p\n"
@@ -153,10 +155,22 @@ def test_forces_do_not_depend_on_the_mpi_decomposition(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_atom_bonded_to_the_ring_is_not_repelled(tmp_path: Path) -> None:
-    """Atom 7 bonded to ring atom 1 is listed after | in rings.txt and feels nothing."""
-    system = _ring_and_atom(np.array([0.0, 0.0, 0.5]))
+def test_atom_bonded_to_the_ring_is_free_outside_rcb(tmp_path: Path) -> None:
+    """Atom 7 bonded to ring atom 1 (listed after | in rings.txt) at 1.5 A: inside rc, outside
+    rcb, as an axial hydrogen."""
+    system = _ring_and_atom(np.array([0.0, 0.0, 1.5]))
     system.bonds.append(LammpsBond(7, 1, 1, 7))
     energy, contacts, _, forces = _run(tmp_path / "b", system)
     assert (energy, contacts) == (0.0, 0.0)
     assert np.abs(forces[:, 1:]).max() == 0.0
+
+
+@pytest.mark.integration
+def test_atom_bonded_to_the_ring_is_pushed_out_inside_rcb(tmp_path: Path) -> None:
+    """A substituent folded into its own ring, 0.5 A from the centroid, gets K (rcb - d)^2."""
+    system = _ring_and_atom(np.array([0.0, 0.0, 0.5]))
+    system.bonds.append(LammpsBond(7, 1, 1, 7))
+    energy, contacts, _, forces = _run(tmp_path / "b", system)
+    assert contacts == 1.0
+    assert energy == pytest.approx(K * (RCB - 0.5) ** 2, rel=1e-10)
+    np.testing.assert_allclose(forces[6, 1:], [0.0, 0.0, 2.0 * K * (RCB - 0.5)], atol=1e-9)

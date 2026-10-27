@@ -40,6 +40,7 @@ FixBackmapRingGuard::FixBackmapRingGuard(LAMMPS *lmp, int narg, char **arg)
     : Fix(lmp, narg, arg),
       kwall(0.0),
       rc(0.0),
+      rcb(0.0),
       fbuf(nullptr),
       nmax(0),
       energy_local(0.0),
@@ -48,16 +49,19 @@ FixBackmapRingGuard::FixBackmapRingGuard(LAMMPS *lmp, int narg, char **arg)
       reduced(false),
       cell_lo{0.0, 0.0, 0.0},
       cell_n{0, 0, 0} {
-  if (narg != 6)
+  if (narg != 7)
     error->all(FLERR,
                "Illegal fix backmap/ringguard command: fix ID group "
-               "backmap/ringguard K rc file");
+               "backmap/ringguard K rc rcb file");
 
   kwall = utils::numeric(FLERR, arg[3], false, lmp);
   rc = utils::numeric(FLERR, arg[4], false, lmp);
+  rcb = utils::numeric(FLERR, arg[5], false, lmp);
   if (kwall < 0.0) error->all(FLERR, "fix backmap/ringguard K must be >= 0");
   if (rc <= 0.0) error->all(FLERR, "fix backmap/ringguard rc must be > 0");
-  read_rings(arg[5]);
+  if (rcb < 0.0 || rcb > rc)
+    error->all(FLERR, "fix backmap/ringguard rcb must be in [0, rc]");
+  read_rings(arg[6]);
 
   scalar_flag = 1;
   vector_flag = 1;
@@ -75,7 +79,7 @@ FixBackmapRingGuard::~FixBackmapRingGuard() { memory->destroy(fbuf); }
 
 /* ----------------------------------------------------------------------
    rank 0 reads one ring per line (atom IDs, then optionally | and the IDs of
-   atoms the ring does not repel) and broadcasts them
+   the atoms bonded to the ring, which get the radius rcb) and broadcasts them
 ------------------------------------------------------------------------- */
 
 void FixBackmapRingGuard::read_rings(const char *file) {
@@ -243,6 +247,7 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
   double **x = atom->x;
   tagint *tag = atom->tag;
   const double rcsq = rc * rc;
+  const double rcbsq = rcb * rcb;
   const int nrings = static_cast<int>(ring_start.size()) - 1;
   int idx[MAX_RING];
 
@@ -294,12 +299,19 @@ void FixBackmapRingGuard::post_force(int /*vflag*/) {
             if (rsq >= rcsq || rsq == 0.0) continue;
             bool member = false;
             for (int k = 0; k < n && !member; ++k) member = (tag[j] == ring[k]);
-            for (int k = 0; k < nexcl && !member; ++k)
-              member = (tag[j] == excl[k]);
             if (member) continue;
+            // atoms bonded to the ring sit about 0.18 nm from the centroid and
+            // are repelled only inside the smaller radius rcb
+            double rwall = rc;
+            for (int k = 0; k < nexcl; ++k)
+              if (tag[j] == excl[k]) {
+                rwall = rcb;
+                break;
+              }
+            if (rwall < rc && rsq >= rcbsq) continue;
 
             const double r = sqrt(rsq);
-            const double gap = rc - r;
+            const double gap = rwall - r;
             energy_local += kwall * gap * gap;
             contacts_local += 1.0;
             // force on the atom along the centroid-atom axis, reaction shared

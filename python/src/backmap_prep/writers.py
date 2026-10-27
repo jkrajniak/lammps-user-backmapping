@@ -909,7 +909,7 @@ def _write_robust_protocol(
             released = "include stereo_release.lmp\n"
     if sim.ring_guard:
         n_rings = write_ring_guard_files(
-            Path(f.name).parent, system, sim.ring_guard, sim.ring_guard_k
+            Path(f.name).parent, system, sim.ring_guard, sim.ring_guard_k, sim.ring_guard_bonded
         )
         if n_rings:
             f.write(f"# Keep atoms out of {n_rings} rings until the hybrid structure is written\n")

@@ -23,14 +23,18 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
 ## What changes
 
 - New LAMMPS style `fix backmap/ringguard`:
-  `fix ID group backmap/ringguard K rc file`. Each line of `file` lists the atom IDs of one ring.
-  The fix adds
+  `fix ID group backmap/ringguard K rc rcb file`. Each line of `file` lists the atom IDs of one
+  ring, then `|` and the atoms bonded to the ring. The fix adds
   E = K (rc - d)^2 for d < rc,
   where d is the distance of an atom of the fix group, not in the ring, from the ring centroid (an
-  unweighted mean of the ring atoms, a massless virtual site). The reaction force is shared
-  equally by the ring atoms, so total force is conserved. The wall is independent of lambda.
-  - Parallel: each ring is evaluated once, by the rank that owns its first atom, using a full
-    neighbor list of that atom. Forces are accumulated on owned and ghost atoms in a per-atom
+  unweighted mean of the ring atoms, a massless virtual site). An atom bonded to the ring adds
+  K (rcb - d)^2 for d < rcb instead: its normal place is 0.145 nm or more from the centroid (axial
+  hydrogens about 0.18 nm), and a substituent folded into its own ring sits at 0.07-0.11 nm. The
+  reaction force is shared equally by the ring atoms, so total force is conserved. The wall is
+  independent of lambda.
+  - Parallel: each ring is evaluated once, by the rank that owns its first atom. The atoms near
+    the centroid come from a cell grid over owned and ghost atoms, not a neighbor list, which
+    drops special pairs with weight 0 (an atom two bonds from a ring atom is one). Forces are accumulated on owned and ghost atoms in a per-atom
     buffer and summed onto the owners with a reverse communication of the fix, so they do not
     depend on the decomposition (the failure mode of `fix restrain`, see `fix backmap/stereo`).
   - Output: `f_ID` energy (with `fix_modify energy yes` part of pe, needed for minimization),
@@ -42,7 +46,10 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
     outside: stacked rings are about 0.35 nm apart and a C-H pointing at a ring puts the H about
     0.25 nm from the centroid, while an atom passing through a six-membered ring comes within
     0.14 nm.
-  - `simulation.ring_guard_k`: K in kJ/mol/nm^2 (default 41840, which is 100 kcal/mol/A^2).
+  - `simulation.ring_guard_k`: K in kJ/mol/nm^2 (default 418400, which is 1000 kcal/mol/A^2;
+    100 kcal/mol/A^2 let atoms through, see the prototype results).
+  - `simulation.ring_guard_bonded`: rcb in nm for the atoms bonded to a ring (default 0.12, at
+    most `ring_guard`).
   - Rings: all cycles of 5 to 7 atomistic atoms found from the bond graph (shortest cycle through
     each bond). Smaller rings (epoxide, cyclopropane) are left out: their centroid is closer than
     rc to their own substituents.
@@ -64,6 +71,17 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
    published runs (the small-r C-N features should vanish, nothing else should change beyond
    noise). Check PET (benzene rings) and melamine network (triazine) for threaded rings with and
    without the guard.
+
+## Prototype results (epoxy, `research/experiments/20261027_ring-guard-prototype.md`)
+
+- No guard: 10 threaded rings at the hybrid write (6 in an earlier run).
+- rc 0.20 nm, K 100 kcal/mol/A^2, all atoms: 3 threaded rings. Two N and one O passed the wall
+  during the heat spike at the start of the ramp (lambda 0.09-0.29). Most wall contacts were the
+  rings' own axial hydrogens, which the wall pushed outward.
+- rc 0.20 nm, K 1000, atoms bonded to the ring left out: no atom two or more bonds from a ring
+  passed. One defect remained, the ring amine N of an isophorone folded into its own ring
+  (0.085 nm), which the exclusion let through. Hence the radius rcb for bonded atoms.
+- rc 0.20 nm, K 1000, rcb 0.12 nm (the defaults): running.
 
 ## Out of scope
 

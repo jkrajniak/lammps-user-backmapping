@@ -91,7 +91,9 @@ def find_rings(system: System) -> list[tuple[int, ...]]:
     return sorted(rings)
 
 
-def write_ring_guard_files(directory: Path, system: System, radius_nm: float, k_kj: float) -> int:
+def write_ring_guard_files(
+    directory: Path, system: System, radius_nm: float, k_kj: float, bonded_nm: float = 0.12
+) -> int:
     """Write ``rings.txt`` and the fix that applies the guard; return the number of rings.
 
     ``ring_guard.lmp`` defines ``fix backmap/ringguard`` on ``at_atoms`` with
@@ -100,9 +102,9 @@ def write_ring_guard_files(directory: Path, system: System, radius_nm: float, k_
     there are no rings.
 
     Each line of ``rings.txt`` is a ring, then ``|`` and the atoms bonded to it (its hydrogens
-    and the first atom of each substituent). The ring does not repel them: an axial hydrogen of
-    cyclohexane sits about 0.18 nm from the centroid, and an atom one bond from the ring cannot
-    pass through it.
+    and the first atom of each substituent). They are repelled only inside ``bonded_nm``: an
+    axial hydrogen of cyclohexane sits about 0.18 nm from the centroid, while a substituent
+    folded into its own ring (seen in the epoxy example) comes within 0.07-0.11 nm.
     """
     rings = find_rings(system)
     if not rings:
@@ -110,9 +112,10 @@ def write_ring_guard_files(directory: Path, system: System, radius_nm: float, k_
     adjacency = _adjacency(system)
     k = units.energy(k_kj) / units.distance(1.0) ** 2
     rc = units.distance(radius_nm)
+    rcb = units.distance(bonded_nm)
     table = [
-        "# atom IDs of one ring per line, then | and the atoms bonded to it, which the ring"
-        " does not repel (backmap-prep, simulation.ring_guard)"
+        "# atom IDs of one ring per line, then | and the atoms bonded to it, which are repelled"
+        " only inside the smaller radius (backmap-prep, simulation.ring_guard)"
     ]
     for ring in rings:
         bonded = sorted({b for a in ring for b in adjacency[a]} - set(ring))
@@ -120,7 +123,7 @@ def write_ring_guard_files(directory: Path, system: System, radius_nm: float, k_
     (directory / "rings.txt").write_text("\n".join(table) + "\n")
     (directory / "ring_guard.lmp").write_text(
         "# ring guard: repulsive wall around ring centroids (backmap-prep, simulation.ring_guard)\n"
-        f"fix ring_guard at_atoms backmap/ringguard {k:.6g} {rc:.6g} rings.txt\n"
+        f"fix ring_guard at_atoms backmap/ringguard {k:.6g} {rc:.6g} {rcb:.6g} rings.txt\n"
         "fix_modify ring_guard energy yes\n"
         "# energy and number of atoms inside rc, every 1000 steps\n"
         'fix ring_guard_log all print 1000 "$(step) $(f_ring_guard[1]:%.6g) $(f_ring_guard[2]:%.0f)"'
