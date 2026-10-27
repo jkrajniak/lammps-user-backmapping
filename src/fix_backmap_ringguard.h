@@ -48,6 +48,10 @@ namespace LAMMPS_NS {
  * Each atom wall is evaluated by the owner of the atom, each bond wall by the
  * owner of the atom that stores the bond, against the centroids of the rings
  * whose atoms are all present as owned or ghost atoms (a periodic cell grid).
+ * A ring is built around the owned image of its first atom, or the ghost image
+ * nearest the subdomain, and skipped if its atoms are not all minimum images
+ * of that anchor (a ghost at the edge of the shell can see the other ring
+ * atoms only across the box).
  * Neighbor lists are not used: they leave out special pairs with weight 0. The
  * forces go into a per-atom buffer on owned and ghost atoms, which a reverse
  * communication of the fix sums onto the owners, so the result does not
@@ -93,6 +97,7 @@ class FixBackmapRingGuard : public Fix {
 
   void read_rings(const char *);
   void build_rings();
+  int ring_anchor(tagint) const;
   int cell_of(double, int) const;
   void rings_near(const double *, const double *, std::vector<int> &) const;
   int relation(int, tagint) const;

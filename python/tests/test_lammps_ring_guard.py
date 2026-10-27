@@ -77,18 +77,20 @@ def _data(system: System, bonds: bool = False) -> str:
 
 
 def _run(
-    d: Path, system: System, ranks: int = 1, bonds: bool = False
+    d: Path, system: System, ranks: int = 1, bonds: bool = False, ghost: float | None = None
 ) -> tuple[float, float, float, np.ndarray]:
     """Energy, contact count, pe and forces (id, fx, fy, fz) of one evaluation.
 
     With ``bonds`` the LAMMPS system has the bonds of ``system`` (bond_style zero), so the bond
-    walls act; otherwise atom style atomic, atom walls only.
+    walls act; otherwise atom style atomic, atom walls only. ``ghost`` sets the ghost cutoff (A).
     """
     d.mkdir()
     assert write_ring_guard_files(d, system, RC_NM, K_KJ, RCB_NM) == 1
     (d / "test.data").write_text(_data(system, bonds))
     style = "atom_style bond\nbond_style zero\n" if bonds else "atom_style atomic\n"
     coeff = "bond_coeff *\n" if bonds else ""
+    if ghost is not None:
+        coeff += f"comm_modify cutoff {ghost}\n"
     (d / "in.test").write_text(
         f"units real\n{style}atom_modify map array\nboundary p p p\n"
         f"processors {ranks} 1 1\nread_data test.data\n{coeff}group at_atoms type 1\n"
@@ -268,3 +270,37 @@ def test_bond_walls_do_not_depend_on_the_mpi_decomposition(tmp_path: Path) -> No
     assert serial[1] == parallel[1] == 2.0
     assert parallel[0] == pytest.approx(serial[0], rel=1e-12)
     np.testing.assert_allclose(parallel[3], serial[3], rtol=0, atol=1e-9)
+
+
+def _ring_across_the_box(center_x: float) -> System:
+    """The ring around (center_x, 15, 15), its first atom on the low-x side, wrapped into the box,
+    and a lattice of probe atoms (spacing 2.5 A) that any misplaced centroid would repel."""
+    center = np.array([center_x, 15.0, 15.0])
+    system = System(box=(30.0, 30.0, 30.0))
+    system.atom_types = [AtomTypeInfo(1, "C", 12.011, False), AtomTypeInfo(2, "X", 12.011, False)]
+    for k in range(6):
+        angle = np.pi + np.pi / 3.0 * k
+        pos = center + RING_RADIUS * np.array([np.cos(angle), np.sin(angle), 0.0])
+        system.atoms.append(LammpsAtom(k + 1, 1, 1, 0.0, *(pos % 30.0)))
+        system.bonds.append(LammpsBond(k + 1, 1, k + 1, (k + 1) % 6 + 1))
+    grid = np.arange(0.6, 30.0, 2.5)
+    for n, pos in enumerate(np.array(np.meshgrid(grid, grid, grid)).reshape(3, -1).T, 7):
+        system.atoms.append(LammpsAtom(n, 2, 1, 0.0, *pos))
+    return system
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(("ranks", "ghost"), [(2, 10.0), (4, 12.0)])
+def test_rings_across_the_box_with_a_ghost_shell_wider_than_half_of_it(
+    tmp_path: Path, ranks: int, ghost: float
+) -> None:
+    """Each rank sees some atoms twice, once on each side of the box. A ring built around a ghost
+    at the edge of the shell would take the other ring atoms from across the box, and its
+    centroid would land elsewhere and repel the probes there."""
+    for n, center_x in enumerate(np.arange(23.0, 31.0, 0.5)):
+        system = _ring_across_the_box(center_x)
+        serial = _run(tmp_path / f"s{n}", system, ghost=ghost)
+        parallel = _run(tmp_path / f"p{n}", system, ranks=ranks, ghost=ghost)
+        assert serial[1] > 0.0, center_x
+        assert parallel[:2] == pytest.approx(serial[:2], rel=1e-10), center_x
+        np.testing.assert_allclose(parallel[3], serial[3], rtol=0, atol=1e-8)

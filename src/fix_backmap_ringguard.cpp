@@ -213,7 +213,7 @@ void FixBackmapRingGuard::build_rings() {
   for (int m = 0; m < nrings; ++m) {
     const int first = ring_start[m];
     const int n = ring_start[m + 1] - first;
-    const int anchor = atom->map(ring_atoms[first]);
+    const int anchor = ring_anchor(ring_atoms[first]);
     if (anchor < 0) continue;
     double *cen = &ring_cen[3 * m];
     cen[0] = cen[1] = cen[2] = 0.0;
@@ -224,8 +224,16 @@ void FixBackmapRingGuard::build_rings() {
         present = false;
         break;
       }
-      ring_idx[first + k] = domain->closest_image(anchor, j);
-      for (int d = 0; d < 3; ++d) cen[d] += x[ring_idx[first + k]][d];
+      const int img = domain->closest_image(anchor, j);
+      // a ghost anchor at the edge of the ghost shell may only see images of
+      // the other ring atoms across the box: then the ring is not here
+      double del[3], mi[3];
+      for (int d = 0; d < 3; ++d) mi[d] = del[d] = x[img][d] - x[anchor][d];
+      domain->minimum_image(FLERR, mi);
+      for (int d = 0; d < 3; ++d)
+        if (fabs(mi[d] - del[d]) > 0.25 * domain->prd[d]) present = false;
+      ring_idx[first + k] = img;
+      for (int d = 0; d < 3; ++d) cen[d] += x[img][d];
     }
     if (!present) continue;
     int c[3];
@@ -238,6 +246,35 @@ void FixBackmapRingGuard::build_rings() {
     cell_next[m] = cell_head[id];
     cell_head[id] = m;
   }
+}
+
+/* ----------------------------------------------------------------------
+   local image of atom tag t to build its ring around: the owned atom if
+   there is one, otherwise the ghost image nearest the centre of the
+   subdomain, -1 if the atom is not on this proc
+------------------------------------------------------------------------- */
+
+int FixBackmapRingGuard::ring_anchor(tagint t) const {
+  int i = atom->map(t);
+  if (i < 0) return -1;
+  double **x = atom->x;
+  int *sametag = atom->sametag;
+  const int nlocal = atom->nlocal;
+  double mid[3];
+  for (int d = 0; d < 3; ++d)
+    mid[d] = 0.5 * (domain->sublo[d] + domain->subhi[d]);
+  int best = -1;
+  double best_r2 = 0.0;
+  for (; i >= 0; i = sametag[i]) {
+    if (i < nlocal) return i;
+    double r2 = 0.0;
+    for (int d = 0; d < 3; ++d) r2 += (x[i][d] - mid[d]) * (x[i][d] - mid[d]);
+    if (best < 0 || r2 < best_r2) {
+      best = i;
+      best_r2 = r2;
+    }
+  }
+  return best;
 }
 
 /* ----------------------------------------------------------------------
