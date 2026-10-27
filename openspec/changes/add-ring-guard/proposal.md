@@ -99,7 +99,7 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
   centroids in parallel (above), present since the first prototype, so the guard contact counts
   of all earlier guarded runs are inflated (the threading counts come from the dumps and stand).
   After the fix, energies equal an independent numpy recomputation on 1-8 ranks.
-- Defaults with bond walls and the anchor fix: running.
+- Defaults with bond walls and the anchor fix: no threaded ring, by atom distance or bond distance, from the end of the heat spike to the end of production (unguarded run: 31 atom and bond contacts). One seed so far.
 
 ## Out of scope
 
