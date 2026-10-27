@@ -9,6 +9,19 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`simulation.ring_guard` keeps atoms out of rings during the ramp** (robust protocol, on by
+  default, `ring_guard: null` switches it off). While the atomistic nonbonded repulsion is scaled down, a substituent can fold into its own
+  ring and leave a bond passing through it (ring spearing), as the CH2-NH2 arm of isophorone
+  diamine does in the epoxy example. The new `fix backmap/ringguard` puts a repulsive sphere
+  E = K (rc - d)^2 on the centroid of every ring of 5 to 7 atomistic atoms, from the first
+  minimization until the hybrid structure is written, and keeps bonds out of the same sphere
+  through the distance of each bond from the centroid, which catches a stretched bond sweeping through a ring while its
+  atoms stay outside. `simulation.ring_guard` is rc in nm,
+  `simulation.ring_guard_k` is K in kJ/mol/nm^2 (default 418400), and the atoms bonded to a ring
+  are repelled only inside `simulation.ring_guard_bonded` (default 0.12 nm), so the ring's own
+  hydrogens are left alone. The fix gives the same forces for any MPI decomposition and reports
+  the number of atom and bond contacts inside the sphere.
+
 - **Applications of the method as optional citations**: the How to Cite section of the README and the
   docs landing page list the published studies that applied the method: charged polymers,
   microphase-separated block copolymers, and topologies formed by polymerization.

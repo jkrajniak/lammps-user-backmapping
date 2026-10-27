@@ -63,6 +63,7 @@ nav:
       - fix backmap: components/fix-backmap.md
       - fix backmap/pairs: components/fix-backmap-pairs.md
       - fix backmap/stereo: components/fix-backmap-stereo.md
+      - fix backmap/ringguard: components/fix-backmap-ringguard.md
       - pair_style backmap: components/pair-backmap.md
       - Bond Styles: components/bond-styles.md
       - Angle Style: components/angle-styles.md

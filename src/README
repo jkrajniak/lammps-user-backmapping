@@ -18,6 +18,7 @@ Components:
                           Fmax in LAMMPS force units; optional ramp
   fix backmap/pairs     - explicit AT/CG cross pairs from pairs.dat
   fix backmap/stereo    - improper-dihedral restraints that keep stereocenters
+  fix backmap/ringguard - repulsive wall at ring centroids against ring spearing
   pair_style backmap    - lambda-weighted non-bonded pair forces
   pair_style lj/cut/coul/cut/ecap
                         - AT LJ energy-capped (E++ LennardJonesEnergyCapped);
