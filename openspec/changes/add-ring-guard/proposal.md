@@ -32,13 +32,24 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
   hydrogens about 0.18 nm), and a substituent folded into its own ring sits at 0.07-0.11 nm. The
   reaction force is shared equally by the ring atoms, so total force is conserved. The wall is
   independent of lambda.
-  - Parallel: each ring is evaluated once, by the rank that owns its first atom. The atoms near
-    the centroid come from a cell grid over owned and ghost atoms, not a neighbor list, which
-    drops special pairs with weight 0 (an atom two bonds from a ring atom is one). Forces are accumulated on owned and ghost atoms in a per-atom
+  - Bond walls: a stretched bond can sweep through a ring with both atoms outside rc (seen in the
+    prototype). Each bond with no atom in the ring adds E = w(s) - w(d_near), w(x) = K (rw - x)^2
+    for x < rw, when the point of the bond nearest the centroid (distance s) lies between its
+    atoms. d_near is the distance of the nearer bond atom, rw = rcb if a bond atom is bonded to
+    the ring, else rc. The term is zero when the nearest point is an end, so the energy is
+    continuous, and it adds only what the atom walls miss.
+  - Parallel: atom walls are evaluated by the owner of the atom, bond walls by the owner of the
+    atom storing the bond, against a cell grid of ring centroids, not a neighbor list, which
+    drops special pairs with weight 0 (an atom two bonds from a ring atom is one). Each rank
+    builds a ring around the owned image of its first atom, else the ghost image nearest its
+    subdomain, and skips it unless all ring atoms are minimum images of that anchor (a ghost at
+    the edge of the shell can see the other ring atoms only across the box, which placed phantom
+    centroids in the prototype). Forces are accumulated on owned and ghost atoms in a per-atom
     buffer and summed onto the owners with a reverse communication of the fix, so they do not
     depend on the decomposition (the failure mode of `fix restrain`, see `fix backmap/stereo`).
+    Orthogonal boxes only.
   - Output: `f_ID` energy (with `fix_modify energy yes` part of pe, needed for minimization),
-    `f_ID[1]` energy, `f_ID[2]` number of atom-ring contacts inside rc (a defect monitor).
+    `f_ID[1]` energy, `f_ID[2]` number of atom and bond contacts inside the wall.
   - Virial: not tallied in the prototype. The guard acts only in the backmapping stages, which
     run at constant volume; documented as a restriction.
 - New `backmap-prep` options (robust protocol, default off, output unchanged when off):
@@ -81,12 +92,17 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
 - rc 0.20 nm, K 1000, atoms bonded to the ring left out: no atom two or more bonds from a ring
   passed. One defect remained, the ring amine N of an isophorone folded into its own ring
   (0.085 nm), which the exclusion let through. Hence the radius rcb for bonded atoms.
-- rc 0.20 nm, K 1000, rcb 0.12 nm (the defaults): running.
+- rc 0.20 nm, K 1000, rcb 0.12 nm (the defaults): 1 threaded ring. No atom passed the walls; a
+  stretched bond (0.45-0.60 nm at lambda = 0) swept through a ring with both atoms outside rc,
+  was held at the wall and fell in after the release. Hence the bond walls.
+- Bond walls added: the run heated to 950 K in the NVT stage and crashed. Cause: phantom ring
+  centroids in parallel (above), present since the first prototype, so the guard contact counts
+  of all earlier guarded runs are inflated (the threading counts come from the dumps and stand).
+  After the fix, energies equal an independent numpy recomputation on 1-8 ranks.
+- Defaults with bond walls and the anchor fix: running.
 
 ## Out of scope
 
-- Bonds sliding over a ring edge with both atoms outside the ring (not observed; would need a
-  guard along the ring bonds).
 - CG-level phantoms between beads (the 2018 remedy); no current example splits a ring over beads.
 - Repair of defects in an existing backmapped structure.
 - Virial contribution (needed only if the guard is kept on under constant pressure).
@@ -99,4 +115,8 @@ is atomistic and intramolecular, so the phantom has to act on atoms.
 - `python/tests/test_lammps_ring_guard.py` (integration, `BACKMAP_LMP`): zero energy and force
   for an atom outside rc; energy K(rc - d)^2 and force along the centroid-atom axis for an atom
   inside; total force zero; ring members never repel each other; forces identical for serial and
-  2-rank runs with the ring split over the ranks; the contact count.
+  2-rank runs with the ring split over the ranks; the contact count; bonded atoms inside and
+  outside rcb; a bond through the ring with both atoms outside, a bond beside it, the bond and
+  atom forces against finite differences, bond walls serial vs 2 ranks; a ring swept across the
+  periodic boundary in a lattice of probe atoms with a ghost shell wider than half the box,
+  serial vs 2 and 4 ranks.
