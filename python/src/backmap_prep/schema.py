@@ -477,10 +477,11 @@ class SimulationParams(BaseModel):
     # robust protocol: repulsive wall E = K (rc - d)^2 around the centroid of every ring of 5 to 7
     # atomistic atoms, from the first minimization until the hybrid structure is written. Keeps
     # substituents from passing through rings while the atomistic repulsion is scaled down.
-    # ring_guard is rc in nm (None = off), ring_guard_k is K in kJ/mol/nm^2 (1000 kcal/mol/A^2).
+    # On by default: ring_guard is rc in nm (None = off), ring_guard_k is K in kJ/mol/nm^2
+    # (1000 kcal/mol/A^2). Systems without rings get no guard.
     # Atoms bonded to a ring normally sit 0.15-0.25 nm from its centroid and are repelled only
     # inside ring_guard_bonded (nm), which catches a substituent folded into its own ring.
-    ring_guard: float | None = Field(default=None, gt=0.0)
+    ring_guard: float | None = Field(default=0.2, gt=0.0)
     ring_guard_k: float = Field(default=418400.0, gt=0.0)
     ring_guard_bonded: float = Field(default=0.12, ge=0.0)
     em_steps: int = 0

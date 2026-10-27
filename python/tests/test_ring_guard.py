@@ -97,9 +97,10 @@ def test_no_files_without_rings(tmp_path: Path) -> None:
     assert not list(tmp_path.iterdir())
 
 
-def test_guard_is_off_by_default_and_must_be_positive() -> None:
+def test_guard_is_on_by_default_and_must_be_positive() -> None:
     params = SimulationParams()
-    assert params.ring_guard is None
+    assert params.ring_guard == pytest.approx(0.2)
+    assert SimulationParams(ring_guard=None).ring_guard is None
     assert params.ring_guard_k == pytest.approx(418400.0)
     assert params.ring_guard_bonded == pytest.approx(0.12)
     with pytest.raises(ValueError, match="ring_guard"):

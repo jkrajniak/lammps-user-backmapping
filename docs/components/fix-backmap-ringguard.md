@@ -40,7 +40,8 @@ continuous. The ring atoms share every reaction force equally, so the total forc
 walls do not depend on lambda.
 
 `backmap-prep` writes the ring list (`rings.txt`) and the fix (`ring_guard.lmp`, on `at_atoms`)
-when `simulation.ring_guard` is set (robust protocol). The fix is on from the first minimization
+in the robust protocol whenever the system has rings: `simulation.ring_guard` defaults to 0.20 nm,
+and `ring_guard: null` switches the guard off. The fix is on from the first minimization
 until the hybrid structure is written, then `ring_guard_release.lmp` removes it. The rings are all
 cycles of 5 to 7 atomistic atoms (the shortest cycle through each bond).
 

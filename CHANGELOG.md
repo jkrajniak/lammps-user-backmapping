@@ -9,8 +9,8 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
-- **`simulation.ring_guard` keeps atoms out of rings during the ramp** (robust protocol, default
-  off). While the atomistic nonbonded repulsion is scaled down, a substituent can fold into its own
+- **`simulation.ring_guard` keeps atoms out of rings during the ramp** (robust protocol, on by
+  default, `ring_guard: null` switches it off). While the atomistic nonbonded repulsion is scaled down, a substituent can fold into its own
   ring and leave a bond passing through it (ring spearing), as the CH2-NH2 arm of isophorone
   diamine does in the epoxy example. The new `fix backmap/ringguard` puts a repulsive wall
   E = K (rc - d)^2 around the centroid of every ring of 5 to 7 atomistic atoms, from the first
