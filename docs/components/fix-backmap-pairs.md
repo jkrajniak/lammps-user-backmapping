@@ -64,6 +64,22 @@ Each MPI rank evaluates every pair with at least one of its own atoms and
 applies the force to its own atoms only, so the result does not depend on
 the domain decomposition or on `newton_pair`.
 
+## Core guard
+
+OPLS-AA gives polar hydrogens no LJ, so a 1-4 pair of such a hydrogen and a negative atom has
+only the scaled Coulomb attraction. In the robust protocol `backmap-prep` adds a second instance
+of this fix, `core_guard` with the file `core_guard.dat`, that gives every 1-4 pair with
+opposite charges, a Coulomb scale above 0, and no LJ term a four-column (LJ only) line with
+sigma `simulation.core_guard` (default 0.15 nm) and epsilon `simulation.core_guard_epsilon`
+(default 0.2092 kJ/mol). It is on from the first minimization until the hybrid structure is
+written, then `core_guard_release.lmp` removes it, so the production force field is the original
+one. `core_guard: null` switches it off.
+
+Without it the acid H of the PET example falls onto its own carbonyl O during the hot early
+stages (the published O=C-OH angle is soft), the capped forces hold the collapsed pair through
+the ramp, and the energy it releases when it comes apart heats the acid hydrogens. At the normal
+distance of that pair (0.22 nm) the guard adds -0.02 kcal/mol, at 0.10 nm +24 kcal/mol.
+
 ## Related
 
 - [fix backmap](fix-backmap.md)
