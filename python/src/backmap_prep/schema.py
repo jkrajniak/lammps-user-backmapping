@@ -484,6 +484,13 @@ class SimulationParams(BaseModel):
     ring_guard: float | None = Field(default=0.2, gt=0.0)
     ring_guard_k: float = Field(default=418400.0, gt=0.0)
     ring_guard_bonded: float = Field(default=0.12, ge=0.0)
+    # robust protocol: LJ core 4 eps ((sigma/r)^12 - (sigma/r)^6) on every 1-4 pair that has
+    # Coulomb attraction but no LJ term (a polar hydrogen and a negative atom in OPLS-AA), from
+    # the first minimization until the hybrid structure is written. Keeps the pair from
+    # collapsing while the capped, hot early stages run. On by default: core_guard is sigma in
+    # nm (None = off), core_guard_epsilon is epsilon in kJ/mol (0.05 kcal/mol).
+    core_guard: float | None = Field(default=0.15, gt=0.0)
+    core_guard_epsilon: float = Field(default=0.2092, gt=0.0)
     em_steps: int = 0
     em_gamma: float = 0.0001
     em_ftol: float = 10.0

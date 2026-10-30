@@ -15,6 +15,7 @@ from backmap_prep.builder import (
     LammpsAngle,
     LammpsAtom,
     LammpsBond,
+    LammpsCrossPair,
     LammpsDihedral,
     PairTypeInfo,
     System,
@@ -696,6 +697,26 @@ def test_robust_capforce_active_until_production(tmp_path: Path) -> None:
     assert cap < text.index("minimize")
     release = text.index("unfix cap")
     assert text.index("write_data test_hybrid.data") < release < text.index("# Production")
+
+
+def test_robust_protocol_applies_the_guard_until_the_hybrid_structure(tmp_path: Path) -> None:
+    system = _make_system()
+    system.atoms[1].charge, system.atoms[2].charge = -0.4, 0.4
+    system.has_cross_pairs = True
+    system.cross_pairs = [LammpsCrossPair(2, 3, 0.0, 0.0, qq_scale=0.5)]
+    settings = _make_settings("robust")
+    settings.simulation.production_steps = 1000
+    path = tmp_path / "in.test"
+    write_lammps_input(system, settings, path, "test.data")
+    text = read_input_with_includes(path)
+    guard = text.index("fix core_guard all backmap/pairs")
+    assert guard < text.index("minimize")
+    release = text.index("unfix core_guard")
+    assert text.index("write_data test_hybrid.data") < release < text.index("# Production")
+
+    settings.simulation.core_guard = None
+    write_lammps_input(system, settings, path, "test.data")
+    assert "core_guard" not in read_input_with_includes(path)
 
 
 def test_cg_pair_without_a_table_is_an_error(tmp_path: Path) -> None:

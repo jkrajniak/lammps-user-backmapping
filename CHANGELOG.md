@@ -9,6 +9,17 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ### Added
 
+- **`simulation.core_guard` keeps attracting 1-4 pairs from collapsing during the backmapping**
+  (robust protocol, on by default, `core_guard: null` switches it off). OPLS-AA polar hydrogens
+  have no LJ, so the 1-4 pair of the acid H and its carbonyl O in the PET example has only the
+  Coulomb attraction. During the hot early stages the H fell onto the O in up to 100 of 243 COOH
+  groups, the capped forces held the pairs, and when they came apart after the ramp they heated
+  the acid hydrogens and crashed the 4-rank run after the cap release. Every 1-4 pair with
+  opposite charges and no LJ term now gets an LJ core (a second `fix backmap/pairs`, sigma
+  `simulation.core_guard` = 0.15 nm, epsilon `simulation.core_guard_epsilon` = 0.2092 kJ/mol)
+  from the first minimization until the hybrid structure is written. The production force field
+  is unchanged.
+
 - **`simulation.ring_guard` keeps atoms out of rings during the ramp** (robust protocol, on by
   default, `ring_guard: null` switches it off). While the atomistic nonbonded repulsion is scaled down, a substituent can fold into its own
   ring and leave a bond passing through it (ring spearing), as the CH2-NH2 arm of isophorone
