@@ -1,0 +1,8 @@
+{
+  "upload_type": "software",
+  "license": "gpl-3.0",
+  "creators": [
+    {"name": "Krajniak, Jakub"},
+    {"name": "Zhang, Zidan", "affiliation": "The University of Texas at Austin"}
+  ]
+}
