@@ -5,7 +5,7 @@ still scaled down, so a substituent can fold into its own ring and a bond ends u
 through it (ring spearing). Once the full potential is on, the defect cannot undo itself. In the
 epoxy example the CH2-NH2 arm of isophorone diamine does this
 (``research/experiments/20261027_rim135-small-r-peaks.md``). ``simulation.ring_guard`` puts a
-repulsive wall of radius rc around the centroid of every ring (``fix backmap/ringguard``) from the
+repulsive sphere of radius rc on the centroid of every ring (``fix backmap/ringguard``) from the
 first minimization until the hybrid structure is written.
 """
 
@@ -122,7 +122,7 @@ def write_ring_guard_files(
         table.append(" ".join(map(str, ring)) + " | " + " ".join(map(str, bonded)))
     (directory / "rings.txt").write_text("\n".join(table) + "\n")
     (directory / "ring_guard.lmp").write_text(
-        "# ring guard: repulsive wall around ring centroids (backmap-prep, simulation.ring_guard)\n"
+        "# ring guard: repulsive sphere on each ring centroid (backmap-prep, simulation.ring_guard)\n"
         f"fix ring_guard at_atoms backmap/ringguard {k:.6g} {rc:.6g} {rcb:.6g} rings.txt\n"
         "fix_modify ring_guard energy yes\n"
         "# energy and number of atoms inside rc, every 1000 steps\n"

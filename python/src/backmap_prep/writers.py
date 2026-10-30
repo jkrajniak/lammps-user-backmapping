@@ -8,6 +8,7 @@ from typing import IO, Any
 
 from . import units
 from .builder import DihedralTypeInfo, System
+from .core_guard import write_core_guard_files
 from .network.pbc import max_interaction_extent, validate_bond_geometry
 from .ring_guard import write_ring_guard_files
 from .schema import Settings, SimulationParams
@@ -915,6 +916,17 @@ def _write_robust_protocol(
             f.write(f"# Keep atoms out of {n_rings} rings until the hybrid structure is written\n")
             f.write("include ring_guard.lmp\n\n")
             released += "include ring_guard_release.lmp\n"
+    if sim.core_guard:
+        n_core = write_core_guard_files(
+            Path(f.name).parent, system, sim.core_guard, sim.core_guard_epsilon
+        )
+        if n_core:
+            f.write(
+                f"# LJ core on {n_core} attracting 1-4 pairs without LJ until the hybrid"
+                " structure is written\n"
+            )
+            f.write("include core_guard.lmp\n\n")
+            released += "include core_guard_release.lmp\n"
 
     f.write("compute at_temp at_atoms temp\n")
     f.write(f"thermo {sim.energy_interval}\n")
