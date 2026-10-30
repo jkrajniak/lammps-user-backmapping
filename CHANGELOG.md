@@ -7,6 +7,8 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-30
+
 ### Added
 
 - **`simulation.core_guard` keeps attracting 1-4 pairs from collapsing during the backmapping**
@@ -40,6 +42,7 @@ and this project adheres to [Conventional Commits](https://www.conventionalcommi
 ### Changed
 
 - **Authors**: the README gives a contact address for Zidan Zhang.
+- **Zenodo metadata**: `.zenodo.json` lists both authors, so every archived release carries them.
 - **Citation**: the README BibTeX entry of the 2016 *J. Chem. Theory Comput.* paper now has its
   volume, issue, pages, and DOI.
 
